@@ -1,0 +1,16 @@
+/* Dodatkowe style poza Tailwind */
+@media print {
+  .no-print { display: none !important; }
+}
+
+input[type="range"] {
+  width: 100%;
+}
+
+/* Dokumenty do druku */
+.doc h1 { font-size:20px; font-weight:700; margin:0 0 8px }
+.doc h2 { font-size:14px; color:#555; margin:0 0 10px }
+.doc h3 { font-size:12px; font-weight:700; margin:14px 0 6px }
+.doc .signs { display:flex; gap:40px; justify-content:space-between; margin-top:30px }
+.doc table.check { width:100%; border-collapse:collapse; margin-top:8px }
+.doc table.check td, .doc table.check th { border:1px solid #ccc; padding:6px }
