@@ -369,10 +369,40 @@ async function renderDay() {
   if (!state.selectedFacility) return;
   const d = state.currentDate;
   $("#dateLabel").textContent = fmtDateLabel(d);
+
   const hoursEl = $("#hours");
   hoursEl.innerHTML = "";
 
+  // pobierz rezerwacje dla dnia
   const bookings = await fetchBookingsForDay(state.selectedFacility.id, d);
+
+  if (state.mode === "day") {
+    // ⬇️ TRYB DNI: zero siatki godzin – pokazujemy tylko listę rezerwacji w danym dniu
+    if (!bookings.length) {
+      const empty = document.createElement("div");
+      empty.className = "border rounded-xl p-4 bg-white text-gray-600";
+      empty.textContent = "Brak rezerwacji w tym dniu.";
+      hoursEl.appendChild(empty);
+    } else {
+      bookings.forEach((b) => {
+        const s = new Date(b.start_time);
+        const e = new Date(b.end_time);
+        const item = document.createElement("div");
+        item.className = "border rounded-xl p-3 bg-white";
+        const timeLabel =
+          `${s.toLocaleTimeString("pl-PL",{hour:"2-digit",minute:"2-digit"})}` +
+          `–${e.toLocaleTimeString("pl-PL",{hour:"2-digit",minute:"2-digit"})}`;
+        item.innerHTML = `
+          <div class="text-sm font-semibold">${b.title || "Rezerwacja"}</div>
+          <div class="text-xs text-gray-600">${timeLabel}</div>
+        `;
+        hoursEl.appendChild(item);
+      });
+    }
+    return; // nic więcej nie robimy w trybie dziennym
+  }
+
+  // ⬇️ TRYB GODZINY: siatka godzin ograniczona sliderami
   const busy = new Array(24).fill(null);
   bookings.forEach((b) => {
     const s = new Date(b.start_time);
@@ -384,6 +414,7 @@ async function renderDay() {
     for (let h = from; h < to; h++) busy[h] = b.title || "Zajęte";
   });
 
+  const pad2 = (n) => String(n).padStart(2, "0");
   const { start, end } = getVisibleHourRange();
   for (let h = start; h < end; h++) {
     const label = `${pad2(h)}:00`;
@@ -396,16 +427,8 @@ async function renderDay() {
       (booked ? `<div class="text-xs">${title}</div>` : `<div class="text-xs text-gray-500">wolne</div>`);
     hoursEl.appendChild(cell);
   }
-
-  // Ustaw domyślne wartości pól formularza (dla trybu dziennego)
-  const yyyy = d.getFullYear(), mm = pad2(d.getMonth()+1), dd = pad2(d.getDate());
-  const st = document.querySelector('input[name="start_time"]');
-  const et = document.querySelector('input[name="end_time"]');
-  const dayOnly = document.querySelector('input[name="day_only"]');
-  if (st) st.value = `${yyyy}-${mm}-${dd}T12:00`;
-  if (et) et.value = `${yyyy}-${mm}-${dd}T14:00`;
-  if (dayOnly) dayOnly.value = `${yyyy}-${mm}-${dd}`;
 }
+
 
 /* === Zdarzenia UI (nawigacja dni, tryb, suwaki) === */
 document.addEventListener("click", (e) => {
