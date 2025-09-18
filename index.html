@@ -3,15 +3,14 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Rezerwacje świetlic gminnych — MVP v3 (split config)</title>
+  <title>Rezerwacje świetlic gminnych — MVP v3</title>
+  <!-- Tailwind (CDN) -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <style>
-    @media print { .no-print { display: none !important } }
-    input[type="range"]{width:100%}
-  </style>
+  <!-- Dodatkowe style własne -->
+  <link rel="stylesheet" href="./styles.css">
 </head>
 <body class="bg-gray-50 text-gray-900">
+  <!-- (1) Nagłówek -->
   <header class="p-4 bg-white shadow">
     <div class="max-w-6xl mx-auto flex items-center justify-between">
       <h1 class="text-2xl font-bold">Świetlice gminne — rezerwacje</h1>
@@ -19,27 +18,16 @@
     </div>
   </header>
 
+  <!-- (2) Layout: lewa kolumna (sidebar) + prawa kolumna (main) -->
   <main class="max-w-6xl mx-auto p-4 grid grid-cols-1 lg:grid-cols-3 gap-6">
-    <!-- LEWA KOLUMNA -->
+    <!-- LEWA KOLUMNA: wyszukiwarka + lista + mapa -->
     <section class="lg:col-span-1 space-y-3">
-      <div class="bg-white rounded-xl shadow p-4">
-        <h2 class="font-semibold mb-3">Wyszukaj</h2>
-        <input id="q" class="w-full border rounded-xl px-3 py-2" placeholder="Szukaj po nazwie/mieście..." />
-      </div>
-      <div class="bg-white rounded-xl shadow p-4">
-        <h2 class="font-semibold mb-3">Świetlice (<span id="count">0</span>)</h2>
-        <ul id="facilities" class="space-y-3"></ul>
-      </div>
-      <div id="mapCard" class="hidden bg-white rounded-xl shadow p-4">
-        <h3 class="font-semibold mb-3">Mapa</h3>
-        <div id="map" style="width:100%;height:280px;border-radius:12px;"></div>
-      </div>
+      <div id="sidebar"></div>
     </section>
 
-    <!-- PRAWA KOLUMNA -->
+    <!-- PRAWA KOLUMNA: nagłówek obiektu -> selektory -> formularz -> kalendarz -> dokumenty -->
     <section class="lg:col-span-2 space-y-4">
-      <!-- tu nagłówek świetlicy, wybór dni/godzin, formularz rezerwacji, kalendarz, lista dokumentów -->
-      <div id="app-root"></div>
+      <div id="main"></div>
     </section>
   </main>
 
@@ -47,9 +35,9 @@
     MVP: statyczny frontend + Supabase
   </footer>
 
-  <!-- konfiguracja (SUPABASE_URL, klucze) -->
-  <script src="./supabase-config.js"></script>
-  <!-- cała logika aplikacji -->
-  <script src="./app.js"></script>
+  <!-- (3) Konfiguracja Supabase/Maps -->
+  <script src="./supabase-config.js" defer></script>
+  <!-- (4) Aplikacja (render + logika) -->
+  <script src="./app.js" defer></script>
 </body>
 </html>
