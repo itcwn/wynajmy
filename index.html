@@ -1,11 +1,13 @@
- <!doctype html>
+<!doctype html>
 <html lang="pl">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Rezerwacje świetlic gminnych — MVP (HTML print)</title>
+  <title>Rezerwacje świetlic gminnych — MVP v2 (single file)</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Google Maps (opcjonalnie — podmień klucz) -->
+  <script async defer src="https://maps.googleapis.com/maps/api/js?key=GOOGLE_MAPS_API_KEY&callback=initMapsApi"></script>
   <style>
     .doc h1{font-size:20px;font-weight:700;margin:0 0 8px}
     .doc h2{font-size:14px;color:#555;margin:0 0 10px}
@@ -13,30 +15,23 @@
     .doc .signs{display:flex;gap:40px;justify-content:space-between;margin-top:30px}
     .doc table.check{width:100%;border-collapse:collapse;margin-top:8px}
     .doc table.check td,.doc table.check th{border:1px solid #ccc;padding:6px}
-    @media print{
-      body{background:#fff}
-      .no-print{display:none !important}
-    }
+    @media print{ .no-print{display:none !important} }
   </style>
 </head>
 <body class="bg-gray-50 text-gray-900">
   <header class="p-4 md:p-6 bg-white shadow">
     <div class="max-w-6xl mx-auto flex items-center justify-between">
       <h1 class="text-2xl font-bold">Świetlice gminne — rezerwacje</h1>
-      <div class="text-sm text-gray-500">MVP — druk dokumentów w HTML</div>
+      <div class="text-sm text-gray-500">MVP v2 — wybór dnia, anulowanie, mapka</div>
     </div>
   </header>
 
   <main class="max-w-6xl mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
-    <!-- Lista i filtry -->
+    <!-- Lista (bez filtra pojemności) -->
     <section class="lg:col-span-1 space-y-3">
       <div class="bg-white rounded-2xl shadow p-4">
-        <h2 class="font-semibold mb-3">Filtry</h2>
-        <div class="space-y-2">
-          <input id="q" class="w-full border rounded-xl px-3 py-2" placeholder="Szukaj po nazwie/mieście..."/>
-          <label class="block text-sm">Pojemność (min)</label>
-          <input id="cap" type="number" min="0" class="w-full border rounded-xl px-3 py-2" placeholder="np. 50"/>
-        </div>
+        <h2 class="font-semibold mb-3">Wyszukaj</h2>
+        <input id="q" class="w-full border rounded-xl px-3 py-2" placeholder="Szukaj po nazwie/mieście..." />
       </div>
       <div class="bg-white rounded-2xl shadow p-4">
         <h2 class="font-semibold mb-3">Świetlice (<span id="count">0</span>)</h2>
@@ -44,7 +39,7 @@
       </div>
     </section>
 
-    <!-- Szczegóły, kalendarz i rezerwacja -->
+    <!-- Szczegóły, kalendarz, mapa i rezerwacja -->
     <section class="lg:col-span-2 space-y-4">
       <div id="facilityCard" class="hidden bg-white rounded-2xl shadow overflow-hidden">
         <div class="grid grid-cols-1 md:grid-cols-3">
@@ -64,17 +59,34 @@
         </div>
       </div>
 
-      <div id="calendar" class="hidden bg-white rounded-2xl shadow p-4">
-        <div class="flex items-center justify-between mb-3">
-          <div class="flex items-center gap-2">
-            <button id="prevDay" class="px-3 py-2 rounded-xl border">◀</button>
-            <button id="todayBtn" class="px-3 py-2 rounded-xl border">Dziś</button>
-            <button id="nextDay" class="px-3 py-2 rounded-xl border">▶</button>
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div id="calendar" class="hidden bg-white rounded-2xl shadow p-4">
+          <div class="flex items-center justify-between mb-3 gap-2 flex-wrap">
+            <div class="flex items-center gap-2">
+              <button id="prevDay" class="px-3 py-2 rounded-xl border">◀</button>
+              <button id="todayBtn" class="px-3 py-2 rounded-xl border">Dziś</button>
+              <button id="nextDay" class="px-3 py-2 rounded-xl border">▶</button>
+              <input id="dayPicker" type="date" class="border rounded-xl px-3 py-2"/>
+            </div>
+            <div class="flex items-center gap-3">
+              <span class="text-sm">Tryb:</span>
+              <label class="inline-flex items-center gap-2 text-sm">
+                <input type="radio" name="mode" value="day" checked> Dni
+              </label>
+              <label class="inline-flex items-center gap-2 text-sm">
+                <input type="radio" name="mode" value="hour"> Godziny
+              </label>
+            </div>
           </div>
-          <div class="text-lg font-semibold" id="dateLabel"></div>
+          <div class="text-lg font-semibold mb-2" id="dateLabel"></div>
+          <div id="hours" class="grid grid-cols-1 sm:grid-cols-2 gap-2"></div>
+          <p class="text-xs text-gray-500 mt-2">W trybie „Dni” rezerwacja obejmuje cały dzień (00:00–23:59). W trybie „Godziny” wybierasz dokładny zakres godzin.</p>
         </div>
-        <div id="hours" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2"></div>
-        <p class="text-xs text-gray-500 mt-2">Widok dzienny 00–23.</p>
+
+        <div id="mapCard" class="hidden bg-white rounded-2xl shadow p-4">
+          <h3 class="font-semibold mb-3">Mapa</h3>
+          <div id="map" style="width:100%;height:360px;border-radius:12px;"></div>
+        </div>
       </div>
 
       <div id="booking" class="hidden bg-white rounded-2xl shadow p-4">
@@ -88,13 +100,17 @@
             <label class="text-sm">Rodzaj</label>
             <select name="event_type_id" class="w-full border rounded-xl px-3 py-2"></select>
           </div>
-          <div>
+          <div data-hour-fields>
             <label class="text-sm">Początek</label>
             <input name="start_time" type="datetime-local" required class="w-full border rounded-xl px-3 py-2" />
           </div>
-          <div>
+          <div data-hour-fields>
             <label class="text-sm">Koniec</label>
             <input name="end_time" type="datetime-local" required class="w-full border rounded-xl px-3 py-2" />
+          </div>
+          <div data-day-fields class="hidden">
+            <label class="text-sm">Dzień rezerwacji</label>
+            <input name="day_only" type="date" class="w-full border rounded-xl px-3 py-2" />
           </div>
           <div>
             <label class="text-sm">Imię i nazwisko</label>
@@ -115,28 +131,34 @@
           <div class="md:col-span-2 flex gap-2 items-center">
             <button class="px-4 py-2 rounded-xl bg-blue-600 text-white" type="submit">Zarezerwuj</button>
             <a id="genDocsLink" href="#" class="no-print hidden text-blue-700 underline">Generuj dokumenty</a>
+            <button id="cancelThisBooking" type="button" class="no-print hidden px-3 py-2 border rounded-xl">Anuluj tę rezerwację</button>
             <div id="formMsg" class="text-sm ml-2"></div>
           </div>
+          <p class="text-xs text-gray-500 md:col-span-2">
+            Po dokonaniu rezerwacji otrzymasz e‑mail z potwierdzeniem oraz linkiem do anulowania (jeśli będzie potrzebne).
+          </p>
         </form>
       </div>
 
       <div id="templatesList" class="hidden bg-white rounded-2xl shadow p-4">
         <h3 class="font-semibold mb-3">Szablony dokumentów</h3>
-        <p class="text-sm text-gray-600 mb-3">Wybierz szablon przypisany do tej świetlicy (jeśli brak — użyte zostaną szablony globalne).</p>
         <ul id="templateItems" class="space-y-2"></ul>
       </div>
     </section>
   </main>
 
   <footer class="max-w-6xl mx-auto p-6 text-xs text-gray-500">
-    MVP: statyczny frontend + Supabase. Druk dokumentów: czysty HTML + window.print().
+    MVP: statyczny frontend + Supabase. Anulowanie przez token, mapka Google (opcjonalnie).
   </footer>
 
 <script>
-// === Konfiguracja Supabase ===
 const SUPABASE_URL = "https://zqrzdmvzrixnyvoejtty.supabase.co"; // <- PODMIEŃ
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpxcnpkbXZ6cml4bnl2b2VqdHR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgxMDM5MTMsImV4cCI6MjA3MzY3OTkxM30.DVreHVIg-gyCCRq1699Jfe5uRsV8OmaHpUuH-63IN_U";        // <- PODMIEŃ
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// Maps
+let mapsReady = false;
+function initMapsApi(){ mapsReady = true; if(state.selectedFacility) renderMap(); }
 
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => Array.from(document.querySelectorAll(sel));
@@ -149,7 +171,8 @@ const state = {
   currentDate: new Date(),
   bookingsCache: new Map(),
   lastBooking: null,
-  templates: []
+  templates: [],
+  mode: 'day' // 'day' | 'hour'
 };
 
 function fmtDateLabel(d){ return d.toLocaleDateString('pl-PL', { weekday:'long', year:'numeric', month:'long', day:'numeric' }); }
@@ -174,32 +197,30 @@ async function loadFacilities(){
 
 function renderFacilityList(){
   const q = $('#q').value.trim().toLowerCase();
-  const minCap = parseInt($('#cap').value,10) || 0;
   const list = state.facilities.filter(f=>{
-    const hay = `${f.name} ${f.city}`.toLowerCase();
-    return hay.includes(q) && (!minCap || (f.capacity||0) >= minCap);
+    const hay = `${f.name} ${f.city} ${f.postal_code}`.toLowerCase();
+    return hay.includes(q);
   });
   $('#count').textContent = list.length;
   const ul = $('#facilities');
   ul.innerHTML = list.map(f=>`
     <li>
       <button data-id="${f.id}" class="w-full text-left border rounded-xl p-3 hover:bg-gray-50">
-        <div class="font-semibold">${f.name}</div>
-        <div class="text-sm text-gray-600">${f.city}${f.capacity?` • do ${f.capacity} osób`:''}</div>
+        <div class="font-semibold">${f.name} ${f.postal_code ? '('+f.postal_code+')' : ''}</div>
+        <div class="text-sm text-gray-600">${f.city}</div>
       </button>
     </li>
   `).join('');
   ul.querySelectorAll('button').forEach(btn=> btn.addEventListener('click', ()=> selectFacility(btn.dataset.id)) );
 }
 $('#q').addEventListener('input', renderFacilityList);
-$('#cap').addEventListener('input', renderFacilityList);
 
 async function selectFacility(id){
   const f = state.facilities.find(x=>x.id===id);
   state.selectedFacility = f;
   $('#facilityCard').classList.remove('hidden');
   $('#facilityImg').src = f.image_url || 'https://picsum.photos/800/400';
-  $('#facilityName').textContent = f.name;
+  $('#facilityName').textContent = `${f.name} ${f.postal_code ? '('+f.postal_code+')' : ''}`;
   $('#facilityDesc').textContent = f.description || '';
   const address = `${f.address_line1||''}${f.address_line2? ', '+f.address_line2:''}, ${f.postal_code||''} ${f.city||''}`;
   $('#facilityAddr').textContent = address;
@@ -209,7 +230,6 @@ async function selectFacility(id){
     f.price_per_day?`Cena/doba: ${Number(f.price_per_day).toFixed(2)} zł`:null,
   ].filter(Boolean).join(' · ');
 
-  // amenity chips
   const { data: joins } = await supabase.from('facility_amenities').select('amenity_id').eq('facility_id', f.id);
   const wrap = $('#facilityAmenities');
   wrap.innerHTML = (joins||[]).map(j=>`<span class="text-xs bg-emerald-50 border border-emerald-200 rounded-lg px-2 py-1">${state.amenities[j.amenity_id]||'—'}</span>`).join('');
@@ -217,14 +237,30 @@ async function selectFacility(id){
   $('#calendar').classList.remove('hidden');
   $('#booking').classList.remove('hidden');
   $('#templatesList').classList.add('hidden');
+  $('#mapCard').classList.remove('hidden');
   state.currentDate = new Date();
+  setDayPickerFromCurrent();
   await renderDay();
   await loadTemplatesForFacility();
+  renderMap();
 }
 
-$('#prevDay').addEventListener('click', ()=>{ state.currentDate.setDate(state.currentDate.getDate()-1); renderDay(); });
-$('#nextDay').addEventListener('click', ()=>{ state.currentDate.setDate(state.currentDate.getDate()+1); renderDay(); });
-$('#todayBtn').addEventListener('click', ()=>{ state.currentDate = new Date(); renderDay(); });
+function setDayPickerFromCurrent(){
+  const d = state.currentDate;
+  const yyyy = d.getFullYear(); const mm = String(d.getMonth()+1).padStart(2,'0'); const dd = String(d.getDate()).padStart(2,'0');
+  $('#dayPicker').value = `${yyyy}-${mm}-${dd}`;
+}
+
+$('#prevDay').addEventListener('click', ()=>{ state.currentDate.setDate(state.currentDate.getDate()-1); setDayPickerFromCurrent(); renderDay(); });
+$('#nextDay').addEventListener('click', ()=>{ state.currentDate.setDate(state.currentDate.getDate()+1); setDayPickerFromCurrent(); renderDay(); });
+$('#todayBtn').addEventListener('click', ()=>{ state.currentDate = new Date(); setDayPickerFromCurrent(); renderDay(); });
+$('#dayPicker').addEventListener('change', (e)=>{ const d = new Date(e.target.value+'T00:00'); if(!isNaN(d)) { state.currentDate = d; renderDay(); } });
+
+$$('input[name="mode"]').forEach(r => r.addEventListener('change', (e)=>{
+  state.mode = e.target.value;
+  document.querySelectorAll('[data-hour-fields]').forEach(el => el.classList.toggle('hidden', state.mode==='day'));
+  document.querySelectorAll('[data-day-fields]').forEach(el => el.classList.toggle('hidden', state.mode!=='day'));
+}));
 
 async function fetchBookingsForDay(facilityId, date){
   const key = facilityId+ymd(date);
@@ -266,71 +302,81 @@ async function renderDay(){
     cell.innerHTML = `<div class="font-mono text-sm">${label}</div>` + (booked? `<div class="text-xs">${title}</div>`: `<div class="text-xs text-gray-500">wolne</div>`);
     hoursEl.appendChild(cell);
   }
-  // domyślne wartości formularza
-  const startInput = document.querySelector('input[name="start_time"]');
-  const endInput = document.querySelector('input[name="end_time"]');
   const yyyy = d.getFullYear(); const mm = String(d.getMonth()+1).padStart(2,'0'); const dd = String(d.getDate()).padStart(2,'0');
-  startInput.value = `${yyyy}-${mm}-${dd}T12:00`;
-  endInput.value = `${yyyy}-${mm}-${dd}T14:00`;
+  document.querySelector('input[name="start_time"]').value = `${yyyy}-${mm}-${dd}T12:00`;
+  document.querySelector('input[name="end_time"]').value   = `${yyyy}-${mm}-${dd}T14:00`;
+  document.querySelector('input[name="day_only"]').value   = `${yyyy}-${mm}-${dd}`;
 }
 
-// Rezerwacja
 $('#bookingForm').addEventListener('submit', async (e)=>{
   e.preventDefault();
   const form = e.currentTarget;
-  const formMsg = $('#formMsg');
-  formMsg.textContent = 'Trwa zapisywanie...';
+  const msg = $('#formMsg');
+  msg.textContent = 'Trwa zapisywanie...';
+
+  let startIso, endIso;
+  if(state.mode === 'day'){
+    const d = form.day_only.value;
+    if(!d){ msg.textContent = 'Wybierz dzień.'; return; }
+    startIso = new Date(d + 'T00:00').toISOString();
+    endIso   = new Date(d + 'T23:59:59').toISOString();
+  } else {
+    startIso = new Date(form.start_time.value).toISOString();
+    endIso   = new Date(form.end_time.value).toISOString();
+    if(new Date(endIso) <= new Date(startIso)){ msg.textContent = 'Koniec musi być po początku.'; return; }
+  }
+
   const payload = {
     facility_id: state.selectedFacility.id,
     title: form.title.value.trim(),
     event_type_id: form.event_type_id.value || null,
-    start_time: new Date(form.start_time.value).toISOString(),
-    end_time: new Date(form.end_time.value).toISOString(),
+    start_time: startIso,
+    end_time: endIso,
     renter_name: form.renter_name.value.trim(),
     renter_email: form.renter_email.value.trim(),
     notes: form.notes.value.trim() || null,
     is_public: document.querySelector('#is_public').checked
   };
-  if(!payload.title || !payload.start_time || !payload.end_time){ formMsg.textContent = 'Uzupełnij wymagane pola.'; return; }
-  if(new Date(payload.end_time) <= new Date(payload.start_time)){ formMsg.textContent = 'Koniec musi być po początku.'; return; }
 
   const { data, error } = await supabase.from('bookings').insert(payload).select();
-  if(error){ console.error(error); formMsg.textContent = 'Błąd: ' + (error.message || 'nie udało się utworzyć rezerwacji.'); return; }
-  formMsg.textContent = 'Zarezerwowano!';
+  if(error){ console.error(error); msg.textContent = 'Błąd: ' + (error.message || 'nie udało się utworzyć rezerwacji.'); return; }
+  msg.textContent = 'Zarezerwowano!';
   state.lastBooking = data && data[0] ? data[0] : null;
   state.bookingsCache.clear();
   await renderDay();
-  // Pokaż link do dokumentów
   $('#genDocsLink').classList.remove('hidden');
+  $('#cancelThisBooking').classList.remove('hidden');
+
+  if(state.lastBooking){
+    const cancelUrl = new URL(window.location.href);
+    cancelUrl.searchParams.set('cancel', state.lastBooking.cancel_token);
+    console.log('Cancel URL (do e‑maila):', cancelUrl.toString());
+  }
 });
 
-// Link: generuj dokumenty (lista szablonów)
-$('#genDocsLink').addEventListener('click', async (e)=>{
-  e.preventDefault();
-  if(!state.selectedFacility){ return; }
-  await loadTemplatesForFacility();
-  $('#templatesList').classList.remove('hidden');
-  const top = document.getElementById('templatesList').offsetTop;
-  window.scrollTo({ top: top - 20, behavior: 'smooth' });
+$('#cancelThisBooking').addEventListener('click', async ()=>{
+  if(!state.lastBooking){ alert('Brak ostatniej rezerwacji.'); return; }
+  if(!confirm('Na pewno anulować tę rezerwację?')) return;
+  const { data, error } = await supabase.rpc('cancel_booking', { p_token: state.lastBooking.cancel_token });
+  if(error){ alert('Błąd anulowania: ' + (error.message||'')); return; }
+  if(data){ alert('Rezerwacja anulowana.'); state.bookingsCache.clear(); await renderDay(); }
+  else { alert('Nie znaleziono lub już anulowana.'); }
 });
 
 async function loadTemplatesForFacility(){
   const f = state.selectedFacility;
   if(!f){ return; }
-  // 1) Szablony przypisane do świetlicy
   const { data: local } = await supabase.from('document_templates').select('*').eq('is_active', true).eq('facility_id', f.id).order('name');
-  // 2) Globalne (fallback) jeśli brak lokalnych lub jako uzupełnienie — unikaj duplikatów code
   const { data: global } = await supabase.from('document_templates').select('*').eq('is_active', true).is('facility_id', null).order('name');
   const codes = new Set((local||[]).map(t=>t.code));
   const merged = [...(local||[]), ...(global||[]).filter(t=>!codes.has(t.code))];
   state.templates = merged;
-
   const ul = $('#templateItems');
   ul.innerHTML = merged.map(t=>`
     <li class="flex items-center justify-between border rounded-xl p-3">
       <div>
         <div class="font-medium">${t.name}</div>
-        <div class="text-xs text-gray-500">${t.code}${t.facility_id ? ' • szablon lokalny' : ' • globalny'}</div>
+        <div class="text-xs text-gray-500">${t.code}${t.facility_id ? ' • lokalny' : ' • globalny'}</div>
       </div>
       <div class="flex gap-2">
         <button class="px-3 py-2 border rounded-xl" data-action="preview" data-id="${t.id}">Otwórz</button>
@@ -338,8 +384,7 @@ async function loadTemplatesForFacility(){
       </div>
     </li>
   `).join('');
-
-  ul.querySelectorAll('button').forEach(btn => btn.addEventListener('click', async (ev)=>{
+  ul.querySelectorAll('button').forEach(btn=> btn.addEventListener('click', async (ev)=>{
     const id = ev.currentTarget.dataset.id;
     const act = ev.currentTarget.dataset.action;
     const tpl = merged.find(x=>x.id===id);
@@ -348,11 +393,10 @@ async function loadTemplatesForFacility(){
     if(act==='preview'){ openPreviewWindow(html); }
     if(act==='print'){ openPreviewWindow(html, true); }
   }));
+  $('#templatesList').classList.remove('hidden');
 }
 
-// Renderowanie HTML (placeholdery)
 function getBookingContext(){
-  // Weź ostatnią zapisaną rezerwację jeśli istnieje, w przeciwnym razie z formularza (draft)
   if(state.lastBooking){
     return {
       title: state.lastBooking.title,
@@ -373,30 +417,18 @@ function getBookingContext(){
     notes: form.notes.value.trim() || ''
   };
 }
-
 function getFacilityContext(){
   const f = state.selectedFacility || {};
   const address = `${f.address_line1||''}${f.address_line2? ', '+f.address_line2:''}, ${f.postal_code||''} ${f.city||''}`.trim();
-  return {
-    name: f.name || '',
-    address,
-    city: f.city || '',
-    postal_code: f.postal_code || '',
-    capacity: f.capacity || '',
-    price_per_hour: f.price_per_hour || '',
-    price_per_day: f.price_per_day || ''
-  };
+  return { name: f.name || '', address, city: f.city || '', postal_code: f.postal_code || '', capacity: f.capacity || '', price_per_hour: f.price_per_hour || '', price_per_day: f.price_per_day || '' };
 }
-
 function formatDate(iso){ if(!iso) return ''; return new Date(iso).toLocaleDateString('pl-PL'); }
 function formatTime(iso){ if(!iso) return ''; return new Date(iso).toLocaleTimeString('pl-PL', {hour:'2-digit', minute:'2-digit'}); }
-
+function escapeHtml(str){ return str.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#39;'); }
 async function renderTemplateHTML(templateHtml){
   const booking = getBookingContext();
   const facility = getFacilityContext();
   let html = templateHtml;
-
-  // Proste zastąpienia
   const map = {
     '{{booking.title}}': booking.title || '',
     '{{booking.renter_name}}': booking.renter_name || '',
@@ -410,48 +442,42 @@ async function renderTemplateHTML(templateHtml){
     '{{facility.price_per_hour}}': facility.price_per_hour || '',
     '{{facility.price_per_day}}': facility.price_per_day || ''
   };
-  for(const [k,v] of Object.entries(map)){
-    html = html.split(k).join(escapeHtml(String(v)));
-  }
-  // Filtrowanie dat/czasu
+  for(const [k,v] of Object.entries(map)){ html = html.split(k).join(escapeHtml(String(v))); }
   html = html.replace(/\{\{\s*date\s+booking\.start_time\s*\}\}/g, formatDate(booking.start_time));
   html = html.replace(/\{\{\s*date\s+booking\.end_time\s*\}\}/g, formatDate(booking.end_time));
   html = html.replace(/\{\{\s*time\s+booking\.start_time\s*\}\}/g, formatTime(booking.start_time));
   html = html.replace(/\{\{\s*time\s+booking\.end_time\s*\}\}/g, formatTime(booking.end_time));
-
-  // Dodaj minimalny styl do wydruku
-  const style = `
-    <style id="print-styles">
-      body{font-family:system-ui, sans-serif; padding:24px}
-      h1{font-size:20px;margin:0 0 8px 0}
-      h2{font-size:14px;margin:0 0 10px 0;color:#666}
-      h3{font-size:12px;margin:12px 0 6px 0}
-      .doc table{width:100%;border-collapse:collapse}
-      .doc table td,.doc table th{border:1px solid #ccc;padding:6px}
-      .signs{display:flex;gap:40px;justify-content:space-between;margin-top:30px}
-      @page { size: A4; margin: 15mm }
-    </style>
-  `;
+  const style = `<style id="print-styles">body{font-family:system-ui, sans-serif; padding:24px}h1{font-size:20px;margin:0 0 8px 0}h2{font-size:14px;margin:0 0 10px 0;color:#666}h3{font-size:12px;margin:12px 0 6px 0}.doc table{width:100%;border-collapse:collapse}.doc table td,.doc table th{border:1px solid #ccc;padding:6px}.signs{display:flex;gap:40px;justify-content:space-between;margin-top:30px}@page { size: A4; margin: 15mm }</style>`;
   return `<!doctype html><html><head><meta charset="utf-8" />${style}<title>Dokument</title></head><body>${html}</body></html>`;
 }
-
 function openPreviewWindow(html, doPrint=false){
   const w = window.open('', '_blank');
-  w.document.open();
-  w.document.write(html);
-  w.document.close();
-  w.focus();
-  if(doPrint){ w.print(); }
+  w.document.open(); w.document.write(html); w.document.close(); w.focus(); if(doPrint){ w.print(); }
 }
 
-function escapeHtml(str){
-  return str.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#39;');
+function renderMap(){
+  const f = state.selectedFacility;
+  if(!mapsReady || !f || !f.lat || !f.lng){ return; }
+  const center = { lat: Number(f.lat), lng: Number(f.lng) };
+  const map = new google.maps.Map(document.getElementById('map'), { center, zoom: 13 });
+  new google.maps.Marker({ position: center, map, title: f.name });
 }
 
-// INIT
+async function tryCancelFromUrl(){
+  const url = new URL(window.location.href);
+  const token = url.searchParams.get('cancel');
+  if(!token) return;
+  if(!confirm('Wykryto link anulowania rezerwacji. Czy chcesz kontynuować?')) return;
+  const { data, error } = await supabase.rpc('cancel_booking', { p_token: token });
+  if(error){ alert('Błąd anulowania: ' + (error.message||'')); return; }
+  if(data){ alert('Rezerwacja anulowana.'); state.bookingsCache.clear(); if(state.selectedFacility) await renderDay(); }
+  else { alert('Nie znaleziono lub już anulowana.'); }
+}
+
 (async function init(){
   await loadDictionaries();
   await loadFacilities();
+  await tryCancelFromUrl();
 })();
 </script>
 </body>
