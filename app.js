@@ -682,4 +682,4 @@ async function init() {
 
   await tryCancelFromUrl();
 }
-init();
+document.addEventListener('DOMContentLoaded', init);
