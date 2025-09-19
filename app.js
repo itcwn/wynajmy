@@ -369,46 +369,55 @@ async function fetchBookingsForDay(facilityId, date) {
 
 async function renderDay() {
   if (!state.selectedFacility) return;
+
+  // pieczątka renderu – każdy nowy render zwiększa licznik
+  const mySeq = ++state.renderSeq;
+
   const d = state.currentDate;
   $("#dateLabel").textContent = fmtDateLabel(d);
 
   const hoursEl = $("#hours");
-  hoursEl.innerHTML = "";
+  hoursEl.innerHTML = "";          // czyścimy tylko raz, na początku
 
+  // pobierz rezerwacje
   const bookings = await fetchBookingsForDay(state.selectedFacility.id, d);
 
+  // jeśli w międzyczasie wystartował nowszy render — porzuć ten wynik
+  if (mySeq !== state.renderSeq) return;
+
   if (state.mode === "day") {
-    // Pasek info na górze
-    const info = document.createElement("div");
-    if (!bookings?.length) {
-      info.className = "rounded-xl border border-gray-200 bg-gray-50 text-gray-700 p-3";
-      info.textContent = "Brak rezerwacji w tym dniu.";
+    // (nie czyścimy drugi raz)
+    if (!bookings || bookings.length === 0) {
+      const empty = document.createElement("div");
+      empty.className = "rounded-xl border border-gray-200 bg-gray-50 text-gray-700 p-3";
+      empty.textContent = "Brak rezerwacji w tym dniu.";
+      hoursEl.appendChild(empty);
     } else {
+      const info = document.createElement("div");
       info.className = "rounded-xl border-l-4 border-red-500 bg-red-50 text-red-900 p-3";
       info.innerHTML = `Zajęte: <b>${bookings.length}</b> rezerw. w wybranym dniu`;
-    }
-    hoursEl.appendChild(info);
+      hoursEl.appendChild(info);
 
-    // Lista rezerwacji — mocniejsze karty
-    (bookings || []).forEach((b) => {
-      const s = new Date(b.start_time);
-      const e = new Date(b.end_time);
-      const item = document.createElement("div");
-      item.className = "rounded-xl shadow-sm border border-red-200 bg-white p-4";
-      const timeLabel =
-        `${s.toLocaleTimeString("pl-PL",{hour:"2-digit",minute:"2-digit"})}` +
-        `–${e.toLocaleTimeString("pl-PL",{hour:"2-digit",minute:"2-digit"})}`;
-      item.innerHTML = `
-        <div class="flex items-start justify-between">
-          <div>
-            <div class="text-sm font-semibold text-red-700">${b.title || "Rezerwacja"}</div>
-            <div class="text-xs text-gray-600">${timeLabel}</div>
+      bookings.forEach((b) => {
+        const s = new Date(b.start_time);
+        const e = new Date(b.end_time);
+        const item = document.createElement("div");
+        item.className = "rounded-xl shadow-sm border border-red-200 bg-white p-4";
+        const timeLabel =
+          `${s.toLocaleTimeString("pl-PL",{hour:"2-digit",minute:"2-digit"})}` +
+          `–${e.toLocaleTimeString("pl-PL",{hour:"2-digit",minute:"2-digit"})}`;
+        item.innerHTML = `
+          <div class="flex items-start justify-between">
+            <div>
+              <div class="text-sm font-semibold text-red-700">${b.title || "Rezerwacja"}</div>
+              <div class="text-xs text-gray-600">${timeLabel}</div>
+            </div>
+            <span class="text-[11px] px-2 py-1 rounded bg-red-100 text-red-800 border border-red-200">zajęte</span>
           </div>
-          <span class="text-[11px] px-2 py-1 rounded bg-red-100 text-red-800 border border-red-200">zajęte</span>
-        </div>
-      `;
-      hoursEl.appendChild(item);
-    });
+        `;
+        hoursEl.appendChild(item);
+      });
+    }
     return;
   }
 
