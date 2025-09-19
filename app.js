@@ -685,7 +685,7 @@ async function showTemplateSelectorLive(bookingRow, mountEl) {
   if (!mountEl) return;
 
   // szablony dla tej świetlicy: lokalne + globalne
-  const { data: templates, error } = await supabase
+ let { data: templates, error } = await supabase
     .from("document_templates")
     .select("*")
    .or(`facility_id.eq.${bookingRow.facility_id},facility_id.is.null`)
