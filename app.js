@@ -1,4 +1,4 @@
-/* app.js — MVP v3 (układ poziomy, suwak godzin filtruje kalendarz, dokumenty HTML, anulowanie) */
+/* app.js — MVP v3 (układ poziomy, suwak godzin filtruje kalendarz, dokumenty HTML live, anulowanie) */
 
 /* === Konfiguracja === */
 const SUPABASE_URL = window.__SUPA?.SUPABASE_URL;
@@ -9,7 +9,7 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
   alert("Brak konfiguracji Supabase — uzupełnij supabase-config.js");
 }
 if (!window.supabase || !window.supabase.createClient) {
-  console.error("Supabase SDK niezaładowany. Upewnij się, że masz <script src=\"https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2\" defer></script> przed app.js");
+  console.error('Supabase SDK niezaładowany. Upewnij się, że masz <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script> przed app.js');
 }
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -25,6 +25,9 @@ const state = {
   templates: [],
   mode: "day", // 'day' | 'hour'
   mapsReady: false,
+  // LIVE wartości pól dla wybranego szablonu (bez zapisu do DB)
+  docFormValues: {},     // { placeholderKey: value }
+  docSelectedTemplate: null
 };
 
 /* === Utils === */
@@ -178,6 +181,9 @@ function renderMain() {
           Po dokonaniu rezerwacji otrzymasz e-mail z potwierdzeniem oraz linkiem do anulowania (jeśli będzie potrzebne).
         </p>
       </form>
+
+      <!-- Live generator dokumentu po rezerwacji -->
+      <div id="docGen" class="mt-6"></div>
     </div>
 
     <!-- (4) Kalendarz dzienny -->
@@ -186,7 +192,7 @@ function renderMain() {
       <p class="text-xs text-gray-500 mt-2">Widok dzienny 00–23. Rezerwacje dzienne zajmują cały dzień.</p>
     </div>
 
-    <!-- Szablony dokumentów -->
+    <!-- Szablony dokumentów (lista niżej) -->
     <div id="templatesList" class="hidden bg-white rounded-2xl shadow p-4">
       <h3 class="font-semibold mb-3">Szablony dokumentów</h3>
       <ul id="templateItems" class="space-y-2"></ul>
@@ -337,14 +343,12 @@ function updateHourLabels() {
   $("#hourStartLabel").textContent = `${pad2(s)}:00`;
   $("#hourEndLabel").textContent   = `${pad2(e)}:00`;
 
-  // zsynchronizuj ukryte pola dt-local (dla logiki rezerwacji)
   const day = $("#dayPicker").value;
   const startField = document.querySelector('input[name="start_time"]');
   const endField   = document.querySelector('input[name="end_time"]');
   if (startField) startField.value = `${day}T${pad2(s)}:00`;
   if (endField)   endField.value   = `${day}T${pad2(e)}:00`;
 
-  // odśwież widok kalendarza wg nowego zakresu
   renderDay();
 }
 
@@ -373,38 +377,35 @@ async function renderDay() {
   const hoursEl = $("#hours");
   hoursEl.innerHTML = "";
 
-  // pobierz rezerwacje dla dnia
   const bookings = await fetchBookingsForDay(state.selectedFacility.id, d);
 
- if (state.mode === "day") {
-  hoursEl.innerHTML = ""; // wyczyść zawsze
+  if (state.mode === "day") {
+    hoursEl.innerHTML = "";
 
-  if (!bookings || bookings.length === 0) {
-    const empty = document.createElement("div");
-    empty.className = "border rounded-xl p-4 bg-white text-gray-600";
-    empty.textContent = "Brak rezerwacji w tym dniu.";
-    hoursEl.appendChild(empty);
-  } else {
-    // pokaż listę rezerwacji (każdy wpis tylko raz)
-    bookings.forEach((b) => {
-      const s = new Date(b.start_time);
-      const e = new Date(b.end_time);
-      const item = document.createElement("div");
-      item.className = "border rounded-xl p-3 bg-white";
-      const timeLabel =
-        `${s.toLocaleTimeString("pl-PL",{hour:"2-digit",minute:"2-digit"})}` +
-        `–${e.toLocaleTimeString("pl-PL",{hour:"2-digit",minute:"2-digit"})}`;
-      item.innerHTML = `
-        <div class="text-sm font-semibold">${b.title || "Rezerwacja"}</div>
-        <div class="text-xs text-gray-600">${timeLabel}</div>
-      `;
-      hoursEl.appendChild(item);
-    });
+    if (!bookings || bookings.length === 0) {
+      const empty = document.createElement("div");
+      empty.className = "border rounded-xl p-4 bg-white text-gray-600";
+      empty.textContent = "Brak rezerwacji w tym dniu.";
+      hoursEl.appendChild(empty);
+    } else {
+      bookings.forEach((b) => {
+        const s = new Date(b.start_time);
+        const e = new Date(b.end_time);
+        const item = document.createElement("div");
+        item.className = "border rounded-xl p-3 bg-white";
+        const timeLabel =
+          `${s.toLocaleTimeString("pl-PL",{hour:"2-digit",minute:"2-digit"})}` +
+          `–${e.toLocaleTimeString("pl-PL",{hour:"2-digit",minute:"2-digit"})}`;
+        item.innerHTML = `
+          <div class="text-sm font-semibold">${b.title || "Rezerwacja"}</div>
+          <div class="text-xs text-gray-600">${timeLabel}</div>
+        `;
+        hoursEl.appendChild(item);
+      });
+    }
+    return;
   }
-  return; // nie przechodzimy dalej
-}
 
-  // ⬇️ TRYB GODZINY: siatka godzin ograniczona sliderami
   const busy = new Array(24).fill(null);
   bookings.forEach((b) => {
     const s = new Date(b.start_time);
@@ -416,7 +417,6 @@ async function renderDay() {
     for (let h = from; h < to; h++) busy[h] = b.title || "Zajęte";
   });
 
-  const pad2 = (n) => String(n).padStart(2, "0");
   const { start, end } = getVisibleHourRange();
   for (let h = start; h < end; h++) {
     const label = `${pad2(h)}:00`;
@@ -430,7 +430,6 @@ async function renderDay() {
     hoursEl.appendChild(cell);
   }
 }
-
 
 /* === Zdarzenia UI (nawigacja dni, tryb, suwaki) === */
 document.addEventListener("click", (e) => {
@@ -468,7 +467,7 @@ document.addEventListener("change", (e) => {
     $$('[data-hour-fields]').forEach((el) => el.classList.toggle("hidden", state.mode === "day"));
     $$('[data-day-fields]').forEach((el) => el.classList.toggle("hidden", state.mode !== "day"));
     $("#hourSliderWrap").classList.toggle("hidden", state.mode !== "hour");
-    renderDay(); // odśwież po zmianie trybu
+    renderDay();
   }
   if (e.target.id === "hourStart" || e.target.id === "hourEnd") {
     updateHourLabels();
@@ -519,6 +518,13 @@ document.addEventListener("submit", async (e) => {
   $("#genDocsLink").classList.remove("hidden");
   $("#cancelThisBooking").classList.remove("hidden");
 
+  // LIVE generator: pokaż pod formularzem
+  if (state.lastBooking) {
+    const docMount = $("#docGen");
+    showTemplateSelectorLive(state.lastBooking, docMount);
+  }
+
+  // (opcjonalny) link anulowania do logów
   if (state.lastBooking) {
     const cancelUrl = new URL(window.location.href);
     cancelUrl.searchParams.set("cancel", state.lastBooking.cancel_token);
@@ -537,7 +543,7 @@ document.addEventListener("click", async (e) => {
   else { alert("Nie znaleziono lub już anulowana."); }
 });
 
-/* === Dokumenty — lista szablonów i druk HTML === */
+/* === Dokumenty — lista szablonów (sekcja niżej na link "Generuj dokumenty") === */
 async function loadTemplatesForFacility() {
   const f = state.selectedFacility;
   if (!f) return;
@@ -589,6 +595,7 @@ async function loadTemplatesForFacility() {
   );
 }
 
+/* === Kontekst i wypełnianie prostych placeholderów (dla sekcji listy szablonów) === */
 function getBookingContext() {
   if (state.lastBooking) {
     return {
@@ -625,14 +632,8 @@ function getFacilityContext() {
   };
 }
 
-function formatDate(iso) {
-  if (!iso) return "";
-  return new Date(iso).toLocaleDateString("pl-PL");
-}
-function formatTime(iso) {
-  if (!iso) return "";
-  return new Date(iso).toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" });
-}
+function formatDate(iso) { return iso ? new Date(iso).toLocaleDateString("pl-PL") : ""; }
+function formatTime(iso) { return iso ? new Date(iso).toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" }) : ""; }
 
 async function renderTemplateHTML(templateHtml) {
   const booking = getBookingContext();
@@ -652,9 +653,8 @@ async function renderTemplateHTML(templateHtml) {
     "{{facility.price_per_hour}}": facility.price_per_hour || "",
     "{{facility.price_per_day}}": facility.price_per_day || "",
   };
-  for (const [k, v] of Object.entries(map)) {
-    html = html.split(k).join(escapeHtml(String(v)));
-  }
+  for (const [k, v] of Object.entries(map)) html = html.split(k).join(escapeHtml(String(v)));
+
   html = html.replace(/\{\{\s*date\s+booking\.start_time\s*\}\}/g, formatDate(booking.start_time));
   html = html.replace(/\{\{\s*date\s+booking\.end_time\s*\}\}/g, formatDate(booking.end_time));
   html = html.replace(/\{\{\s*time\s+booking\.start_time\s*\}\}/g, formatTime(booking.start_time));
@@ -662,9 +662,6 @@ async function renderTemplateHTML(templateHtml) {
 
   const style = `<style id="print-styles">
     body{font-family:system-ui, sans-serif; padding:24px}
-    h1{font-size:20px;margin:0 0 8px 0}
-    h2{font-size:14px;margin:0 0 10px 0;color:#666}
-    h3{font-size:12px;margin:12px 0 6px 0}
     .doc table{width:100%;border-collapse:collapse}
     .doc table td,.doc table th{border:1px solid #ccc;padding:6px}
     .signs{display:flex;gap:40px;justify-content:space-between;margin-top:30px}
@@ -681,6 +678,161 @@ function openPreviewWindow(html, doPrint = false) {
   w.document.close();
   w.focus();
   if (doPrint) w.print();
+}
+
+/* === NOWE (LIVE): wybór szablonu + dynamiczny formularz bez zapisu do DB === */
+async function showTemplateSelectorLive(bookingRow, mountEl) {
+  if (!mountEl) return;
+
+  // szablony dla tej świetlicy: lokalne + globalne
+  const { data: templates, error } = await supabase
+    .from("document_templates")
+    .select("*")
+    .in("facility_id", [bookingRow.facility_id, null])
+    .eq("is_active", true)
+    .order("name");
+
+  if (error) {
+    mountEl.innerHTML = `<div class="p-3 border rounded bg-red-50 text-red-800">Błąd pobierania szablonów: ${error.message}</div>`;
+    return;
+  }
+
+  // reset pamięci formularza
+  state.docFormValues = {};
+  state.docSelectedTemplate = null;
+
+  mountEl.innerHTML = `
+    <div class="p-4 border rounded bg-gray-50">
+      <h3 class="font-bold mb-3">Wybierz szablon i uzupełnij pola, aby wygenerować/ wydrukować wniosek</h3>
+      <div id="tplList" class="grid gap-2 mb-4"></div>
+      <div id="tplFields"></div>
+    </div>
+  `;
+
+  const list = mountEl.querySelector("#tplList");
+  const fieldsWrap = mountEl.querySelector("#tplFields");
+
+  (templates || []).forEach(t => {
+    const el = document.createElement("button");
+    el.type = "button";
+    el.className = "text-left p-3 border rounded bg-white hover:bg-gray-100";
+    el.innerHTML = `
+      <div class="font-semibold">${t.name}</div>
+      <div class="text-xs text-gray-600">${t.facility_id ? "szablon lokalny" : "szablon ogólny"} • ${t.code}</div>
+    `;
+    el.addEventListener("click", () => {
+      [...list.children].forEach(n => n.classList.remove("ring-2","ring-red-500"));
+      el.classList.add("ring-2","ring-red-500");
+      state.docSelectedTemplate = t;
+      renderLiveFields(t);
+    });
+    list.appendChild(el);
+  });
+
+  function renderLiveFields(tpl) {
+    fieldsWrap.innerHTML = "";
+
+    // znajdź wszystkie {{booking.extra.X}}
+    const matches = [...tpl.html.matchAll(/\{\{booking\.extra\.([a-zA-Z0-9_]+)\}\}/g)];
+    const keys = [...new Set(matches.map(m => m[1]))];
+
+    const head = document.createElement("div");
+    head.className = "mb-2 text-sm text-gray-700";
+    head.textContent = keys.length
+      ? "Uzupełnij pola dla wybranego szablonu:"
+      : "Ten szablon nie ma dodatkowych pól do uzupełnienia.";
+    fieldsWrap.appendChild(head);
+
+    // zbuduj formularz live (bez zapisu)
+    if (keys.length) {
+      const table = document.createElement("table");
+      table.className = "table-auto w-full border rounded bg-white";
+      table.innerHTML = `
+        <thead>
+          <tr class="bg-gray-100">
+            <th class="border p-2 text-left w-1/3">Pole</th>
+            <th class="border p-2 text-left">Wartość</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      `;
+      const tbody = table.querySelector("tbody");
+
+      keys.forEach(k => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td class="border p-2 align-top"><code>${k}</code></td>
+          <td class="border p-2">
+            <input type="text" class="w-full border rounded px-2 py-1" data-extra="${k}" value="${escapeHtml(state.docFormValues[k] ?? '')}">
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      fieldsWrap.appendChild(table);
+
+      // input → oninput zapis do state.docFormValues
+      fieldsWrap.querySelectorAll('input[data-extra]').forEach(inp => {
+        inp.addEventListener('input', (ev) => {
+          state.docFormValues[ev.target.dataset.extra] = ev.target.value;
+        });
+      });
+    }
+
+    // przyciski podgląd/druk (live)
+    const actions = document.createElement("div");
+    actions.className = "p-3 flex gap-2";
+    actions.innerHTML = `
+      <button type="button" id="previewDoc" class="px-3 py-2 rounded border">👁️ Podgląd</button>
+      <button type="button" id="printDoc" class="px-3 py-2 rounded border">🖨️ Drukuj</button>
+    `;
+    fieldsWrap.appendChild(actions);
+
+    const doPreview = (toPrint=false) => {
+      const fac = state.selectedFacility || {};
+      let html = tpl.html;
+
+      // standardowe placeholdry (z ostatniej rezerwacji)
+      const map = {
+        "{{facility.name}}": fac?.name ?? "",
+        "{{facility.address}}": `${fac?.address_line1 || ""}${fac?.address_line2 ? ", " + fac.address_line2 : ""}, ${fac?.postal_code || ""} ${fac?.city || ""}`.trim(),
+        "{{facility.city}}": fac?.city ?? "",
+        "{{facility.postal_code}}": fac?.postal_code ?? "",
+        "{{facility.capacity}}": fac?.capacity ?? "",
+        "{{facility.price_per_hour}}": fac?.price_per_hour ?? "",
+        "{{facility.price_per_day}}": fac?.price_per_day ?? "",
+        "{{booking.title}}": bookingRow?.title ?? "",
+        "{{booking.renter_name}}": bookingRow?.renter_name ?? "",
+        "{{booking.renter_email}}": bookingRow?.renter_email ?? "",
+        "{{booking.renter_phone}}": bookingRow?.renter_phone ?? "",
+        "{{booking.notes}}": bookingRow?.notes ?? "",
+      };
+      for (const [k,v] of Object.entries(map)) html = html.split(k).join(escapeHtml(String(v ?? "")));
+
+      // daty/czasy
+      const fmtD = (iso) => (iso ? new Date(iso).toLocaleDateString("pl-PL") : "");
+      const fmtT = (iso) => (iso ? new Date(iso).toLocaleTimeString("pl-PL",{hour:"2-digit",minute:"2-digit"}) : "");
+      html = html.replace(/\{\{\s*date\s+booking\.start_time\s*\}\}/g, fmtD(bookingRow?.start_time));
+      html = html.replace(/\{\{\s*date\s+booking\.end_time\s*\}\}/g, fmtD(bookingRow?.end_time));
+      html = html.replace(/\{\{\s*time\s+booking\.start_time\s*\}\}/g, fmtT(bookingRow?.start_time));
+      html = html.replace(/\{\{\s*time\s+booking\.end_time\s*\}\}/g, fmtT(bookingRow?.end_time));
+      html = html.replace(/\{\{\s*date\s+booking\.request_date\s*\}\}/g, fmtD(bookingRow?.request_date));
+
+      // LIVE extra — bez zapisu do DB
+      html = html.replace(/\{\{booking\.extra\.([a-zA-Z0-9_]+)\}\}/g, (_, key) => {
+        const val = state.docFormValues?.[key];
+        return val == null ? "" : escapeHtml(String(val));
+      });
+
+      const w = window.open("", "_blank");
+      w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Dokument</title><style>@page{size:A4;margin:15mm}body{font-family:system-ui,sans-serif;padding:24px}</style></head><body>${html}</body></html>`);
+      w.document.close(); w.focus();
+      if (toPrint) w.print();
+    };
+
+    fieldsWrap.querySelector("#previewDoc")?.addEventListener("click", () => doPreview(false));
+    fieldsWrap.querySelector("#printDoc")?.addEventListener("click", () => doPreview(true));
+  }
 }
 
 /* === URL: anulowanie po tokenie (?cancel=...) === */
@@ -707,7 +859,6 @@ async function init() {
   await loadDictionaries();
   await loadFacilities();
 
-  // Link do dokumentów
   $("#genDocsLink")?.addEventListener("click", async (e) => {
     e.preventDefault();
     await loadTemplatesForFacility();
@@ -718,7 +869,7 @@ async function init() {
   await tryCancelFromUrl();
 }
 
-// Bezpiecznie po załadowaniu DOM (skrypty są z defer, ale to nie zaszkodzi)
+// Bezpiecznie po załadowaniu DOM
 if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", init);
 } else {
