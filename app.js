@@ -680,27 +680,14 @@ function openPreviewWindow(html, doPrint = false) {
   if (doPrint) w.print();
 }
 
-/* === NOWE (LIVE): wybór szablonu + dynamiczny formularz bez zapisu do DB === */
 async function showTemplateSelectorLive(bookingRow, mountEl) {
   if (!mountEl) return;
-
-  // szablony dla tej świetlicy: lokalne + globalne
- let { data: templates, error } = await supabase
-    .from("document_templates")
-    .select("*")
-   .or(`facility_id.eq.${bookingRow.facility_id},facility_id.is.null`)
-    .eq("is_active", true)
-    .order("name");
-
-  if (error) {
-    mountEl.innerHTML = `<div class="p-3 border rounded bg-red-50 text-red-800">Błąd pobierania szablonów: ${error.message}</div>`;
-    return;
-  }
 
   // reset pamięci formularza
   state.docFormValues = {};
   state.docSelectedTemplate = null;
 
+  // UI kontener
   mountEl.innerHTML = `
     <div class="p-4 border rounded bg-gray-50">
       <h3 class="font-bold mb-3">Wybierz szablon i uzupełnij pola, aby wygenerować/ wydrukować wniosek</h3>
@@ -708,38 +695,62 @@ async function showTemplateSelectorLive(bookingRow, mountEl) {
       <div id="tplFields"></div>
     </div>
   `;
-
   const list = mountEl.querySelector("#tplList");
   const fieldsWrap = mountEl.querySelector("#tplFields");
 
- 
-if (bookingRow.facility_id) {
-  const { data: tplAll, error: tErr } = await supabase
-    .from("document_templates")
-    .select("*")
-    .eq("is_active", true)
-    .or(`facility_id.eq.${bookingRow.facility_id},facility_id.is.null`)
-    .order("name");
-  if (tErr) {
-    mountEl.innerHTML = `<div class="p-3 border rounded bg-red-50 text-red-800">Błąd pobierania szablonów: ${tErr.message}</div>`;
-    return;
-  }
-  templates = tplAll || [];
-} else {
-  // na wszelki wypadek, jeśli bookingRow nie ma facility_id
-  const { data: tplGlobal, error: tErr2 } = await supabase
-    .from("document_templates")
-    .select("*")
-    .eq("is_active", true)
-    .is("facility_id", null)
-    .order("name");
-  if (tErr2) {
-    mountEl.innerHTML = `<div class="p-3 border rounded bg-red-50 text-red-800">Błąd pobierania szablonów: ${tErr2.message}</div>`;
-    return;
-  }
-  templates = tplGlobal || [];
-}
+  // ⬇️ POBIERANIE: bez .in(..., null) — używamy .or(...)
+  let templates = [];
+  let tErr = null;
 
+  if (bookingRow.facility_id) {
+    const { data, error } = await supabase
+      .from("document_templates")
+      .select("*")
+      .eq("is_active", true)
+      .or(`facility_id.eq.${bookingRow.facility_id},facility_id.is.null`)
+      .order("name");
+    templates = data || [];
+    tErr = error;
+  } else {
+    const { data, error } = await supabase
+      .from("document_templates")
+      .select("*")
+      .eq("is_active", true)
+      .is("facility_id", null)
+      .order("name");
+    templates = data || [];
+    tErr = error;
+  }
+
+  if (tErr) {
+    fieldsWrap.innerHTML = `<div class="p-3 border rounded bg-red-50 text-red-800">Błąd pobierania szablonów: ${tErr.message}</div>`;
+    return;
+  }
+
+  if (!templates.length) {
+    list.innerHTML = `<div class="p-3 border rounded bg-white text-gray-600">Brak dostępnych szablonów dla tej świetlicy.</div>`;
+    return;
+  }
+
+  // ⬇️ RENDER LISTY (teraz, po pobraniu)
+  templates.forEach(t => {
+    const el = document.createElement("button");
+    el.type = "button";
+    el.className = "text-left p-3 border rounded bg-white hover:bg-gray-100";
+    el.innerHTML = `
+      <div class="font-semibold">${t.name}</div>
+      <div class="text-xs text-gray-600">${t.facility_id ? "szablon lokalny" : "szablon ogólny"} • ${t.code}</div>
+    `;
+    el.addEventListener("click", () => {
+      [...list.children].forEach(n => n.classList.remove("ring-2","ring-red-500"));
+      el.classList.add("ring-2","ring-red-500");
+      state.docSelectedTemplate = t;
+      renderLiveFields(t);
+    });
+    list.appendChild(el);
+  });
+
+  // === generator pól live z placeholderów ===
   function renderLiveFields(tpl) {
     fieldsWrap.innerHTML = "";
 
@@ -754,7 +765,6 @@ if (bookingRow.facility_id) {
       : "Ten szablon nie ma dodatkowych pól do uzupełnienia.";
     fieldsWrap.appendChild(head);
 
-    // zbuduj formularz live (bez zapisu)
     if (keys.length) {
       const table = document.createElement("table");
       table.className = "table-auto w-full border rounded bg-white";
@@ -782,7 +792,6 @@ if (bookingRow.facility_id) {
 
       fieldsWrap.appendChild(table);
 
-      // input → oninput zapis do state.docFormValues
       fieldsWrap.querySelectorAll('input[data-extra]').forEach(inp => {
         inp.addEventListener('input', (ev) => {
           state.docFormValues[ev.target.dataset.extra] = ev.target.value;
@@ -790,7 +799,7 @@ if (bookingRow.facility_id) {
       });
     }
 
-    // przyciski podgląd/druk (live)
+    // przyciski podgląd/druk
     const actions = document.createElement("div");
     actions.className = "p-3 flex gap-2";
     actions.innerHTML = `
@@ -801,9 +810,10 @@ if (bookingRow.facility_id) {
 
     const doPreview = (toPrint=false) => {
       const fac = state.selectedFacility || {};
+      const b = bookingRow;
       let html = tpl.html;
 
-      // standardowe placeholdry (z ostatniej rezerwacji)
+      // podstawowe placeholdery
       const map = {
         "{{facility.name}}": fac?.name ?? "",
         "{{facility.address}}": `${fac?.address_line1 || ""}${fac?.address_line2 ? ", " + fac.address_line2 : ""}, ${fac?.postal_code || ""} ${fac?.city || ""}`.trim(),
@@ -812,22 +822,22 @@ if (bookingRow.facility_id) {
         "{{facility.capacity}}": fac?.capacity ?? "",
         "{{facility.price_per_hour}}": fac?.price_per_hour ?? "",
         "{{facility.price_per_day}}": fac?.price_per_day ?? "",
-        "{{booking.title}}": bookingRow?.title ?? "",
-        "{{booking.renter_name}}": bookingRow?.renter_name ?? "",
-        "{{booking.renter_email}}": bookingRow?.renter_email ?? "",
-        "{{booking.renter_phone}}": bookingRow?.renter_phone ?? "",
-        "{{booking.notes}}": bookingRow?.notes ?? "",
+        "{{booking.title}}": b?.title ?? "",
+        "{{booking.renter_name}}": b?.renter_name ?? "",
+        "{{booking.renter_email}}": b?.renter_email ?? "",
+        "{{booking.renter_phone}}": b?.renter_phone ?? "",
+        "{{booking.notes}}": b?.notes ?? "",
       };
       for (const [k,v] of Object.entries(map)) html = html.split(k).join(escapeHtml(String(v ?? "")));
 
       // daty/czasy
       const fmtD = (iso) => (iso ? new Date(iso).toLocaleDateString("pl-PL") : "");
       const fmtT = (iso) => (iso ? new Date(iso).toLocaleTimeString("pl-PL",{hour:"2-digit",minute:"2-digit"}) : "");
-      html = html.replace(/\{\{\s*date\s+booking\.start_time\s*\}\}/g, fmtD(bookingRow?.start_time));
-      html = html.replace(/\{\{\s*date\s+booking\.end_time\s*\}\}/g, fmtD(bookingRow?.end_time));
-      html = html.replace(/\{\{\s*time\s+booking\.start_time\s*\}\}/g, fmtT(bookingRow?.start_time));
-      html = html.replace(/\{\{\s*time\s+booking\.end_time\s*\}\}/g, fmtT(bookingRow?.end_time));
-      html = html.replace(/\{\{\s*date\s+booking\.request_date\s*\}\}/g, fmtD(bookingRow?.request_date));
+      html = html.replace(/\{\{\s*date\s+booking\.start_time\s*\}\}/g, fmtD(b?.start_time));
+      html = html.replace(/\{\{\s*date\s+booking\.end_time\s*\}\}/g, fmtD(b?.end_time));
+      html = html.replace(/\{\{\s*time\s+booking\.start_time\s*\}\}/g, fmtT(b?.start_time));
+      html = html.replace(/\{\{\s*time\s+booking\.end_time\s*\}\}/g, fmtT(b?.end_time));
+      html = html.replace(/\{\{\s*date\s+booking\.request_date\s*\}\}/g, fmtD(b?.request_date));
 
       // LIVE extra — bez zapisu do DB
       html = html.replace(/\{\{booking\.extra\.([a-zA-Z0-9_]+)\}\}/g, (_, key) => {
@@ -845,6 +855,8 @@ if (bookingRow.facility_id) {
     fieldsWrap.querySelector("#printDoc")?.addEventListener("click", () => doPreview(true));
   }
 }
+
+ 
 
 /* === URL: anulowanie po tokenie (?cancel=...) === */
 async function tryCancelFromUrl() {
