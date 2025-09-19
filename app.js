@@ -712,22 +712,33 @@ async function showTemplateSelectorLive(bookingRow, mountEl) {
   const list = mountEl.querySelector("#tplList");
   const fieldsWrap = mountEl.querySelector("#tplFields");
 
-  (templates || []).forEach(t => {
-    const el = document.createElement("button");
-    el.type = "button";
-    el.className = "text-left p-3 border rounded bg-white hover:bg-gray-100";
-    el.innerHTML = `
-      <div class="font-semibold">${t.name}</div>
-      <div class="text-xs text-gray-600">${t.facility_id ? "szablon lokalny" : "szablon ogólny"} • ${t.code}</div>
-    `;
-    el.addEventListener("click", () => {
-      [...list.children].forEach(n => n.classList.remove("ring-2","ring-red-500"));
-      el.classList.add("ring-2","ring-red-500");
-      state.docSelectedTemplate = t;
-      renderLiveFields(t);
-    });
-    list.appendChild(el);
-  });
+let templates = [];
+if (bookingRow.facility_id) {
+  const { data: tplAll, error: tErr } = await supabase
+    .from("document_templates")
+    .select("*")
+    .eq("is_active", true)
+    .or(`facility_id.eq.${bookingRow.facility_id},facility_id.is.null`)
+    .order("name");
+  if (tErr) {
+    mountEl.innerHTML = `<div class="p-3 border rounded bg-red-50 text-red-800">Błąd pobierania szablonów: ${tErr.message}</div>`;
+    return;
+  }
+  templates = tplAll || [];
+} else {
+  // na wszelki wypadek, jeśli bookingRow nie ma facility_id
+  const { data: tplGlobal, error: tErr2 } = await supabase
+    .from("document_templates")
+    .select("*")
+    .eq("is_active", true)
+    .is("facility_id", null)
+    .order("name");
+  if (tErr2) {
+    mountEl.innerHTML = `<div class="p-3 border rounded bg-red-50 text-red-800">Błąd pobierania szablonów: ${tErr2.message}</div>`;
+    return;
+  }
+  templates = tplGlobal || [];
+}
 
   function renderLiveFields(tpl) {
     fieldsWrap.innerHTML = "";
