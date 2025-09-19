@@ -712,7 +712,7 @@ async function showTemplateSelectorLive(bookingRow, mountEl) {
   const list = mountEl.querySelector("#tplList");
   const fieldsWrap = mountEl.querySelector("#tplFields");
 
-let templates = [];
+ 
 if (bookingRow.facility_id) {
   const { data: tplAll, error: tErr } = await supabase
     .from("document_templates")
