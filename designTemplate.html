@@ -123,4 +123,287 @@
       return;
     }
     const SUPABASE_URL = window.__SUPA?.SUPABASE_URL;
-    const SUPABASE_ANON_KEY = window.__SUPA?.SUPABASE_ANON_KE
+    const SUPABASE_ANON_KEY = window.__SUPA?.SUPABASE_ANON_KEY;
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+      alert('Uzupełnij supabase-config.js');
+      return;
+    }
+    const supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // ---- (reszta kodu z poprzedniej wersji, bez zmian) ----
+    const searchInput = document.getElementById('search');
+    const filterFacility = document.getElementById('filterFacility');
+    const onlyActive = document.getElementById('onlyActive');
+    const list = document.getElementById('list');
+
+    const form = document.getElementById('form');
+    const fId = form.querySelector('input[name="id"]');
+    const fName = form.querySelector('input[name="name"]');
+    const fCode = form.querySelector('input[name="code"]');
+    const fFacility = form.querySelector('select[name="facility_id"]');
+    const fActive = form.querySelector('input[name="is_active"]');
+    const fHtmlHidden = document.getElementById('html');
+    const editorMount = document.getElementById('editor');
+    const msg = document.getElementById('msg');
+    const preview = document.getElementById('preview');
+
+    const saveBtn = document.getElementById('saveBtn');
+    const previewBtn = document.getElementById('previewBtn');
+    const duplicateBtn = document.getElementById('duplicateBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const deleteBtn = document.getElementById('deleteBtn');
+    const newBtn = document.getElementById('newTpl');
+    const printBtn = document.getElementById('printBtn');
+
+    // CodeMirror
+    let cm;
+    function ensureEditor(value=""){
+      if (cm) { cm.setValue(value); return; }
+      cm = CodeMirror(editorMount, {
+        value,
+        mode: 'htmlmixed',
+        theme: 'neo',
+        lineNumbers: true,
+        viewportMargin: Infinity
+      });
+    }
+
+    const escapeHtml = (s) => String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
+    function sampleCtx(){
+      const now = new Date();
+      return {
+        booking: {
+          title: 'Przykładowe wydarzenie',
+          renter_name: 'Jan Kowalski',
+          renter_email: 'jan@example.com',
+          notes: 'Brak',
+          start_time: now.toISOString(),
+          end_time: new Date(now.getTime()+2*3600*1000).toISOString()
+        },
+        facility: {
+          name: 'Świetlica Wiejska',
+          address: 'ul. Główna 1, 00-000 Miasto',
+          city: 'Miasto',
+          postal_code: '00-000',
+          capacity: 80,
+          price_per_hour: 50,
+          price_per_day: 400
+        }
+      };
+    }
+    function fmtDate(iso){ return iso ? new Date(iso).toLocaleDateString('pl-PL') : ''; }
+    function fmtTime(iso){ return iso ? new Date(iso).toLocaleTimeString('pl-PL',{hour:'2-digit',minute:'2-digit'}) : ''; }
+    function renderTemplateString(html, ctx){
+      let out = html;
+      const map = {
+        '{{booking.title}}': ctx.booking.title,
+        '{{booking.renter_name}}': ctx.booking.renter_name,
+        '{{booking.renter_email}}': ctx.booking.renter_email,
+        '{{booking.notes}}': ctx.booking.notes,
+        '{{facility.name}}': ctx.facility.name,
+        '{{facility.address}}': ctx.facility.address,
+        '{{facility.city}}': ctx.facility.city,
+        '{{facility.postal_code}}': ctx.facility.postal_code,
+        '{{facility.capacity}}': ctx.facility.capacity,
+        '{{facility.price_per_hour}}': ctx.facility.price_per_hour,
+        '{{facility.price_per_day}}': ctx.facility.price_per_day
+      };
+      for (const [k,v] of Object.entries(map)) out = out.split(k).join(escapeHtml(String(v ?? '')));
+      out = out.replace(/\{\{\s*date\s+booking\.start_time\s*\}\}/g, fmtDate(ctx.booking.start_time));
+      out = out.replace(/\{\{\s*date\s+booking\.end_time\s*\}\}/g, fmtDate(ctx.booking.end_time));
+      out = out.replace(/\{\{\s*time\s+booking\.start_time\s*\}\}/g, fmtTime(ctx.booking.start_time));
+      out = out.replace(/\{\{\s*time\s+booking\.end_time\s*\}\}/g, fmtTime(ctx.booking.end_time));
+      return out;
+    }
+    function setMsg(text, ok=true){ msg.textContent = text; msg.className = 'text-sm ' + (ok? 'text-green-700' : 'text-red-700'); setTimeout(()=> msg.textContent='', 3500); }
+
+    let facilities = [];
+    let templates = [];
+
+    async function loadFacilities(){
+      const { data, error } = await supa.from('facilities').select('id,name').order('name');
+      if (error) { console.error(error); return; }
+      facilities = data || [];
+      filterFacility.innerHTML = '<option value="">Wszystkie świetlice</option>' + facilities.map(f=>`<option value="${f.id}">${f.name}</option>`).join('');
+      fFacility.innerHTML = '<option value="">(globalny)</option>' + facilities.map(f=>`<option value="${f.id}">${f.name}</option>`).join('');
+    }
+
+    async function loadTemplates(){
+      const { data, error } = await supa.from('document_templates')
+        .select('*')
+        .order('updated_at', {ascending:false})
+        .order('created_at', {ascending:false});
+      if (error) { console.error(error); setMsg('Błąd pobierania szablonów', false); return; }
+      templates = data || [];
+      renderList();
+    }
+
+    function renderList(){
+      const q = (searchInput.value || '').toLowerCase();
+      const filtFac = filterFacility.value || '';
+      const onlyAct = onlyActive.checked;
+
+      const filtered = templates.filter(t=>{
+        if (onlyAct && !t.is_active) return false;
+        if (filtFac && t.facility_id !== filtFac) return false;
+        const hay = `${t.name} ${t.code}`.toLowerCase();
+        return hay.includes(q);
+      });
+
+      list.innerHTML = filtered.map(t => {
+        const tag = t.facility_id ? 'lokalny' : 'globalny';
+        const act = t.is_active ? 'aktywny' : 'nieaktywny';
+        return `
+          <div class="border rounded p-3 flex items-start justify-between">
+            <div>
+              <div class="font-medium">${t.name}</div>
+              <div class="text-xs text-gray-500">${t.code} • ${tag} • ${act}</div>
+            </div>
+            <div class="flex gap-2">
+              <button class="px-2 py-1 border rounded text-sm" data-act="edit" data-id="${t.id}">Edytuj</button>
+              <button class="px-2 py-1 border rounded text-sm" data-act="preview" data-id="${t.id}">Podgląd</button>
+              <button class="px-2 py-1 border rounded text-sm" data-act="dup" data-id="${t.id}">Duplikuj</button>
+              <button class="px-2 py-1 border rounded text-sm text-red-600" data-act="del" data-id="${t.id}">Usuń</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      list.querySelectorAll('button').forEach(btn => btn.addEventListener('click', handleListAction));
+    }
+
+    async function handleListAction(ev){
+      const id = ev.currentTarget.dataset.id;
+      const act = ev.currentTarget.dataset.act;
+      const item = templates.find(t=>t.id===id);
+      if (!item) return;
+
+      if (act==='preview'){
+        const html = renderTemplateString(item.html, sampleCtx());
+        preview.innerHTML = html;
+        return;
+      }
+      if (act==='edit'){
+        fillForm(item);
+        ensureEditor(item.html || '');
+        return;
+      }
+      if (act==='dup'){
+        const payload = {
+          name: item.name + ' (kopia)',
+          code: item.code + '_copy',
+          facility_id: item.facility_id,
+          is_active: item.is_active,
+          html: item.html
+        };
+        const { error } = await supa.from('document_templates').insert(payload);
+        if (error) return setMsg('Błąd duplikacji: '+error.message, false);
+        setMsg('Utworzono kopię.');
+        await loadTemplates();
+        return;
+      }
+      if (act==='del'){
+        if (!confirm('Usunąć szablon?')) return;
+        const { error } = await supa.from('document_templates').delete().eq('id', id);
+        if (error) return setMsg('Błąd usuwania: '+error.message, false);
+        setMsg('Usunięto.');
+        await loadTemplates();
+      }
+    }
+
+    function fillForm(t){
+      form.id.value = t.id || '';
+      form.name.value = t.name || '';
+      form.code.value = t.code || '';
+      form.facility_id.value = t.facility_id || '';
+      form.is_active.checked = !!t.is_active;
+      document.getElementById('html').value = t.html || '';
+    }
+
+    function clearForm(){
+      form.reset();
+      form.id.value = '';
+      document.getElementById('html').value = '';
+      ensureEditor('<!-- tu wpisz HTML szablonu -->\n<div class="doc">\n  <h1>Tytuł dokumentu</h1>\n  <p>Świetlica: {{facility.name}}</p>\n  <p>Rezerwujący: {{booking.renter_name}} ({{booking.renter_email}})</p>\n  <p>Termin: {{date booking.start_time}} {{time booking.start_time}} – {{time booking.end_time}}</p>\n</div>');
+      preview.innerHTML = '';
+    }
+
+    // Filtry i akcje
+    searchInput.addEventListener('input', renderList);
+    filterFacility.addEventListener('change', renderList);
+    onlyActive.addEventListener('change', renderList);
+
+    document.getElementById('newTpl').addEventListener('click', clearForm);
+    document.getElementById('clearBtn').addEventListener('click', clearForm);
+
+    document.getElementById('previewBtn').addEventListener('click', ()=>{
+      const html = cm ? cm.getValue() : document.getElementById('html').value;
+      preview.innerHTML = renderTemplateString(html, sampleCtx());
+    });
+
+    document.getElementById('printBtn').addEventListener('click', ()=>{
+      const w = window.open('', '_blank');
+      w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Podgląd</title></head><body>${preview.innerHTML}</body></html>`);
+      w.document.close(); w.focus(); w.print();
+    });
+
+    document.getElementById('deleteBtn').addEventListener('click', async ()=>{
+      const id = form.id.value;
+      if (!id) return alert('Brak wybranego szablonu.');
+      if (!confirm('Usunąć bieżący szablon?')) return;
+      const { error } = await supa.from('document_templates').delete().eq('id', id);
+      if (error) return setMsg('Błąd usuwania: '+error.message, false);
+      setMsg('Usunięto.');
+      await loadTemplates();
+      clearForm();
+    });
+
+    document.getElementById('duplicateBtn').addEventListener('click', async ()=>{
+      const html = cm ? cm.getValue() : document.getElementById('html').value;
+      if (!form.name.value || !form.code.value) return alert('Uzupełnij nazwę i kod, potem duplikuj lub użyj listy.');
+      const payload = {
+        name: (form.name.value + ' (kopia)').trim(),
+        code: (form.code.value + '_copy').trim(),
+        facility_id: form.facility_id.value || null,
+        is_active: form.is_active.checked,
+        html
+      };
+      const { error } = await supa.from('document_templates').insert(payload);
+      if (error) return setMsg('Błąd duplikacji: '+error.message, false);
+      setMsg('Utworzono kopię.');
+      await loadTemplates();
+    });
+
+    form.addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const html = cm ? cm.getValue() : document.getElementById('html').value;
+      const payload = {
+        name: form.name.value.trim(),
+        code: form.code.value.trim(),
+        facility_id: form.facility_id.value || null,
+        is_active: form.is_active.checked,
+        html
+      };
+      if (!payload.name || !payload.code || !payload.html) { setMsg('Uzupełnij nazwę, kod i HTML.', false); return; }
+
+      let error;
+      if (form.id.value) {
+        ({ error } = await supa.from('document_templates').update({...payload, updated_at: new Date()}).eq('id', form.id.value));
+      } else {
+        ({ error } = await supa.from('document_templates').insert(payload));
+      }
+      if (error) return setMsg('Błąd zapisu: '+error.message, false);
+      setMsg('Zapisano.');
+      await loadTemplates();
+    });
+
+    // start
+    (async function init(){
+      await loadFacilities();
+      await loadTemplates();
+      clearForm();
+    })();
+  });
+  </script>
+</body>
+</html>
