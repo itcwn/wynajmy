@@ -1,30 +1,37 @@
 // app.js
+// ===============================
 // Konfiguracja Supabase
+// ===============================
 const supabaseUrl = window.__SUPA?.SUPABASE_URL;
 const supabaseKey = window.__SUPA?.SUPABASE_ANON_KEY;
 const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
 
+// ===============================
 // Stan globalny
+// ===============================
 const state = {
   facilities: [],
   bookings: [],
   eventTypes: [],
   selectedFacility: null,
   currentDate: new Date(),
-  mode: "day", // 'day' lub 'hour'
+  mode: "day", // 'day' albo 'hour'
 };
 
-// Inicjalizacja
+// ===============================
+// Init
+// ===============================
 async function init() {
   await loadFacilities();
   await loadEventTypes();
-   
   renderSidebar();
   renderCalendar();
 }
 document.addEventListener("DOMContentLoaded", init);
 
-// ------------------ Ładowanie danych ------------------ //
+// ===============================
+// Ładowanie danych
+// ===============================
 async function loadFacilities() {
   const { data, error } = await supabase.from("facilities").select("*").order("name");
   if (!error) state.facilities = data || [];
@@ -53,9 +60,13 @@ async function loadBookings(facilityId, day) {
   state.bookings = !error ? data : [];
 }
 
-// ------------------ Sidebar ------------------ //
+// ===============================
+// Sidebar
+// ===============================
 function renderSidebar() {
   const sidebar = document.getElementById("sidebar");
+  if (!sidebar) return;
+
   sidebar.innerHTML = `
     <h2 class="font-bold mb-2">Świetlica</h2>
     <select id="facilitySelect" class="w-full border rounded px-2 py-1 mb-4">
@@ -77,9 +88,11 @@ function renderSidebar() {
     <div id="formContainer"></div>
   `;
 
+  // events
   document.getElementById("facilitySelect").addEventListener("change", async (e) => {
     const id = e.target.value;
     state.selectedFacility = state.facilities.find(f => f.id == id);
+    renderBookingForm();
     await refreshBookings();
   });
 
@@ -96,7 +109,9 @@ function renderSidebar() {
   });
 }
 
-// ------------------ Kalendarz ------------------ //
+// ===============================
+// Kalendarz
+// ===============================
 async function refreshBookings() {
   if (!state.selectedFacility) return;
   await loadBookings(state.selectedFacility.id, state.currentDate);
@@ -105,6 +120,8 @@ async function refreshBookings() {
 
 function renderCalendar() {
   const cal = document.getElementById("calendar");
+  if (!cal) return;
+
   cal.innerHTML = "";
 
   if (state.mode === "day") {
@@ -116,6 +133,8 @@ function renderCalendar() {
 
 function renderDay() {
   const cal = document.getElementById("calendar");
+  if (!cal) return;
+
   cal.innerHTML = "";
 
   if (state.bookings.length === 0) {
@@ -138,6 +157,8 @@ function renderDay() {
 
 function renderHour() {
   const cal = document.getElementById("calendar");
+  if (!cal) return;
+
   cal.innerHTML = "";
 
   for (let h = 8; h <= 20; h++) {
@@ -150,9 +171,18 @@ function renderHour() {
   }
 }
 
-// ------------------ Formularz rezerwacji ------------------ //
+// ===============================
+// Formularz rezerwacji
+// ===============================
 function renderBookingForm() {
   const container = document.getElementById("formContainer");
+  if (!container) return;
+
+  if (!state.selectedFacility) {
+    container.innerHTML = `<div class="text-sm text-gray-600">Wybierz świetlicę, aby dodać rezerwację.</div>`;
+    return;
+  }
+
   container.innerHTML = `
     <h3 class="font-bold mb-2">Nowa rezerwacja</h3>
     <form id="bookingForm" class="space-y-2">
@@ -191,7 +221,9 @@ function renderBookingForm() {
   });
 }
 
-// ------------------ Szablony dokumentów ------------------ //
+// ===============================
+// Szablony dokumentów
+// ===============================
 async function showTemplateSelector(newBookingId) {
   const { data: templates } = await supabase.from("document_templates").select("*").eq("is_active", true);
 
@@ -262,14 +294,17 @@ async function showTemplateSelector(newBookingId) {
     fieldsForm.appendChild(saveBtn);
   }
 
-  document.getElementById("formContainer").appendChild(container);
+  const formContainer = document.getElementById("formContainer");
+  if (formContainer) formContainer.appendChild(container);
 }
 
-// ------------------ Placeholdery w podglądzie ------------------ //
+// ===============================
+// Podmiana placeholderów
+// ===============================
 function fillTemplate(html, booking, facility) {
   let out = html;
 
-  // podstawowe pola
+  // standardowe pola
   out = out.replace(/\{\{booking\.renter_name\}\}/g, booking.renter_name || "__________");
   out = out.replace(/\{\{booking\.renter_email\}\}/g, booking.renter_email || "__________");
   out = out.replace(/\{\{facility\.name\}\}/g, facility.name || "__________");
