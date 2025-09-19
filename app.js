@@ -220,7 +220,7 @@ async function selectFacility(id) {
   $("#selectors").classList.remove("hidden");
   $("#booking").classList.remove("hidden");
   $("#calendar").classList.remove("hidden");
-  $("#templatesList").classList.add("hidden");
+ 
 
   $("#facilityImg").src = f.image_url || "https://picsum.photos/800/400";
   $("#facilityName").textContent = `${f.name} ${f.postal_code ? "(" + f.postal_code + ")" : ""}`;
@@ -247,7 +247,7 @@ async function selectFacility(id) {
   setDayPickerFromCurrent();
   initHourSliderDefaults();
   await renderDay();
-  await loadTemplatesForFacility();
+ 
   renderMap();
 }
 
@@ -535,7 +535,7 @@ async function loadTemplatesForFacility() {
       </li>`
     )
     .join("");
-  $("#templatesList").classList.remove("hidden");
+   
 
   ul.querySelectorAll("button").forEach((btn) =>
     btn.addEventListener("click", async (ev) => {
@@ -837,12 +837,11 @@ async function init() {
   await loadDictionaries();
   await loadFacilities();
 
-  $("#genDocsLink")?.addEventListener("click", async (e) => {
-    e.preventDefault();
-   
-    const top = $("#templatesList").offsetTop;
-    window.scrollTo({ top: top - 20, behavior: "smooth" });
-  });
+$("#genDocsLink")?.addEventListener("click", (e) => {
+  e.preventDefault();
+  const el = $("#docGen");
+  if (el) window.scrollTo({ top: el.offsetTop - 20, behavior: "smooth" });
+});
 
   await tryCancelFromUrl();
 }
