@@ -688,7 +688,7 @@ async function showTemplateSelectorLive(bookingRow, mountEl) {
   const { data: templates, error } = await supabase
     .from("document_templates")
     .select("*")
-    .in("facility_id", [bookingRow.facility_id, null])
+   .or(`facility_id.eq.${bookingRow.facility_id},facility_id.is.null`)
     .eq("is_active", true)
     .order("name");
 
