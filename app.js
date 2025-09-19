@@ -52,7 +52,7 @@ function renderSidebar() {
   root.innerHTML = `
     <div class="bg-white rounded-xl shadow p-4">
       <h2 class="font-semibold mb-3">Wyszukaj</h2>
-      <input id="q" class="w-full border rounded-xl px-3 py-2" placeholder="Szukaj po nazwie/mieście..." />
+      <input id="q" class="w-full border rounded-xl px-3 py-2" placeholder="Szukaj ..." />
     </div>
     <div class="bg-white rounded-xl shadow p-4 mt-3">
       <h2 class="font-semibold mb-3">Świetlice (<span id="count">0</span>)</h2>
@@ -284,7 +284,7 @@ async function selectFacility(id) {
   $("#facilityDesc").textContent = f.description || "";
   const address = `${f.address_line1 || ""}${f.address_line2 ? ", " + f.address_line2 : ""}, ${f.postal_code || ""} ${f.city || ""}`;
   $("#facilityAddr").textContent = address;
-  $("#facilityCap").textContent = f.capacity ? `Pojemność: ${f.capacity}` : "";
+  $("#facilityCap").textContent = f.capacity ? `Maksymalna liczba osób: ${f.capacity}` : "";
   $("#facilityPrices").textContent = [
     f.price_per_hour ? `Cena/h: ${Number(f.price_per_hour).toFixed(2)} zł` : null,
     f.price_per_day ? `Cena/doba: ${Number(f.price_per_day).toFixed(2)} zł` : null,
