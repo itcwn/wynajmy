@@ -1,383 +1,726 @@
-// app.js
-// ===============================
-// Konfiguracja Supabase
-// ===============================
-const supabaseUrl = window.__SUPA?.SUPABASE_URL;
-const supabaseKey = window.__SUPA?.SUPABASE_ANON_KEY;
-const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+/* app.js — MVP v3 (układ poziomy, suwak godzin filtruje kalendarz, dokumenty HTML, anulowanie) */
 
-// ===============================
-// Stan globalny
-// ===============================
+/* === Konfiguracja === */
+const SUPABASE_URL = window.__SUPA?.SUPABASE_URL;
+const SUPABASE_ANON_KEY = window.__SUPA?.SUPABASE_ANON_KEY;
+const GOOGLE_MAPS_API_KEY = window.__SUPA?.GOOGLE_MAPS_API_KEY || null;
+
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  alert("Brak konfiguracji Supabase — uzupełnij supabase-config.js");
+}
+if (!window.supabase || !window.supabase.createClient) {
+  console.error("Supabase SDK niezaładowany. Upewnij się, że masz <script src=\"https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2\" defer></script> przed app.js");
+}
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+/* === Globalny state === */
 const state = {
   facilities: [],
-  bookings: [],
+  amenities: {},
   eventTypes: [],
   selectedFacility: null,
   currentDate: new Date(),
-  mode: "day",
+  bookingsCache: new Map(),
+  lastBooking: null,
+  templates: [],
+  mode: "day", // 'day' | 'hour'
+  mapsReady: false,
 };
 
-// ===============================
-// Init
-// ===============================
-async function init() {
-  await loadFacilities();
-  await loadEventTypes();
-  renderSidebar();
-  renderCalendar();
-}
-document.addEventListener("DOMContentLoaded", init);
+/* === Utils === */
+const $  = (sel) => document.querySelector(sel);
+const $$ = (sel) => Array.from(document.querySelectorAll(sel));
+const pad2 = (n) => String(n).padStart(2, "0");
+const ymd = (d) => `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
+const fmtDateLabel = (d) =>
+  d.toLocaleDateString("pl-PL", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+const escapeHtml = (str) =>
+  String(str)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
 
-// ===============================
-// Ładowanie danych
-// ===============================
+/* === Layout render === */
+function renderSidebar() {
+  const root = $("#sidebar");
+  if (!root) { console.warn("#sidebar not found"); return; }
+  root.innerHTML = `
+    <div class="bg-white rounded-xl shadow p-4">
+      <h2 class="font-semibold mb-3">Wyszukaj</h2>
+      <input id="q" class="w-full border rounded-xl px-3 py-2" placeholder="Szukaj po nazwie/mieście..." />
+    </div>
+    <div class="bg-white rounded-xl shadow p-4 mt-3">
+      <h2 class="font-semibold mb-3">Świetlice (<span id="count">0</span>)</h2>
+      <ul id="facilities" class="space-y-3"></ul>
+    </div>
+    <div id="mapCard" class="hidden bg-white rounded-xl shadow p-4 mt-3">
+      <h3 class="font-semibold mb-3">Mapa</h3>
+      <div id="map" style="width:100%;height:280px;border-radius:12px;"></div>
+    </div>
+  `;
+  $("#q").addEventListener("input", renderFacilityList);
+}
+
+function renderMain() {
+  const root = $("#main");
+  if (!root) { console.warn("#main not found"); return; }
+  root.innerHTML = `
+    <!-- (1) Nagłówek obiektu -->
+    <div id="facilityCard" class="hidden bg-white rounded-2xl shadow overflow-hidden">
+      <div class="grid grid-cols-1 md:grid-cols-3">
+        <img id="facilityImg" class="w-full h-56 object-cover md:col-span-1" alt="Zdjęcie świetlicy"/>
+        <div class="p-4 md:col-span-2">
+          <h2 id="facilityName" class="text-xl font-bold"></h2>
+          <p id="facilityDesc" class="text-sm text-gray-600 mt-1"></p>
+          <div class="mt-3 text-sm">
+            <div id="facilityAddr" class="text-gray-700"></div>
+            <div class="mt-1">
+              <span id="facilityCap" class="inline-block bg-gray-100 px-2 py-1 rounded-lg"></span>
+              <span id="facilityPrices" class="inline-block bg-gray-100 px-2 py-1 rounded-lg ml-2"></span>
+            </div>
+            <div id="facilityAmenities" class="mt-2 flex flex-wrap gap-2"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- (2) Wybór dnia / tryb godzinowy z suwakiem -->
+    <div id="selectors" class="hidden bg-white rounded-2xl shadow p-4">
+      <div class="flex items-center justify-between gap-3 flex-wrap">
+        <div class="flex items-center gap-2">
+          <button id="prevDay" class="px-3 py-2 rounded-xl border">◀</button>
+          <button id="todayBtn" class="px-3 py-2 rounded-xl border">Dziś</button>
+          <button id="nextDay" class="px-3 py-2 rounded-xl border">▶</button>
+          <input id="dayPicker" type="date" class="border rounded-xl px-3 py-2"/>
+        </div>
+        <div class="flex items-center gap-3">
+          <span class="text-sm">Tryb:</span>
+          <label class="inline-flex items-center gap-2 text-sm">
+            <input type="radio" name="mode" value="day" checked> Dni
+          </label>
+          <label class="inline-flex items-center gap-2 text-sm">
+            <input type="radio" name="mode" value="hour"> Godziny
+          </label>
+        </div>
+      </div>
+
+      <div id="hourSliderWrap" class="hidden mt-4">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 items-center">
+          <div class="md:col-span-1 text-sm text-gray-700">Zakres godzin:</div>
+          <div class="md:col-span-2 flex items-center gap-3">
+            <div class="flex-1"><input id="hourStart" type="range" min="0" max="23" step="1"></div>
+            <div>—</div>
+            <div class="flex-1"><input id="hourEnd" type="range" min="0" max="23" step="1" value="23"></div>
+            <div class="whitespace-nowrap text-sm">
+              <span id="hourStartLabel">12:00</span>–<span id="hourEndLabel">14:00</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="text-lg font-semibold mt-3" id="dateLabel"></div>
+    </div>
+
+    <!-- (3) Formularz rezerwacji -->
+    <div id="booking" class="hidden bg-white rounded-2xl shadow p-4">
+      <h3 class="font-semibold mb-3">Nowa rezerwacja</h3>
+      <form id="bookingForm" class="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div>
+          <label class="text-sm">Tytuł wydarzenia</label>
+          <input name="title" required class="w-full border rounded-xl px-3 py-2" placeholder="np. Urodziny" />
+        </div>
+        <div>
+          <label class="text-sm">Rodzaj</label>
+          <select name="event_type_id" class="w-full border rounded-xl px-3 py-2"></select>
+        </div>
+
+        <div data-day-fields>
+          <label class="text-sm">Dzień rezerwacji</label>
+          <input name="day_only" type="date" class="w-full border rounded-xl px-3 py-2" />
+        </div>
+
+        <div data-hour-fields class="hidden">
+          <label class="text-sm">Początek (godzina)</label>
+          <input name="start_time" type="datetime-local" class="w-full border rounded-xl px-3 py-2" />
+        </div>
+        <div data-hour-fields class="hidden">
+          <label class="text-sm">Koniec (godzina)</label>
+          <input name="end_time" type="datetime-local" class="w-full border rounded-xl px-3 py-2" />
+        </div>
+
+        <div>
+          <label class="text-sm">Imię i nazwisko</label>
+          <input name="renter_name" required class="w-full border rounded-xl px-3 py-2" />
+        </div>
+        <div>
+          <label class="text-sm">E-mail</label>
+          <input name="renter_email" type="email" required class="w-full border rounded-xl px-3 py-2" />
+        </div>
+
+        <div class="md:col-span-2">
+          <label class="text-sm">Uwagi (opcjonalnie)</label>
+          <textarea name="notes" class="w-full border rounded-xl px-3 py-2" rows="2"></textarea>
+        </div>
+
+        <div class="flex items-center gap-2 md:col-span-2">
+          <input id="is_public" type="checkbox" checked class="w-4 h-4"/>
+          <label for="is_public" class="text-sm">Pokaż tytuł wydarzenia publicznie w kalendarzu</label>
+        </div>
+
+        <div class="md:col-span-2 flex gap-2 items-center">
+          <button class="px-4 py-2 rounded-xl bg-blue-600 text-white" type="submit">Zarezerwuj</button>
+          <a id="genDocsLink" href="#" class="no-print hidden text-blue-700 underline">Generuj dokumenty</a>
+          <button id="cancelThisBooking" type="button" class="no-print hidden px-3 py-2 border rounded-xl">Anuluj tę rezerwację</button>
+          <div id="formMsg" class="text-sm ml-2"></div>
+        </div>
+        <p class="text-xs text-gray-500 md:col-span-2">
+          Po dokonaniu rezerwacji otrzymasz e-mail z potwierdzeniem oraz linkiem do anulowania (jeśli będzie potrzebne).
+        </p>
+      </form>
+    </div>
+
+    <!-- (4) Kalendarz dzienny -->
+    <div id="calendar" class="hidden bg-white rounded-2xl shadow p-4">
+      <div id="hours" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2"></div>
+      <p class="text-xs text-gray-500 mt-2">Widok dzienny 00–23. Rezerwacje dzienne zajmują cały dzień.</p>
+    </div>
+
+    <!-- Szablony dokumentów -->
+    <div id="templatesList" class="hidden bg-white rounded-2xl shadow p-4">
+      <h3 class="font-semibold mb-3">Szablony dokumentów</h3>
+      <ul id="templateItems" class="space-y-2"></ul>
+    </div>
+  `;
+}
+
+/* === Dane słownikowe i obiekty === */
+async function loadDictionaries() {
+  const [{ data: ams }, { data: evs }] = await Promise.all([
+    supabase.from("amenities").select("*").order("name"),
+    supabase.from("event_types").select("*").order("name"),
+  ]);
+  (ams || []).forEach((a) => (state.amenities[a.id] = a.name));
+  state.eventTypes = evs || [];
+  const sel = document.querySelector('select[name="event_type_id"]');
+  if (sel) sel.innerHTML =
+    `<option value="">(brak)</option>` +
+    state.eventTypes.map((e) => `<option value="${e.id}">${e.name}</option>`).join("");
+}
+
 async function loadFacilities() {
-  const { data, error } = await supabase.from("facilities").select("*").order("name");
-  if (!error) state.facilities = data || [];
+  const { data } = await supabase.from("facilities").select("*").order("name");
+  state.facilities = data || [];
+  renderFacilityList();
 }
 
-async function loadEventTypes() {
-  const { data, error } = await supabase.from("event_types").select("*").order("name");
-  if (!error) state.eventTypes = data || [];
+function renderFacilityList() {
+  const q = $("#q")?.value.trim().toLowerCase() || "";
+  const list = state.facilities.filter((f) =>
+    `${f.name} ${f.city} ${f.postal_code}`.toLowerCase().includes(q)
+  );
+  $("#count").textContent = list.length;
+  const ul = $("#facilities");
+  ul.innerHTML = list
+    .map(
+      (f) => `
+      <li>
+        <button data-id="${f.id}" class="w-full text-left border rounded-xl p-3 hover:bg-gray-50">
+          <div class="font-semibold">${f.name} ${f.postal_code ? "(" + f.postal_code + ")" : ""}</div>
+          <div class="text-sm text-gray-600">${f.city}</div>
+        </button>
+      </li>`
+    )
+    .join("");
+  ul.querySelectorAll("button").forEach((btn) =>
+    btn.addEventListener("click", () => selectFacility(btn.dataset.id))
+  );
 }
 
-async function loadBookings(facilityId, day) {
-  const start = new Date(day);
-  start.setHours(0, 0, 0, 0);
-  const end = new Date(start);
-  end.setDate(end.getDate() + 1);
+/* === Google Maps === */
+function loadMapsIfKey() {
+  if (!GOOGLE_MAPS_API_KEY) return;
+  if (document.querySelector('script[data-role="maps"]')) return;
+  const s = document.createElement("script");
+  s.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(GOOGLE_MAPS_API_KEY)}&callback=initMapsApi`;
+  s.async = true;
+  s.defer = true;
+  s.dataset.role = "maps";
+  document.body.appendChild(s);
+}
+function initMapsApi() {
+  state.mapsReady = true;
+  if (state.selectedFacility) renderMap();
+}
+window.initMapsApi = initMapsApi;
 
-  const { data, error } = await supabase
-    .from("bookings")
+function renderMap() {
+  const f = state.selectedFacility;
+  if (!state.mapsReady || !f || !f.lat || !f.lng) return;
+  $("#mapCard").classList.remove("hidden");
+  const center = { lat: Number(f.lat), lng: Number(f.lng) };
+  const map = new google.maps.Map(document.getElementById("map"), { center, zoom: 13 });
+  new google.maps.Marker({ position: center, map, title: f.name });
+}
+
+/* === Selekcja obiektu === */
+async function selectFacility(id) {
+  loadMapsIfKey();
+  const f = state.facilities.find((x) => x.id === id);
+  state.selectedFacility = f;
+
+  $("#facilityCard").classList.remove("hidden");
+  $("#selectors").classList.remove("hidden");
+  $("#booking").classList.remove("hidden");
+  $("#calendar").classList.remove("hidden");
+  $("#templatesList").classList.add("hidden");
+
+  $("#facilityImg").src = f.image_url || "https://picsum.photos/800/400";
+  $("#facilityName").textContent = `${f.name} ${f.postal_code ? "(" + f.postal_code + ")" : ""}`;
+  $("#facilityDesc").textContent = f.description || "";
+  const address = `${f.address_line1 || ""}${f.address_line2 ? ", " + f.address_line2 : ""}, ${f.postal_code || ""} ${f.city || ""}`;
+  $("#facilityAddr").textContent = address;
+  $("#facilityCap").textContent = f.capacity ? `Pojemność: ${f.capacity}` : "";
+  $("#facilityPrices").textContent = [
+    f.price_per_hour ? `Cena/h: ${Number(f.price_per_hour).toFixed(2)} zł` : null,
+    f.price_per_day ? `Cena/doba: ${Number(f.price_per_day).toFixed(2)} zł` : null,
+  ].filter(Boolean).join(" · ");
+
+  const { data: joins } = await supabase
+    .from("facility_amenities")
+    .select("amenity_id")
+    .eq("facility_id", f.id);
+  $("#facilityAmenities").innerHTML = (joins || [])
+    .map((j) =>
+      `<span class="text-xs bg-emerald-50 border border-emerald-200 rounded-lg px-2 py-1">${state.amenities[j.amenity_id] || "—"}</span>`
+    )
+    .join("");
+
+  state.currentDate = new Date();
+  setDayPickerFromCurrent();
+  initHourSliderDefaults();
+  await renderDay();
+  await loadTemplatesForFacility();
+  renderMap();
+}
+
+/* === Kontrolki daty/godzin === */
+function setDayPickerFromCurrent() {
+  const d = state.currentDate;
+  $("#dayPicker").value = `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
+  const dayInput = document.querySelector('input[name="day_only"]');
+  if (dayInput) dayInput.value = $("#dayPicker").value;
+  $("#dateLabel").textContent = fmtDateLabel(d);
+}
+
+function initHourSliderDefaults() {
+  const s = $("#hourStart"), e = $("#hourEnd");
+  if (!s || !e) return;
+  s.value = 12; e.value = 14;
+  updateHourLabels();
+}
+
+function getVisibleHourRange() {
+  if (state.mode !== "hour") return { start: 0, end: 24 }; // pełna doba
+  let s = parseInt($("#hourStart").value, 10);
+  let e = parseInt($("#hourEnd").value, 10);
+  if (e <= s) e = s + 1; // min 1h
+  return { start: s, end: e }; // [start, end)
+}
+
+function updateHourLabels() {
+  const sEl = $("#hourStart"), eEl = $("#hourEnd");
+  if (!sEl || !eEl) return;
+  let s = parseInt(sEl.value, 10);
+  let e = parseInt(eEl.value, 10);
+  if (e <= s) { e = s + 1; eEl.value = e; }
+  $("#hourStartLabel").textContent = `${pad2(s)}:00`;
+  $("#hourEndLabel").textContent   = `${pad2(e)}:00`;
+
+  // zsynchronizuj ukryte pola dt-local (dla logiki rezerwacji)
+  const day = $("#dayPicker").value;
+  const startField = document.querySelector('input[name="start_time"]');
+  const endField   = document.querySelector('input[name="end_time"]');
+  if (startField) startField.value = `${day}T${pad2(s)}:00`;
+  if (endField)   endField.value   = `${day}T${pad2(e)}:00`;
+
+  // odśwież widok kalendarza wg nowego zakresu
+  renderDay();
+}
+
+/* === Kalendarz dzienny === */
+async function fetchBookingsForDay(facilityId, date) {
+  const key = facilityId + ymd(date);
+  if (state.bookingsCache.has(key)) return state.bookingsCache.get(key);
+  const start = new Date(date); start.setHours(0,0,0,0);
+  const end   = new Date(date); end.setHours(23,59,59,999);
+  const { data } = await supabase
+    .from("public_bookings")
     .select("*")
     .eq("facility_id", facilityId)
     .gte("start_time", start.toISOString())
-    .lt("end_time", end.toISOString())
-    .eq("status", "active")
+    .lte("end_time",   end.toISOString())
     .order("start_time");
-
-  state.bookings = !error ? data : [];
+  state.bookingsCache.set(key, data || []);
+  return data || [];
 }
 
-// ===============================
-// Sidebar
-// ===============================
-function renderSidebar() {
-  const sidebar = document.getElementById("sidebar");
-  if (!sidebar) return;
-
-  sidebar.innerHTML = `
-    <h2 class="font-bold mb-2">Świetlica</h2>
-    <select id="facilitySelect" class="w-full border rounded px-2 py-1 mb-4">
-      <option value="">Wybierz świetlicę</option>
-      ${state.facilities
-        .map(f => `<option value="${f.id}">${f.name} (${f.postal_code || ""})</option>`)
-        .join("")}
-    </select>
-
-    <h2 class="font-bold mb-2">Tryb</h2>
-    <div class="mb-4">
-      <label><input type="radio" name="mode" value="day" ${state.mode === "day" ? "checked" : ""}> Dni</label>
-      <label class="ml-4"><input type="radio" name="mode" value="hour" ${state.mode === "hour" ? "checked" : ""}> Godziny</label>
-    </div>
-
-    <h2 class="font-bold mb-2">Data</h2>
-    <input type="date" id="dayPicker" class="border rounded px-2 py-1 w-full mb-4" value="${state.currentDate.toISOString().slice(0, 10)}">
-
-    <div id="formContainer"></div>
-  `;
-
-  document.getElementById("facilitySelect").addEventListener("change", async (e) => {
-    const id = e.target.value;
-    state.selectedFacility = state.facilities.find(f => f.id == id);
-    renderBookingForm();
-    await refreshBookings();
-  });
-
-  document.querySelectorAll("input[name=mode]").forEach(r => {
-    r.addEventListener("change", (e) => {
-      state.mode = e.target.value;
-      renderCalendar();
-    });
-  });
-
-  document.getElementById("dayPicker").addEventListener("change", async (e) => {
-    state.currentDate = new Date(e.target.value);
-    await refreshBookings();
-  });
-}
-
-// ===============================
-// Kalendarz
-// ===============================
-async function refreshBookings() {
+async function renderDay() {
   if (!state.selectedFacility) return;
-  await loadBookings(state.selectedFacility.id, state.currentDate);
-  renderCalendar();
-}
+  const d = state.currentDate;
+  $("#dateLabel").textContent = fmtDateLabel(d);
 
-function renderCalendar() {
-  const cal = document.getElementById("calendar");
-  if (!cal) return;
-  cal.innerHTML = "";
+  const hoursEl = $("#hours");
+  hoursEl.innerHTML = "";
 
-  if (state.mode === "day") {
-    renderDay();
+  // pobierz rezerwacje dla dnia
+  const bookings = await fetchBookingsForDay(state.selectedFacility.id, d);
+
+ if (state.mode === "day") {
+  hoursEl.innerHTML = ""; // wyczyść zawsze
+
+  if (!bookings || bookings.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "border rounded-xl p-4 bg-white text-gray-600";
+    empty.textContent = "Brak rezerwacji w tym dniu.";
+    hoursEl.appendChild(empty);
   } else {
-    renderHour();
+    // pokaż listę rezerwacji (każdy wpis tylko raz)
+    bookings.forEach((b) => {
+      const s = new Date(b.start_time);
+      const e = new Date(b.end_time);
+      const item = document.createElement("div");
+      item.className = "border rounded-xl p-3 bg-white";
+      const timeLabel =
+        `${s.toLocaleTimeString("pl-PL",{hour:"2-digit",minute:"2-digit"})}` +
+        `–${e.toLocaleTimeString("pl-PL",{hour:"2-digit",minute:"2-digit"})}`;
+      item.innerHTML = `
+        <div class="text-sm font-semibold">${b.title || "Rezerwacja"}</div>
+        <div class="text-xs text-gray-600">${timeLabel}</div>
+      `;
+      hoursEl.appendChild(item);
+    });
   }
+  return; // nie przechodzimy dalej
 }
 
-function renderDay() {
-  const cal = document.getElementById("calendar");
-  if (!cal) return;
-  cal.innerHTML = "";
-
-  if (state.bookings.length === 0) {
-    cal.innerHTML = `<div class="p-4 bg-white border rounded">Brak rezerwacji w tym dniu.</div>`;
-    return;
-  }
-
-  state.bookings.forEach(b => {
+  // ⬇️ TRYB GODZINY: siatka godzin ograniczona sliderami
+  const busy = new Array(24).fill(null);
+  bookings.forEach((b) => {
     const s = new Date(b.start_time);
     const e = new Date(b.end_time);
-    const div = document.createElement("div");
-    div.className = "p-3 bg-white border rounded mb-2";
-    div.innerHTML = `
-      <div class="font-semibold">${b.title || "Rezerwacja"}</div>
-      <div class="text-sm text-gray-600">${s.toLocaleString("pl-PL")} – ${e.toLocaleString("pl-PL")}</div>
-    `;
-    cal.appendChild(div);
+    const dayStart = new Date(d); dayStart.setHours(0,0,0,0);
+    const dayEnd   = new Date(d); dayEnd.setHours(23,59,59,999);
+    const from = Math.max(0, Math.floor((Math.max(s, dayStart) - dayStart) / 3600000));
+    const to   = Math.min(24, Math.ceil((Math.min(e, dayEnd)   - dayStart) / 3600000));
+    for (let h = from; h < to; h++) busy[h] = b.title || "Zajęte";
   });
-}
 
-function renderHour() {
-  const cal = document.getElementById("calendar");
-  if (!cal) return;
-  cal.innerHTML = "";
-
-  for (let h = 8; h <= 20; h++) {
-    const hourDiv = document.createElement("div");
-    hourDiv.className = "border-b py-2 text-sm";
-    const label = `${h}:00`;
-    const booking = state.bookings.find(b => new Date(b.start_time).getHours() === h);
-    hourDiv.textContent = booking ? `${label} – ${booking.title}` : label;
-    cal.appendChild(hourDiv);
+  const pad2 = (n) => String(n).padStart(2, "0");
+  const { start, end } = getVisibleHourRange();
+  for (let h = start; h < end; h++) {
+    const label = `${pad2(h)}:00`;
+    const booked = !!busy[h];
+    const title = busy[h] || "";
+    const cell = document.createElement("div");
+    cell.className = `border rounded-xl p-3 ${booked ? "bg-red-50 border-red-200 text-red-800" : "bg-white"}`;
+    cell.innerHTML =
+      `<div class="font-mono text-sm">${label}</div>` +
+      (booked ? `<div class="text-xs">${title}</div>` : `<div class="text-xs text-gray-500">wolne</div>`);
+    hoursEl.appendChild(cell);
   }
 }
 
-// ===============================
-// Formularz rezerwacji
-// ===============================
-function renderBookingForm() {
-  const container = document.getElementById("formContainer");
-  if (!container) return;
 
-  if (!state.selectedFacility) {
-    container.innerHTML = `<div class="text-sm text-gray-600">Wybierz świetlicę, aby dodać rezerwację.</div>`;
-    return;
+/* === Zdarzenia UI (nawigacja dni, tryb, suwaki) === */
+document.addEventListener("click", (e) => {
+  if (e.target.id === "prevDay") {
+    state.currentDate.setDate(state.currentDate.getDate() - 1);
+    setDayPickerFromCurrent();
+    renderDay();
+    updateHourLabels();
   }
+  if (e.target.id === "nextDay") {
+    state.currentDate.setDate(state.currentDate.getDate() + 1);
+    setDayPickerFromCurrent();
+    renderDay();
+    updateHourLabels();
+  }
+  if (e.target.id === "todayBtn") {
+    state.currentDate = new Date();
+    setDayPickerFromCurrent();
+    renderDay();
+    updateHourLabels();
+  }
+});
 
-  container.innerHTML = `
-    <h3 class="font-bold mb-2">Nowa rezerwacja</h3>
-    <form id="bookingForm" class="space-y-2">
-      <input type="text" name="title" placeholder="Tytuł wydarzenia" class="w-full border rounded px-2 py-1" required>
-      <input type="text" name="renter_name" placeholder="Imię i nazwisko" class="w-full border rounded px-2 py-1" required>
-      <input type="email" name="renter_email" placeholder="E-mail" class="w-full border rounded px-2 py-1">
-      <input type="tel" name="renter_phone" placeholder="Telefon" class="w-full border rounded px-2 py-1">
-      <label>Od: <input type="datetime-local" name="start_time" class="border rounded px-2 py-1"></label>
-      <label>Do: <input type="datetime-local" name="end_time" class="border rounded px-2 py-1"></label>
-      <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded">Zarezerwuj</button>
-    </form>
-    <div id="msg" class="text-sm text-gray-600 mt-2"></div>
-  `;
-
-  document.getElementById("bookingForm").addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const f = e.target;
-    const payload = {
-      title: f.title.value,
-      renter_name: f.renter_name.value,
-      renter_email: f.renter_email.value,
-      renter_phone: f.renter_phone.value,
-      start_time: f.start_time.value,
-      end_time: f.end_time.value,
-      facility_id: state.selectedFacility.id,
-      status: "active",
-    };
-    const { data, error } = await supabase.from("bookings").insert(payload).select().single();
-    const msg = document.getElementById("msg");
-    if (error) {
-      msg.textContent = "❌ " + error.message;
-    } else {
-      msg.textContent = "✅ Rezerwacja dodana!";
-      await refreshBookings();
-
-      // ⬇️ DODANE: miejsce na generowanie dokumentów pod formularzem
-      let docMount = document.getElementById("docGen");
-      if (!docMount) {
-        docMount = document.createElement("div");
-        docMount.id = "docGen";
-        docMount.className = "mt-6";
-        container.appendChild(docMount);
-      }
-      showTemplateSelector(data.id, docMount);
+document.addEventListener("change", (e) => {
+  if (e.target.id === "dayPicker") {
+    const d = new Date(e.target.value + "T00:00");
+    if (!isNaN(d)) {
+      state.currentDate = d;
+      renderDay();
+      updateHourLabels();
     }
-  });
-}
+  }
+  if (e.target.name === "mode") {
+    state.mode = e.target.value;
+    $$('[data-hour-fields]').forEach((el) => el.classList.toggle("hidden", state.mode === "day"));
+    $$('[data-day-fields]').forEach((el) => el.classList.toggle("hidden", state.mode !== "day"));
+    $("#hourSliderWrap").classList.toggle("hidden", state.mode !== "hour");
+    renderDay(); // odśwież po zmianie trybu
+  }
+  if (e.target.id === "hourStart" || e.target.id === "hourEnd") {
+    updateHourLabels();
+  }
+});
 
-// ===============================
-// Szablony dokumentów
-// ===============================
-async function showTemplateSelector(bookingId, mountEl) {
-  if (!mountEl) return;
+/* === Formularz rezerwacji === */
+document.addEventListener("submit", async (e) => {
+  if (e.target.id !== "bookingForm") return;
+  e.preventDefault();
+  const form = e.target;
+  const msg = $("#formMsg");
+  msg.textContent = "Trwa zapisywanie...";
 
-  const { data: booking } = await supabase.from("bookings").select("*").eq("id", bookingId).single();
+  let startIso, endIso;
+  if (state.mode === "day") {
+    const d = form.day_only.value;
+    if (!d) { msg.textContent = "Wybierz dzień."; return; }
+    startIso = new Date(d + "T00:00").toISOString();
+    endIso   = new Date(d + "T23:59:59").toISOString();
+  } else {
+    const day = $("#dayPicker").value;
+    const sH = pad2(parseInt($("#hourStart").value, 10));
+    const eH = pad2(parseInt($("#hourEnd").value, 10));
+    startIso = new Date(`${day}T${sH}:00`).toISOString();
+    endIso   = new Date(`${day}T${eH}:00`).toISOString();
+    if (new Date(endIso) <= new Date(startIso)) { msg.textContent = "Koniec musi być po początku."; return; }
+  }
 
-  const facilityId = booking?.facility_id;
-  const { data: templates, error } = await supabase
+  const payload = {
+    facility_id: state.selectedFacility.id,
+    title: form.title.value.trim(),
+    event_type_id: form.event_type_id.value || null,
+    start_time: startIso,
+    end_time: endIso,
+    renter_name: form.renter_name.value.trim(),
+    renter_email: form.renter_email.value.trim(),
+    notes: form.notes.value.trim() || null,
+    is_public: $("#is_public").checked,
+  };
+
+  const { data, error } = await supabase.from("bookings").insert(payload).select();
+  if (error) { console.error(error); msg.textContent = "Błąd: " + (error.message || "nie udało się utworzyć rezerwacji."); return; }
+  msg.textContent = "Zarezerwowano!";
+  state.lastBooking = data && data[0] ? data[0] : null;
+  state.bookingsCache.clear();
+  await renderDay();
+  $("#genDocsLink").classList.remove("hidden");
+  $("#cancelThisBooking").classList.remove("hidden");
+
+  if (state.lastBooking) {
+    const cancelUrl = new URL(window.location.href);
+    cancelUrl.searchParams.set("cancel", state.lastBooking.cancel_token);
+    console.log("Cancel URL (do e-maila):", cancelUrl.toString());
+  }
+});
+
+/* === Anulowanie z przycisku === */
+document.addEventListener("click", async (e) => {
+  if (e.target.id !== "cancelThisBooking") return;
+  if (!state.lastBooking) { alert("Brak ostatniej rezerwacji."); return; }
+  if (!confirm("Na pewno anulować tę rezerwację?")) return;
+  const { data, error } = await supabase.rpc("cancel_booking", { p_token: state.lastBooking.cancel_token });
+  if (error) { alert("Błąd anulowania: " + (error.message || "")); return; }
+  if (data) { alert("Rezerwacja anulowana."); state.bookingsCache.clear(); await renderDay(); }
+  else { alert("Nie znaleziono lub już anulowana."); }
+});
+
+/* === Dokumenty — lista szablonów i druk HTML === */
+async function loadTemplatesForFacility() {
+  const f = state.selectedFacility;
+  if (!f) return;
+  const { data: local } = await supabase
     .from("document_templates")
     .select("*")
-    .in("facility_id", [facilityId, null])
     .eq("is_active", true)
+    .eq("facility_id", f.id)
+    .order("name");
+  const { data: global } = await supabase
+    .from("document_templates")
+    .select("*")
+    .eq("is_active", true)
+    .is("facility_id", null)
     .order("name");
 
-  if (error) {
-    mountEl.innerHTML = `<div class="p-3 border rounded bg-red-50 text-red-800">Błąd pobierania szablonów: ${error.message}</div>`;
-    return;
+  const codes = new Set((local || []).map((t) => t.code));
+  const merged = [...(local || []), ...(global || []).filter((t) => !codes.has(t.code))];
+  state.templates = merged;
+
+  const ul = $("#templateItems");
+  ul.innerHTML = merged
+    .map(
+      (t) => `
+      <li class="flex items-center justify-between border rounded-xl p-3">
+        <div>
+          <div class="font-medium">${t.name}</div>
+          <div class="text-xs text-gray-500">${t.code}${t.facility_id ? " • lokalny" : " • globalny"}</div>
+        </div>
+        <div class="flex gap-2">
+          <button class="px-3 py-2 border rounded-xl" data-action="preview" data-id="${t.id}">Otwórz</button>
+          <button class="px-3 py-2 border rounded-xl" data-action="print" data-id="${t.id}">Drukuj</button>
+        </div>
+      </li>`
+    )
+    .join("");
+  $("#templatesList").classList.remove("hidden");
+
+  ul.querySelectorAll("button").forEach((btn) =>
+    btn.addEventListener("click", async (ev) => {
+      const id = ev.currentTarget.dataset.id;
+      const act = ev.currentTarget.dataset.action;
+      const tpl = merged.find((x) => x.id === id);
+      if (!tpl) return;
+      const html = await renderTemplateHTML(tpl.html);
+      if (act === "preview") openPreviewWindow(html);
+      if (act === "print") openPreviewWindow(html, true);
+    })
+  );
+}
+
+function getBookingContext() {
+  if (state.lastBooking) {
+    return {
+      title: state.lastBooking.title,
+      start_time: state.lastBooking.start_time,
+      end_time: state.lastBooking.end_time,
+      renter_name: state.lastBooking.renter_name,
+      renter_email: state.lastBooking.renter_email,
+      notes: state.lastBooking.notes || "",
+    };
   }
+  const form = $("#bookingForm");
+  return {
+    title: form.title.value.trim(),
+    start_time: new Date(form.start_time.value).toISOString(),
+    end_time: new Date(form.end_time.value).toISOString(),
+    renter_name: form.renter_name.value.trim(),
+    renter_email: form.renter_email.value.trim(),
+    notes: form.notes.value.trim() || "",
+  };
+}
 
-  mountEl.innerHTML = `
-    <div class="p-4 border rounded bg-gray-50">
-      <h3 class="font-bold mb-3">Wybierz szablon i uzupełnij pola, aby wygenerować/ wydrukować wniosek</h3>
-      <div id="tplList" class="grid gap-2 mb-4"></div>
-      <div id="tplFields"></div>
-    </div>
-  `;
+function getFacilityContext() {
+  const f = state.selectedFacility || {};
+  const address = `${f.address_line1 || ""}${f.address_line2 ? ", " + f.address_line2 : ""}, ${f.postal_code || ""} ${f.city || ""}`.trim();
+  return {
+    name: f.name || "",
+    address,
+    city: f.city || "",
+    postal_code: f.postal_code || "",
+    capacity: f.capacity || "",
+    price_per_hour: f.price_per_hour || "",
+    price_per_day: f.price_per_day || "",
+  };
+}
 
-  const list = mountEl.querySelector("#tplList");
-  const fieldsWrap = mountEl.querySelector("#tplFields");
+function formatDate(iso) {
+  if (!iso) return "";
+  return new Date(iso).toLocaleDateString("pl-PL");
+}
+function formatTime(iso) {
+  if (!iso) return "";
+  return new Date(iso).toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" });
+}
 
-  (templates || []).forEach(t => {
-    const el = document.createElement("button");
-    el.type = "button";
-    el.className = "text-left p-3 border rounded bg-white hover:bg-gray-100";
-    el.innerHTML = `
-      <div class="font-semibold">${t.name}</div>
-      <div class="text-xs text-gray-600">${t.facility_id ? "szablon lokalny" : "szablon ogólny"} • ${t.code}</div>
-    `;
-    el.addEventListener("click", () => {
-      [...list.children].forEach(n => n.classList.remove("ring-2","ring-red-500"));
-      el.classList.add("ring-2","ring-red-500");
-      renderFieldsForTemplate(t, booking);
-    });
-    list.appendChild(el);
+async function renderTemplateHTML(templateHtml) {
+  const booking = getBookingContext();
+  const facility = getFacilityContext();
+  let html = templateHtml;
+
+  const map = {
+    "{{booking.title}}": booking.title || "",
+    "{{booking.renter_name}}": booking.renter_name || "",
+    "{{booking.renter_email}}": booking.renter_email || "",
+    "{{booking.notes}}": booking.notes || "",
+    "{{facility.name}}": facility.name || "",
+    "{{facility.address}}": facility.address || "",
+    "{{facility.city}}": facility.city || "",
+    "{{facility.postal_code}}": facility.postal_code || "",
+    "{{facility.capacity}}": facility.capacity || "",
+    "{{facility.price_per_hour}}": facility.price_per_hour || "",
+    "{{facility.price_per_day}}": facility.price_per_day || "",
+  };
+  for (const [k, v] of Object.entries(map)) {
+    html = html.split(k).join(escapeHtml(String(v)));
+  }
+  html = html.replace(/\{\{\s*date\s+booking\.start_time\s*\}\}/g, formatDate(booking.start_time));
+  html = html.replace(/\{\{\s*date\s+booking\.end_time\s*\}\}/g, formatDate(booking.end_time));
+  html = html.replace(/\{\{\s*time\s+booking\.start_time\s*\}\}/g, formatTime(booking.start_time));
+  html = html.replace(/\{\{\s*time\s+booking\.end_time\s*\}\}/g, formatTime(booking.end_time));
+
+  const style = `<style id="print-styles">
+    body{font-family:system-ui, sans-serif; padding:24px}
+    h1{font-size:20px;margin:0 0 8px 0}
+    h2{font-size:14px;margin:0 0 10px 0;color:#666}
+    h3{font-size:12px;margin:12px 0 6px 0}
+    .doc table{width:100%;border-collapse:collapse}
+    .doc table td,.doc table th{border:1px solid #ccc;padding:6px}
+    .signs{display:flex;gap:40px;justify-content:space-between;margin-top:30px}
+    @page { size: A4; margin: 15mm }
+  </style>`;
+
+  return `<!doctype html><html><head><meta charset="utf-8" />${style}<title>Dokument</title></head><body>${html}</body></html>`;
+}
+
+function openPreviewWindow(html, doPrint = false) {
+  const w = window.open("", "_blank");
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
+  w.focus();
+  if (doPrint) w.print();
+}
+
+/* === URL: anulowanie po tokenie (?cancel=...) === */
+async function tryCancelFromUrl() {
+  const url = new URL(window.location.href);
+  const token = url.searchParams.get("cancel");
+  if (!token) return;
+  if (!confirm("Wykryto link anulowania rezerwacji. Czy chcesz kontynuować?")) return;
+  const { data, error } = await supabase.rpc("cancel_booking", { p_token: token });
+  if (error) { alert("Błąd anulowania: " + (error.message || "")); return; }
+  if (data) {
+    alert("Rezerwacja anulowana.");
+    state.bookingsCache.clear();
+    if (state.selectedFacility) await renderDay();
+  } else {
+    alert("Nie znaleziono lub już anulowana.");
+  }
+}
+
+/* === Inicjalizacja === */
+async function init() {
+  renderSidebar();
+  renderMain();
+  await loadDictionaries();
+  await loadFacilities();
+
+  // Link do dokumentów
+  $("#genDocsLink")?.addEventListener("click", async (e) => {
+    e.preventDefault();
+    await loadTemplatesForFacility();
+    const top = $("#templatesList").offsetTop;
+    window.scrollTo({ top: top - 20, behavior: "smooth" });
   });
 
-  function renderFieldsForTemplate(tpl, bookingRow) {
-    fieldsWrap.innerHTML = "";
+  await tryCancelFromUrl();
+}
 
-    const matches = [...tpl.html.matchAll(/\{\{booking\.extra\.([a-zA-Z0-9_]+)\}\}/g)];
-    const keys = [...new Set(matches.map(m => m[1]))];
-
-    const head = document.createElement("div");
-    head.className = "mb-2 text-sm text-gray-700";
-    head.textContent = keys.length
-      ? "Uzupełnij pola dla wybranego szablonu:"
-      : "Ten szablon nie ma dodatkowych pól do uzupełnienia.";
-    fieldsWrap.appendChild(head);
-
-    let form;
-    if (keys.length) {
-      form = document.createElement("form");
-      form.className = "border rounded bg-white";
-      form.innerHTML = `
-        <table class="table-auto w-full">
-          <thead>
-            <tr class="bg-gray-100">
-              <th class="border p-2 text-left w-1/3">Pole</th>
-              <th class="border p-2 text-left">Wartość</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${keys.map(k => `
-              <tr>
-                <td class="border p-2 align-top"><code>${k}</code></td>
-                <td class="border p-2">
-                  <input type="text" class="w-full border rounded px-2 py-1" name="${k}" value="${escapeHtml(bookingRow?.extra?.[k] ?? '')}">
-                </td>
-              </tr>
-            `).join("")}
-          </tbody>
-        </table>
-        <div class="p-3 flex gap-2">
-          <button type="submit" class="px-3 py-2 rounded bg-green-600 text-white">💾 Zapisz dane</button>
-          <button type="button" id="previewDoc" class="px-3 py-2 rounded border">👁️ Podgląd</button>
-          <button type="button" id="printDoc" class="px-3 py-2 rounded border">🖨️ Drukuj</button>
-        </div>
-      `;
-      fieldsWrap.appendChild(form);
-    } else {
-      const actions = document.createElement("div");
-      actions.className = "flex gap-2";
-      actions.innerHTML = `
-        <button type="button" id="previewDoc" class="px-3 py-2 rounded border">👁️ Podgląd</button>
-        <button type="button" id="printDoc" class="px-3 py-2 rounded border">🖨️ Drukuj</button>
-      `;
-      fieldsWrap.appendChild(actions);
-    }
-
-    if (form) {
-      form.addEventListener("submit", async (e) => {
-        e.preventDefault();
-        const fd = new FormData(form);
-        const extra = {};
-        for (const [k,v] of fd.entries()) extra[k] = v;
-        await supabase.from("bookings").update({ extra }).eq("id", bookingId);
-        alert("Zapisano dane do dokumentu.");
-      });
-    }
-
-    const doPreview = async (toPrint=false) => {
-      const { data: b } = await supabase.from("bookings").select("*, facilities(*)").eq("id", bookingId).single();
-      let html = tpl.html;
-      html = replacePlaceholders(html, b, b.facilities || {});
-      const w = window.open("", "_blank");
-      w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Dokument</title></head><body>${html}</body></html>`);
-      w.document.close(); w.focus();
-      if (toPrint) w.print();
-    };
-
-    fieldsWrap.querySelector("#previewDoc")?.addEventListener("click", () => doPreview(false));
-    fieldsWrap.querySelector("#printDoc")?.addEventListener("click", () => doPreview(true));
-  }
-
-  function escapeHtml(s){ return String(s).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;"); }
-
-  function replacePlaceholders(html, booking, facility) {
-    let out = html;
-    const map = {
-      "{{facility.name}}": facility?.name ?? "",
-      "{{facility.address}}": facility?.address ?? "",
-      "{{booking.renter_name}}": booking?.renter_name ?? "",
-      "{{booking.renter_email}}": booking?.renter_email ?? "",
-      "{{booking.renter_phone}}": booking?.renter_phone ?? "",
-    };
-    for (const [k,v] of Object.entries(map)) out = out.split(k).join(escapeHtml(v));
-
-    const fmtDate = iso => iso ? new Date(iso).toLocaleDateString("pl-PL") : "";
-    const fmtTime = iso => iso ? new Date(iso).toLocaleTimeString("pl-PL",{hour:"2-digit",minute:"2-digit"}) : "";
-    out = out.replace(/\{\{\s*date\s+booking\.start_time\s*\}\}/g, fmtDate(booking?.start_time));
-    out = out.replace(/\{\{\s*date\s+booking\.end_time\s*\}\}/g, fmtDate(booking?.end_time));
-    out = out.replace(/\{\{\s*time\s+booking\.start_time\s*\}\}/g, fmtTime(booking?.start_time));
-    out = out.replace(/\{\{\s*time\s+booking\.end_time\s*\}\}/g, fmtTime(booking?.end_time));
-    out = out.replace(/\{\{\s*date\s+booking\.request_date\s*\}\}/g, fmtDate(booking?.request_date));
-
-    out = out.replace(/\{\{booking\.extra\.([a-zA-Z0-9_]+)\}\}/g, (_, key) => {
-      const val = booking?.extra?.[key];
-      return val == null ? "" : escapeHtml(String(val));
-    });
-    return out;
-  }
+// Bezpiecznie po załadowaniu DOM (skrypty są z defer, ale to nie zaszkodzi)
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", init);
+} else {
+  init();
 }
