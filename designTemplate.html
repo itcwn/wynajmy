@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Projektowanie szablonów dokumentów</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body class="bg-gray-50 text-gray-900">
+  <header class="p-4 bg-white shadow">
+    <div class="max-w-4xl mx-auto">
+      <h1 class="text-xl font-bold">Design Template</h1>
+      <p class="text-sm text-gray-500">Prosta strona do tworzenia szablonów dokumentów (bez logowania)</p>
+    </div>
+  </header>
+
+  <main class="max-w-4xl mx-auto p-4 space-y-6">
+    <form id="tplForm" class="bg-white p-4 rounded shadow space-y-3">
+      <input type="hidden" name="id" />
+      <div>
+        <label class="text-sm">Nazwa</label>
+        <input name="name" required class="w-full border rounded px-2 py-2" />
+      </div>
+      <div>
+        <label class="text-sm">Kod (unikalny)</label>
+        <input name="code" required class="w-full border rounded px-2 py-2" />
+      </div>
+      <div>
+        <label class="text-sm">Przypisz do świetlicy (opcjonalnie)</label>
+        <select name="facility_id" class="w-full border rounded px-2 py-2">
+          <option value="">(globalny)</option>
+        </select>
+      </div>
+      <div class="flex gap-2 items-center">
+        <input type="checkbox" name="is_active" id="is_active" checked />
+        <label for="is_active" class="text-sm">Aktywny</label>
+      </div>
+      <div>
+        <label class="text-sm">HTML (placeholdery: <code>{{booking.*}}</code>, <code>{{facility.*}}</code>)</label>
+        <textarea name="html" rows="12" class="w-full border rounded px-2 py-2 font-mono"></textarea>
+      </div>
+      <div class="flex gap-2">
+        <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded">💾 Zapisz</button>
+        <button id="previewBtn" type="button" class="px-4 py-2 border rounded">👁️ Podgląd</button>
+        <button id="clearBtn" type="button" class="px-4 py-2 border rounded">🧹 Wyczyść</button>
+      </div>
+      <div id="formMsg" class="text-sm text-gray-600"></div>
+    </form>
+
+    <section class="bg-white p-4 rounded shadow">
+      <h2 class="font-semibold mb-2">Podgląd</h2>
+      <div id="previewArea" class="doc border p-3 rounded bg-gray-50 text-sm"></div>
+    </section>
+  </main>
+
+  <script src="./supabase-config.js" defer></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      const SUPABASE_URL = window.__SUPA?.SUPABASE_URL;
+      const SUPABASE_ANON_KEY = window.__SUPA?.SUPABASE_ANON_KEY;
+      if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+        alert('Uzupełnij supabase-config.js');
+        return;
+      }
+      const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+      const tplForm = document.getElementById('tplForm');
+      const facilitySelect = tplForm.querySelector('select[name="facility_id"]');
+      const previewArea = document.getElementById('previewArea');
+      const formMsg = document.getElementById('formMsg');
+
+      // Załaduj świetlice
+      async function loadFacilities() {
+        const { data } = await supabase.from('facilities').select('id, name').order('name');
+        facilitySelect.innerHTML = '<option value="">(globalny)</option>' +
+          (data || []).map(f => `<option value="${f.id}">${f.name}</option>`).join('');
+      }
+      await loadFacilities();
+
+      // Zapis szablonu
+      tplForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const payload = {
+          name: tplForm.name.value.trim(),
+          code: tplForm.code.value.trim(),
+          facility_id: tplForm.facility_id.value || null,
+          is_active: tplForm.is_active.checked,
+          html: tplForm.html.value
+        };
+        const id = tplForm.id.value;
+        let error;
+        if (id) {
+          ({ error } = await supabase.from('document_templates').update({...payload, updated_at: new Date()}).eq('id', id));
+        } else {
+          ({ error } = await supabase.from('document_templates').insert(payload));
+        }
+        if (error) {
+          formMsg.textContent = '❌ Błąd: ' + error.message;
+        } else {
+          formMsg.textContent = '✅ Zapisano szablon.';
+          tplForm.id.value = '';
+        }
+      });
+
+      // Podgląd
+      document.getElementById('previewBtn').addEventListener('click', () => {
+        const sampleBooking = {
+          title: 'Przykładowe wydarzenie',
+          renter_name: 'Jan Kowalski',
+          renter_email: 'jan@example.com',
+          notes: 'Brak',
+          start_time: new Date().toISOString(),
+          end_time: new Date(Date.now()+2*3600*1000).toISOString()
+        };
+        const sampleFacility = {
+          name: 'Świetlica Wiejska',
+          address: 'ul. Główna 1, 00-000 Miasto',
+          city: 'Miasto',
+          postal_code: '00-000',
+          capacity: 80
+        };
+        let html = tplForm.html.value;
+        html = html.replace(/\{\{booking\.title\}\}/g, sampleBooking.title);
+        html = html.replace(/\{\{booking\.renter_name\}\}/g, sampleBooking.renter_name);
+        html = html.replace(/\{\{booking\.renter_email\}\}/g, sampleBooking.renter_email);
+        html = html.replace(/\{\{booking\.notes\}\}/g, sampleBooking.notes);
+        html = html.replace(/\{\{facility\.name\}\}/g, sampleFacility.name);
+        html = html.replace(/\{\{facility\.address\}\}/g, sampleFacility.address);
+        html = html.replace(/\{\{date\s+booking\.start_time\}\}/g, new Date(sampleBooking.start_time).toLocaleDateString('pl-PL'));
+        html = html.replace(/\{\{time\s+booking\.start_time\}\}/g, new Date(sampleBooking.start_time).toLocaleTimeString('pl-PL',{hour:'2-digit',minute:'2-digit'}));
+        previewArea.innerHTML = html;
+      });
+
+      // Czyszczenie
+      document.getElementById('clearBtn').addEventListener('click', () => {
+        tplForm.reset();
+        tplForm.id.value = '';
+        previewArea.innerHTML = '';
+        formMsg.textContent = '';
+      });
+    });
+  </script>
+</body>
+</html>
