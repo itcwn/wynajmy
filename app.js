@@ -18,7 +18,7 @@ const state = {
 async function init() {
   await loadFacilities();
   await loadEventTypes();
-  bindUI();
+   
   renderSidebar();
   renderCalendar();
 }
