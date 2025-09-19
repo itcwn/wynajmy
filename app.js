@@ -376,31 +376,33 @@ async function renderDay() {
   // pobierz rezerwacje dla dnia
   const bookings = await fetchBookingsForDay(state.selectedFacility.id, d);
 
-  if (state.mode === "day") {
-    // ⬇️ TRYB DNI: zero siatki godzin – pokazujemy tylko listę rezerwacji w danym dniu
-    if (!bookings.length) {
-      const empty = document.createElement("div");
-      empty.className = "border rounded-xl p-4 bg-white text-gray-600";
-      empty.textContent = "Brak rezerwacji w tym dniu.";
-      hoursEl.appendChild(empty);
-    } else {
-      bookings.forEach((b) => {
-        const s = new Date(b.start_time);
-        const e = new Date(b.end_time);
-        const item = document.createElement("div");
-        item.className = "border rounded-xl p-3 bg-white";
-        const timeLabel =
-          `${s.toLocaleTimeString("pl-PL",{hour:"2-digit",minute:"2-digit"})}` +
-          `–${e.toLocaleTimeString("pl-PL",{hour:"2-digit",minute:"2-digit"})}`;
-        item.innerHTML = `
-          <div class="text-sm font-semibold">${b.title || "Rezerwacja"}</div>
-          <div class="text-xs text-gray-600">${timeLabel}</div>
-        `;
-        hoursEl.appendChild(item);
-      });
-    }
-    return; // nic więcej nie robimy w trybie dziennym
+ if (state.mode === "day") {
+  hoursEl.innerHTML = ""; // wyczyść zawsze
+
+  if (!bookings || bookings.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "border rounded-xl p-4 bg-white text-gray-600";
+    empty.textContent = "Brak rezerwacji w tym dniu.";
+    hoursEl.appendChild(empty);
+  } else {
+    // pokaż listę rezerwacji (każdy wpis tylko raz)
+    bookings.forEach((b) => {
+      const s = new Date(b.start_time);
+      const e = new Date(b.end_time);
+      const item = document.createElement("div");
+      item.className = "border rounded-xl p-3 bg-white";
+      const timeLabel =
+        `${s.toLocaleTimeString("pl-PL",{hour:"2-digit",minute:"2-digit"})}` +
+        `–${e.toLocaleTimeString("pl-PL",{hour:"2-digit",minute:"2-digit"})}`;
+      item.innerHTML = `
+        <div class="text-sm font-semibold">${b.title || "Rezerwacja"}</div>
+        <div class="text-xs text-gray-600">${timeLabel}</div>
+      `;
+      hoursEl.appendChild(item);
+    });
   }
+  return; // nie przechodzimy dalej
+}
 
   // ⬇️ TRYB GODZINY: siatka godzin ograniczona sliderami
   const busy = new Array(24).fill(null);
