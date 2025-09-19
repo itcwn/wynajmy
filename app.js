@@ -15,7 +15,7 @@ const state = {
   eventTypes: [],
   selectedFacility: null,
   currentDate: new Date(),
-  mode: "day", // 'day' albo 'hour'
+  mode: "day",
 };
 
 // ===============================
@@ -88,7 +88,6 @@ function renderSidebar() {
     <div id="formContainer"></div>
   `;
 
-  // events
   document.getElementById("facilitySelect").addEventListener("change", async (e) => {
     const id = e.target.value;
     state.selectedFacility = state.facilities.find(f => f.id == id);
@@ -121,7 +120,6 @@ async function refreshBookings() {
 function renderCalendar() {
   const cal = document.getElementById("calendar");
   if (!cal) return;
-
   cal.innerHTML = "";
 
   if (state.mode === "day") {
@@ -134,7 +132,6 @@ function renderCalendar() {
 function renderDay() {
   const cal = document.getElementById("calendar");
   if (!cal) return;
-
   cal.innerHTML = "";
 
   if (state.bookings.length === 0) {
@@ -158,7 +155,6 @@ function renderDay() {
 function renderHour() {
   const cal = document.getElementById("calendar");
   if (!cal) return;
-
   cal.innerHTML = "";
 
   for (let h = 8; h <= 20; h++) {
@@ -211,12 +207,22 @@ function renderBookingForm() {
       status: "active",
     };
     const { data, error } = await supabase.from("bookings").insert(payload).select().single();
+    const msg = document.getElementById("msg");
     if (error) {
-      document.getElementById("msg").textContent = "❌ " + error.message;
+      msg.textContent = "❌ " + error.message;
     } else {
-      document.getElementById("msg").textContent = "✅ Rezerwacja dodana!";
+      msg.textContent = "✅ Rezerwacja dodana!";
       await refreshBookings();
-      showTemplateSelector(data.id); // po rezerwacji pokaż wybór szablonu
+
+      // ⬇️ DODANE: miejsce na generowanie dokumentów pod formularzem
+      let docMount = document.getElementById("docGen");
+      if (!docMount) {
+        docMount = document.createElement("div");
+        docMount.id = "docGen";
+        docMount.className = "mt-6";
+        container.appendChild(docMount);
+      }
+      showTemplateSelector(data.id, docMount);
     }
   });
 }
@@ -224,96 +230,154 @@ function renderBookingForm() {
 // ===============================
 // Szablony dokumentów
 // ===============================
-async function showTemplateSelector(newBookingId) {
-  const { data: templates } = await supabase.from("document_templates").select("*").eq("is_active", true);
+async function showTemplateSelector(bookingId, mountEl) {
+  if (!mountEl) return;
 
-  const container = document.createElement("div");
-  container.className = "mt-6 p-4 border rounded bg-gray-50";
-  container.innerHTML = `<h3 class="font-bold mb-3">Wybierz szablon i uzupełnij pola do dokumentu</h3>`;
+  const { data: booking } = await supabase.from("bookings").select("*").eq("id", bookingId).single();
 
-  const list = document.createElement("div");
-  list.className = "grid gap-3 mb-4";
+  const facilityId = booking?.facility_id;
+  const { data: templates, error } = await supabase
+    .from("document_templates")
+    .select("*")
+    .in("facility_id", [facilityId, null])
+    .eq("is_active", true)
+    .order("name");
 
-  let selectedTpl = null;
-  let fieldsForm = document.createElement("div");
-
-  templates.forEach(tpl => {
-    const btn = document.createElement("div");
-    btn.className = "p-3 border rounded cursor-pointer hover:bg-gray-100";
-    btn.innerHTML = `<div class="font-semibold">${tpl.name}</div><div class="text-sm text-gray-600">${tpl.code}</div>`;
-    btn.addEventListener("click", () => {
-      [...list.children].forEach(el => el.classList.remove("border-red-500"));
-      btn.classList.add("border-red-500");
-      selectedTpl = tpl;
-      renderFieldsForm(tpl.html);
-    });
-    list.appendChild(btn);
-  });
-
-  container.appendChild(list);
-  container.appendChild(fieldsForm);
-
-  function renderFieldsForm(html) {
-    fieldsForm.innerHTML = "";
-    const matches = [...html.matchAll(/\{\{booking\.extra\.([a-zA-Z0-9_]+)\}\}/g)];
-    const uniqueKeys = [...new Set(matches.map(m => m[1]))];
-
-    if (uniqueKeys.length === 0) {
-      fieldsForm.innerHTML = "<p class='text-sm text-gray-600'>Ten szablon nie wymaga dodatkowych pól.</p>";
-      return;
-    }
-
-    const table = document.createElement("table");
-    table.className = "table-auto w-full border border-gray-300";
-    table.innerHTML = "<thead><tr class='bg-gray-100'><th class='border p-2'>Pole</th><th class='border p-2'>Wartość</th></tr></thead>";
-    const tbody = document.createElement("tbody");
-
-    uniqueKeys.forEach(k => {
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td class="border p-2">${k}</td>
-        <td class="border p-2"><input type="text" data-extra="${k}" class="w-full border rounded px-2 py-1" /></td>
-      `;
-      tbody.appendChild(tr);
-    });
-    table.appendChild(tbody);
-    fieldsForm.appendChild(table);
-
-    const saveBtn = document.createElement("button");
-    saveBtn.textContent = "💾 Zapisz dane do dokumentu";
-    saveBtn.className = "mt-3 px-3 py-2 bg-green-600 text-white rounded";
-    saveBtn.addEventListener("click", async () => {
-      const extras = {};
-      fieldsForm.querySelectorAll("input[data-extra]").forEach(inp => {
-        extras[inp.dataset.extra] = inp.value;
-      });
-      await supabase.from("bookings").update({ extra: extras }).eq("id", newBookingId);
-      alert("Dane do dokumentu zapisane.");
-    });
-
-    fieldsForm.appendChild(saveBtn);
+  if (error) {
+    mountEl.innerHTML = `<div class="p-3 border rounded bg-red-50 text-red-800">Błąd pobierania szablonów: ${error.message}</div>`;
+    return;
   }
 
-  const formContainer = document.getElementById("formContainer");
-  if (formContainer) formContainer.appendChild(container);
-}
+  mountEl.innerHTML = `
+    <div class="p-4 border rounded bg-gray-50">
+      <h3 class="font-bold mb-3">Wybierz szablon i uzupełnij pola, aby wygenerować/ wydrukować wniosek</h3>
+      <div id="tplList" class="grid gap-2 mb-4"></div>
+      <div id="tplFields"></div>
+    </div>
+  `;
 
-// ===============================
-// Podmiana placeholderów
-// ===============================
-function fillTemplate(html, booking, facility) {
-  let out = html;
+  const list = mountEl.querySelector("#tplList");
+  const fieldsWrap = mountEl.querySelector("#tplFields");
 
-  // standardowe pola
-  out = out.replace(/\{\{booking\.renter_name\}\}/g, booking.renter_name || "__________");
-  out = out.replace(/\{\{booking\.renter_email\}\}/g, booking.renter_email || "__________");
-  out = out.replace(/\{\{facility\.name\}\}/g, facility.name || "__________");
-  out = out.replace(/\{\{facility\.address\}\}/g, facility.address || "__________");
-
-  // extra pola
-  out = out.replace(/\{\{booking\.extra\.([a-zA-Z0-9_]+)\}\}/g, (m, key) => {
-    return booking.extra?.[key] || "__________";
+  (templates || []).forEach(t => {
+    const el = document.createElement("button");
+    el.type = "button";
+    el.className = "text-left p-3 border rounded bg-white hover:bg-gray-100";
+    el.innerHTML = `
+      <div class="font-semibold">${t.name}</div>
+      <div class="text-xs text-gray-600">${t.facility_id ? "szablon lokalny" : "szablon ogólny"} • ${t.code}</div>
+    `;
+    el.addEventListener("click", () => {
+      [...list.children].forEach(n => n.classList.remove("ring-2","ring-red-500"));
+      el.classList.add("ring-2","ring-red-500");
+      renderFieldsForTemplate(t, booking);
+    });
+    list.appendChild(el);
   });
 
-  return out;
+  function renderFieldsForTemplate(tpl, bookingRow) {
+    fieldsWrap.innerHTML = "";
+
+    const matches = [...tpl.html.matchAll(/\{\{booking\.extra\.([a-zA-Z0-9_]+)\}\}/g)];
+    const keys = [...new Set(matches.map(m => m[1]))];
+
+    const head = document.createElement("div");
+    head.className = "mb-2 text-sm text-gray-700";
+    head.textContent = keys.length
+      ? "Uzupełnij pola dla wybranego szablonu:"
+      : "Ten szablon nie ma dodatkowych pól do uzupełnienia.";
+    fieldsWrap.appendChild(head);
+
+    let form;
+    if (keys.length) {
+      form = document.createElement("form");
+      form.className = "border rounded bg-white";
+      form.innerHTML = `
+        <table class="table-auto w-full">
+          <thead>
+            <tr class="bg-gray-100">
+              <th class="border p-2 text-left w-1/3">Pole</th>
+              <th class="border p-2 text-left">Wartość</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${keys.map(k => `
+              <tr>
+                <td class="border p-2 align-top"><code>${k}</code></td>
+                <td class="border p-2">
+                  <input type="text" class="w-full border rounded px-2 py-1" name="${k}" value="${escapeHtml(bookingRow?.extra?.[k] ?? '')}">
+                </td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+        <div class="p-3 flex gap-2">
+          <button type="submit" class="px-3 py-2 rounded bg-green-600 text-white">💾 Zapisz dane</button>
+          <button type="button" id="previewDoc" class="px-3 py-2 rounded border">👁️ Podgląd</button>
+          <button type="button" id="printDoc" class="px-3 py-2 rounded border">🖨️ Drukuj</button>
+        </div>
+      `;
+      fieldsWrap.appendChild(form);
+    } else {
+      const actions = document.createElement("div");
+      actions.className = "flex gap-2";
+      actions.innerHTML = `
+        <button type="button" id="previewDoc" class="px-3 py-2 rounded border">👁️ Podgląd</button>
+        <button type="button" id="printDoc" class="px-3 py-2 rounded border">🖨️ Drukuj</button>
+      `;
+      fieldsWrap.appendChild(actions);
+    }
+
+    if (form) {
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const fd = new FormData(form);
+        const extra = {};
+        for (const [k,v] of fd.entries()) extra[k] = v;
+        await supabase.from("bookings").update({ extra }).eq("id", bookingId);
+        alert("Zapisano dane do dokumentu.");
+      });
+    }
+
+    const doPreview = async (toPrint=false) => {
+      const { data: b } = await supabase.from("bookings").select("*, facilities(*)").eq("id", bookingId).single();
+      let html = tpl.html;
+      html = replacePlaceholders(html, b, b.facilities || {});
+      const w = window.open("", "_blank");
+      w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Dokument</title></head><body>${html}</body></html>`);
+      w.document.close(); w.focus();
+      if (toPrint) w.print();
+    };
+
+    fieldsWrap.querySelector("#previewDoc")?.addEventListener("click", () => doPreview(false));
+    fieldsWrap.querySelector("#printDoc")?.addEventListener("click", () => doPreview(true));
+  }
+
+  function escapeHtml(s){ return String(s).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;"); }
+
+  function replacePlaceholders(html, booking, facility) {
+    let out = html;
+    const map = {
+      "{{facility.name}}": facility?.name ?? "",
+      "{{facility.address}}": facility?.address ?? "",
+      "{{booking.renter_name}}": booking?.renter_name ?? "",
+      "{{booking.renter_email}}": booking?.renter_email ?? "",
+      "{{booking.renter_phone}}": booking?.renter_phone ?? "",
+    };
+    for (const [k,v] of Object.entries(map)) out = out.split(k).join(escapeHtml(v));
+
+    const fmtDate = iso => iso ? new Date(iso).toLocaleDateString("pl-PL") : "";
+    const fmtTime = iso => iso ? new Date(iso).toLocaleTimeString("pl-PL",{hour:"2-digit",minute:"2-digit"}) : "";
+    out = out.replace(/\{\{\s*date\s+booking\.start_time\s*\}\}/g, fmtDate(booking?.start_time));
+    out = out.replace(/\{\{\s*date\s+booking\.end_time\s*\}\}/g, fmtDate(booking?.end_time));
+    out = out.replace(/\{\{\s*time\s+booking\.start_time\s*\}\}/g, fmtTime(booking?.start_time));
+    out = out.replace(/\{\{\s*time\s+booking\.end_time\s*\}\}/g, fmtTime(booking?.end_time));
+    out = out.replace(/\{\{\s*date\s+booking\.request_date\s*\}\}/g, fmtDate(booking?.request_date));
+
+    out = out.replace(/\{\{booking\.extra\.([a-zA-Z0-9_]+)\}\}/g, (_, key) => {
+      const val = booking?.extra?.[key];
+      return val == null ? "" : escapeHtml(String(val));
+    });
+    return out;
+  }
 }
