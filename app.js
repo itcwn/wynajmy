@@ -839,7 +839,7 @@ async function init() {
 
   $("#genDocsLink")?.addEventListener("click", async (e) => {
     e.preventDefault();
-    await loadTemplatesForFacility();
+   
     const top = $("#templatesList").offsetTop;
     window.scrollTo({ top: top - 20, behavior: "smooth" });
   });
