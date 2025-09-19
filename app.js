@@ -127,10 +127,67 @@ function renderMain() {
       </div>
 
       <!-- (3) Formularz rezerwacji -->
-      <div id="booking" class="hidden bg-white rounded-2xl shadow-md p-4">
-        ... (bez zmian w środku formularza) ...
-        <div id="docGen" class="mt-6"></div>
-      </div>
+    
+    <!-- (3) Formularz rezerwacji -->
+    <div id="booking" class="hidden bg-white rounded-2xl shadow p-4">
+      <h3 class="font-semibold mb-3">Nowa rezerwacja</h3>
+      <form id="bookingForm" class="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div>
+          <label class="text-sm">Tytuł wydarzenia</label>
+          <input name="title" required class="w-full border rounded-xl px-3 py-2" placeholder="np. Urodziny" />
+        </div>
+        <div>
+          <label class="text-sm">Rodzaj</label>
+          <select name="event_type_id" class="w-full border rounded-xl px-3 py-2"></select>
+        </div>
+
+        <div data-day-fields>
+          <label class="text-sm">Dzień rezerwacji</label>
+          <input name="day_only" type="date" class="w-full border rounded-xl px-3 py-2" />
+        </div>
+
+        <div data-hour-fields class="hidden">
+          <label class="text-sm">Początek (godzina)</label>
+          <input name="start_time" type="datetime-local" class="w-full border rounded-xl px-3 py-2" />
+        </div>
+        <div data-hour-fields class="hidden">
+          <label class="text-sm">Koniec (godzina)</label>
+          <input name="end_time" type="datetime-local" class="w-full border rounded-xl px-3 py-2" />
+        </div>
+
+        <div>
+          <label class="text-sm">Imię i nazwisko</label>
+          <input name="renter_name" required class="w-full border rounded-xl px-3 py-2" />
+        </div>
+        <div>
+          <label class="text-sm">E-mail</label>
+          <input name="renter_email" type="email" required class="w-full border rounded-xl px-3 py-2" />
+        </div>
+
+        <div class="md:col-span-2">
+          <label class="text-sm">Uwagi (opcjonalnie)</label>
+          <textarea name="notes" class="w-full border rounded-xl px-3 py-2" rows="2"></textarea>
+        </div>
+
+        <div class="flex items-center gap-2 md:col-span-2">
+          <input id="is_public" type="checkbox" checked class="w-4 h-4"/>
+          <label for="is_public" class="text-sm">Pokaż tytuł wydarzenia publicznie w kalendarzu</label>
+        </div>
+
+        <div class="md:col-span-2 flex gap-2 items-center">
+          <button class="px-4 py-2 rounded-xl bg-blue-600 text-white" type="submit">Zarezerwuj</button>
+          <a id="genDocsLink" href="#" class="no-print hidden text-blue-700 underline">Generuj dokumenty</a>
+          <button id="cancelThisBooking" type="button" class="no-print hidden px-3 py-2 border rounded-xl">Anuluj tę rezerwację</button>
+          <div id="formMsg" class="text-sm ml-2"></div>
+        </div>
+        <p class="text-xs text-gray-500 md:col-span-2">
+          Po dokonaniu rezerwacji otrzymasz e-mail z potwierdzeniem oraz linkiem do anulowania (jeśli będzie potrzebne).
+        </p>
+      </form>
+
+      <!-- Live generator dokumentu po rezerwacji -->
+      <div id="docGen" class="mt-6"></div>
+    </div>
 
       <!-- (4) Kalendarz dzienny -->
       <div id="calendar" class="hidden bg-white rounded-2xl shadow-md p-4">
