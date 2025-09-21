@@ -176,7 +176,9 @@ function renderMain() {
         </div>
 
         <div class="md:col-span-2 flex gap-2 items-center">
-          <button class="px-4 py-2 rounded-xl bg-blue-600 text-white" type="submit">Zarezerwuj</button>
+           <button class="px-4 py-2 rounded-xl bg-blue-600 text-white" type="submit">
+            Złóż wstępną rezerwację
+          </button>
           <a id="genDocsLink" href="#" class="no-print hidden text-blue-700 underline">Generuj dokumenty</a>
           <button id="cancelThisBooking" type="button" class="no-print hidden px-3 py-2 border rounded-xl">Anuluj tę rezerwację</button>
           <div id="formMsg" class="text-sm ml-2"></div>
@@ -385,49 +387,52 @@ async function fetchBookingsForDay(facilityId, date) {
 async function renderDay() {
   if (!state.selectedFacility) return;
 
-  // pieczątka renderu – każdy nowy render zwiększa licznik
-  const mySeq = ++state.renderSeq;
-
+  const mySeq = ++(state.renderSeq ??= 0); // znacznik anty-duplikacji
   const d = state.currentDate;
   $("#dateLabel").textContent = fmtDateLabel(d);
 
   const hoursEl = $("#hours");
-  hoursEl.innerHTML = "";          // czyścimy tylko raz, na początku
+  hoursEl.innerHTML = "";
 
-  // pobierz rezerwacje
+  // pobierz rezerwacje (z widoku public_bookings, który ma już pending + active)
   const bookings = await fetchBookingsForDay(state.selectedFacility.id, d);
-
-  // jeśli w międzyczasie wystartował nowszy render — porzuć ten wynik
   if (mySeq !== state.renderSeq) return;
 
   if (state.mode === "day") {
-    // (nie czyścimy drugi raz)
-    if (!bookings || bookings.length === 0) {
+    if (!bookings?.length) {
       const empty = document.createElement("div");
       empty.className = "rounded-xl border border-gray-200 bg-gray-50 text-gray-700 p-3";
       empty.textContent = "Brak rezerwacji w tym dniu.";
       hoursEl.appendChild(empty);
     } else {
+      // Pasek info
+      const activeCount = bookings.filter(b => (b.status||'').toLowerCase()==='active').length;
+      const pendingCount = bookings.filter(b => (b.status||'').toLowerCase()==='pending').length;
       const info = document.createElement("div");
-      info.className = "rounded-xl border-l-4 border-red-500 bg-red-50 text-red-900 p-3";
-      info.innerHTML = `Zajęte: <b>${bookings.length}</b> rezerw. w wybranym dniu`;
+      info.className = "rounded-xl border bg-white shadow-sm p-3 flex gap-2 text-sm";
+      info.innerHTML = `
+        <span class="inline-flex items-center gap-1 px-2 py-1 rounded border border-red-200 bg-red-50 text-red-800">🔴 zajęte: ${activeCount}</span>
+        <span class="inline-flex items-center gap-1 px-2 py-1 rounded border border-amber-200 bg-amber-50 text-amber-800">🟡 wstępne: ${pendingCount}</span>
+      `;
       hoursEl.appendChild(info);
 
+      // Lista rezerwacji z kolorami wg statusu
       bookings.forEach((b) => {
         const s = new Date(b.start_time);
         const e = new Date(b.end_time);
+        const C = statusClasses(b.status);
         const item = document.createElement("div");
-        item.className = "rounded-xl shadow-sm border border-red-200 bg-white p-4";
+        item.className = `rounded-xl shadow-sm border ${C.border} ${C.bg} ${C.text} p-4`;
         const timeLabel =
           `${s.toLocaleTimeString("pl-PL",{hour:"2-digit",minute:"2-digit"})}` +
           `–${e.toLocaleTimeString("pl-PL",{hour:"2-digit",minute:"2-digit"})}`;
         item.innerHTML = `
           <div class="flex items-start justify-between">
             <div>
-              <div class="text-sm font-semibold text-red-700">${b.title || "Rezerwacja"}</div>
+              <div class="text-sm font-semibold">${escapeHtml(b.title || "Rezerwacja")}</div>
               <div class="text-xs text-gray-600">${timeLabel}</div>
             </div>
-            <span class="text-[11px] px-2 py-1 rounded bg-red-100 text-red-800 border border-red-200">zajęte</span>
+            <span class="text-[11px] px-2 py-1 rounded ${C.chipBg} ${C.chipText} border ${C.chipBorder}">${C.chipLabel}</span>
           </div>
         `;
         hoursEl.appendChild(item);
@@ -436,7 +441,8 @@ async function renderDay() {
     return;
   }
 
-  // TRYB GODZINOWY
+  // TRYB GODZINOWY – z rozróżnieniem statusów w siatce
+  // busy[h] = null | { title, status }
   const busy = new Array(24).fill(null);
   bookings.forEach((b) => {
     const s = new Date(b.start_time);
@@ -445,23 +451,27 @@ async function renderDay() {
     const dayEnd   = new Date(d); dayEnd.setHours(23,59,59,999);
     const from = Math.max(0, Math.floor((Math.max(s, dayStart) - dayStart) / 3600000));
     const to   = Math.min(24, Math.ceil((Math.min(e, dayEnd)   - dayStart) / 3600000));
-    for (let h = from; h < to; h++) busy[h] = b.title || "Zajęte";
+    for (let h = from; h < to; h++) busy[h] = { title: b.title || "Rezerwacja", status: (b.status||'').toLowerCase() };
   });
 
   const { start, end } = getVisibleHourRange();
   for (let h = start; h < end; h++) {
     const label = `${pad2(h)}:00`;
-    const booked = !!busy[h];
-    const title = busy[h] || "";
+    const info = busy[h];
+    let cls = "rounded-xl p-3 border ";
+    let html = `<div class="font-mono text-sm">${label}</div>`;
+    if (info) {
+      const C = statusClasses(info.status);
+      cls += `${C.bg} ${C.border} ${C.text} shadow-sm`;
+      html += `<div class="text-xs">${escapeHtml(info.title)}</div>`;
+      html += `<div class="text-[11px] mt-1 inline-block px-2 py-0.5 rounded ${C.chipBg} ${C.chipText} border ${C.chipBorder}">${info.status==='active'?'zajęte':'wstępna'}</div>`;
+    } else {
+      cls += "bg-gray-50 border-gray-200 text-gray-700";
+      html += `<div class="text-xs">wolne</div>`;
+    }
     const cell = document.createElement("div");
-    cell.className = `rounded-xl p-3 border ${
-      booked
-        ? "bg-red-50 border-red-200 text-red-900 shadow-sm"
-        : "bg-gray-50 border-gray-200 text-gray-700"
-    }`;
-    cell.innerHTML =
-      `<div class="font-mono text-sm ${booked ? "font-semibold" : ""}">${label}</div>` +
-      (booked ? `<div class="text-xs">${title}</div>` : `<div class="text-xs">wolne</div>`);
+    cell.className = cls;
+    cell.innerHTML = html;
     hoursEl.appendChild(cell);
   }
 }
@@ -642,11 +652,13 @@ document.addEventListener("submit", async (e) => {
     renter_email: form.renter_email.value.trim(),
     notes: form.notes.value.trim() || null,
     is_public: $("#is_public").checked,
+    status: 'pending' // ⬅️ NOWOŚĆ: wstępna rezerwacja
   };
+
 
   const { data, error } = await supabase.from("bookings").insert(payload).select();
   if (error) { console.error(error); msg.textContent = "Błąd: " + (error.message || "nie udało się utworzyć rezerwacji."); return; }
-  msg.textContent = "Zarezerwowano!";
+  msg.textContent = "Wstępna rezerwacja złożona! Opiekun obiektu potwierdzi lub odrzuci.";
   state.lastBooking = data && data[0] ? data[0] : null;
   state.bookingsCache.clear();
   await renderDay();
