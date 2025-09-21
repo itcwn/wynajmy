@@ -387,8 +387,10 @@ async function fetchBookingsForDay(facilityId, date) {
 async function renderDay() {
   if (!state.selectedFacility) return;
 
-  const mySeq = ++(state.renderSeq ??= 0); // znacznik anty-duplikacji
-  const d = state.currentDate;
+
+  state.renderSeq = (state.renderSeq || 0) + 1;
+  const mySeq = state.renderSeq;
+  
   $("#dateLabel").textContent = fmtDateLabel(d);
 
   const hoursEl = $("#hours");
