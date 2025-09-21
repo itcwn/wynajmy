@@ -2,6 +2,57 @@ export function createBookingForm({ state, supabase, domUtils, formatUtils, dayV
   const { $ } = domUtils;
   const { pad2 } = formatUtils;
   let listenersAttached = false;
+  let titleInput;
+  let typeSelect;
+  let renterNameInput;
+
+  function getSelectedEventTypeName() {
+    if (!typeSelect || !typeSelect.value) {
+      return '';
+    }
+    const option = typeSelect.selectedOptions?.[0]
+      || typeSelect.options[typeSelect.selectedIndex];
+    return option ? option.textContent.trim() : '';
+  }
+
+  function maskNameValue(rawValue) {
+    if (!rawValue) {
+      return '';
+    }
+    const parts = rawValue
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
+    if (parts.length === 0) {
+      return '';
+    }
+    const masked = parts
+      .map((part) => {
+        const firstChar = part.charAt(0);
+        if (!firstChar) {
+          return '';
+        }
+        return `${firstChar.toUpperCase()}***`;
+      })
+      .filter(Boolean);
+    return masked.join(' ');
+  }
+
+  function updateTitleField() {
+    if (!titleInput) {
+      return;
+    }
+    const eventTypeName = getSelectedEventTypeName();
+    const maskedName = maskNameValue(renterNameInput?.value || '');
+    const segments = [];
+    if (eventTypeName) {
+      segments.push(eventTypeName);
+    }
+    if (maskedName) {
+      segments.push(maskedName);
+    }
+    titleInput.value = segments.join(' – ');
+  }
 
   async function hasOverlap(facilityId, startIso, endIso) {
     const { data, error } = await supabase
@@ -59,6 +110,8 @@ export function createBookingForm({ state, supabase, domUtils, formatUtils, dayV
       if (msg) msg.textContent = 'Wybrany termin koliduje z istniejącą rezerwacją (wstępna lub potwierdzona). Wybierz inny termin.';
       return;
     }
+    updateTitleField();
+
     const payload = {
       facility_id: state.selectedFacility.id,
       title: form.title.value.trim(),
@@ -163,6 +216,26 @@ export function createBookingForm({ state, supabase, domUtils, formatUtils, dayV
         void handleSubmit(event);
       });
     }
+    titleInput = form?.querySelector('input[name="title"]') || null;
+    typeSelect = form?.querySelector('select[name="event_type_id"]') || null;
+    renterNameInput = form?.querySelector('input[name="renter_name"]') || null;
+
+    if (titleInput) {
+      titleInput.readOnly = true;
+    }
+    if (typeSelect) {
+      typeSelect.addEventListener('change', updateTitleField);
+      typeSelect.addEventListener('input', updateTitleField);
+    }
+    if (renterNameInput) {
+      renterNameInput.addEventListener('input', updateTitleField);
+      renterNameInput.addEventListener('change', updateTitleField);
+    }
+    form?.addEventListener('reset', () => {
+      window.setTimeout(updateTitleField, 0);
+    });
+
+    updateTitleField();
     const cancelBtn = $('#cancelThisBooking');
     if (cancelBtn) {
       cancelBtn.addEventListener('click', () => {
