@@ -71,24 +71,30 @@ export function renderMain() {
       </div>
 
       <div id="selectors" class="hidden bg-white rounded-2xl shadow-md p-4">
-        <div class="flex items-center justify-between gap-3 flex-wrap">
-          <div class="flex items-center gap-2">
-            <button id="prevDay" class="px-3 py-2 rounded-xl border">◀</button>
-            <button id="todayBtn" class="px-3 py-2 rounded-xl border">Dziś</button>
-            <button id="nextDay" class="px-3 py-2 rounded-xl border">▶</button>
-            <input id="dayPicker" type="date" class="border rounded-xl px-3 py-2"/>
-            <button id="openMonthPreview" class="px-3 py-2 rounded-xl border">Podgląd miesiąca</button>
-            <button
-              id="openFacilityInstructions"
-              type="button"
-              class="w-9 h-9 inline-flex items-center justify-center rounded-full bg-blue-600 text-white font-semibold shadow-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-40 disabled:cursor-not-allowed"
-              title="Instrukcja od opiekuna"
-              disabled
-            >
-              i
-            </button>
+        <div class="flex flex-wrap items-center gap-3 md:justify-between">
+          <div class="flex w-full flex-wrap items-center gap-2 md:w-auto">
+            <div class="flex w-full flex-wrap items-center gap-2 sm:flex-nowrap">
+              <div class="flex items-center gap-2">
+                <button id="prevDay" class="px-3 py-2 rounded-xl border">◀</button>
+                <button id="todayBtn" class="px-3 py-2 rounded-xl border">Dziś</button>
+                <button id="nextDay" class="px-3 py-2 rounded-xl border">▶</button>
+              </div>
+              <input id="dayPicker" type="date" class="border rounded-xl px-3 py-2 w-full sm:w-auto"/>
+            </div>
+            <div class="flex w-full items-center gap-2 sm:w-auto sm:flex-nowrap">
+              <button id="openMonthPreview" class="w-full px-3 py-2 rounded-xl border sm:w-auto">Podgląd miesiąca</button>
+              <button
+                id="openFacilityInstructions"
+                type="button"
+                class="inline-flex h-10 w-10 items-center justify-center rounded-full bg-blue-600 text-white font-semibold shadow-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-40 sm:h-9 sm:w-9"
+                title="Instrukcja od opiekuna"
+                disabled
+              >
+                i
+              </button>
+            </div>
           </div>
-          <div class="flex items-center gap-3">
+          <div class="flex w-full flex-wrap items-center gap-3 text-sm md:w-auto md:flex-nowrap">
             <span class="text-sm">Tryb:</span>
             <label class="inline-flex items-center gap-2 text-sm">
               <input type="radio" name="mode" value="day" checked> Dni
