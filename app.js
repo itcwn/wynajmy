@@ -115,6 +115,14 @@ function renderMain() {
             </label>
           </div>
         </div>
+              <!-- (4) Kalendarz dzienny -->
+      <div id="calendar" class="hidden bg-white rounded-2xl shadow-md p-4">
+        <div id="hours" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+        <p class="text-xs text-gray-500 mt-2">
+          🔴 Zajęte (potwierdzone) · 🟡 Wstępne (czeka na akceptację) · brak koloru = dostępne
+        </p>
+      </div>
+      
 
         <div id="hourSliderWrap" class="hidden mt-4">
           <div class="grid grid-cols-1 md:grid-cols-3 gap-3 items-center">
@@ -194,14 +202,6 @@ function renderMain() {
 
         <!-- Live generator dokumentu po rezerwacji -->
         <div id="docGen" class="mt-6"></div>
-      </div>
-
-      <!-- (4) Kalendarz dzienny -->
-      <div id="calendar" class="hidden bg-white rounded-2xl shadow-md p-4">
-        <div id="hours" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"></div>
-        <p class="text-xs text-gray-500 mt-2">
-          🔴 Zajęte (potwierdzone) · 🟡 Wstępne (czeka na akceptację) · brak koloru = dostępne
-        </p>
       </div>
     </div>
 
