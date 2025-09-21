@@ -196,6 +196,20 @@ function renderMain() {
         <p class="text-xs text-gray-500 mt-2">Widok dzienny 00–23. Rezerwacje dzienne zajmują cały dzień.</p>
       </div>
     </div>
+
+    <div id="fcModal" class="fixed inset-0 z-50 hidden">
+    <div class="absolute inset-0 bg-black/40"></div>
+    <div class="relative mx-auto my-10 w-[min(1000px,92vw)] bg-white rounded-2xl shadow-2xl overflow-hidden">
+      <div class="flex items-center justify-between px-4 py-3 border-b">
+        <div class="font-semibold">Kalendarz miesięczny</div>
+        <button id="closeFcModal" class="px-3 py-1 border rounded">Zamknij</button>
+      </div>
+      <div id="fcContainer" class="p-3">
+        <div id="fullCalendar" class="fc fc-media-screen"></div>
+      </div>
+    </div>
+  </div>
+
   `;
 }
 
@@ -451,6 +465,105 @@ async function renderDay() {
     hoursEl.appendChild(cell);
   }
 }
+
+/* === Modal z FullCalendar (simple) === */
+let fc; // instancja FullCalendar
+
+function openFcModal() {
+  if (!state.selectedFacility) return;
+  const modal = document.getElementById("fcModal");
+  modal.classList.remove("hidden");
+
+  // Inicjalizuj tylko raz
+  if (!fc) {
+    const el = document.getElementById("fullCalendar");
+    fc = new FullCalendar.Calendar(el, {
+      initialDate: state.currentDate,
+      locale: 'pl',
+      firstDay: 1,
+      height: 'auto',
+      fixedWeekCount: false,
+      headerToolbar: {
+        left: 'prev,next today',
+        center: 'title',
+        right: '' // czysto
+      },
+      buttonText: { today: 'Dziś' },
+      // Ładowanie wydarzeń z Supabase dla zakresu, o jaki prosi FC
+      events: async (info, success, failure) => {
+        try {
+          const { data, error } = await supabase
+            .from('public_bookings')
+            .select('*')
+            .eq('facility_id', state.selectedFacility.id)
+            .gte('start_time', new Date(info.startStr).toISOString())
+            .lte('end_time', new Date(info.endStr).toISOString())
+            .order('start_time');
+          if (error) throw error;
+
+          const events = (data || []).map(b => ({
+            id: b.id,
+            title: b.title || 'Rezerwacja',
+            start: b.start_time,
+            end: b.end_time,
+            extendedProps: { renter: b.renter_name || '', notes: b.notes || '' }
+          }));
+          success(events);
+        } catch (e) {
+          console.error(e);
+          failure(e);
+        }
+      },
+      dateClick: (arg) => {
+        // klik dnia → ustaw datę w aplikacji i zamknij modal
+        state.currentDate = new Date(arg.dateStr + 'T00:00:00');
+        setDayPickerFromCurrent();
+        renderDay();
+        closeFcModal();
+      },
+      eventClick: (info) => {
+        // prościutki podgląd eventu (bez rozbudowanych tooltipów)
+        const ev = info.event;
+        const s = new Date(ev.start).toLocaleString('pl-PL', { dateStyle: 'medium', timeStyle: 'short' });
+        const e = ev.end ? new Date(ev.end).toLocaleString('pl-PL', { dateStyle: 'medium', timeStyle: 'short' }) : '';
+        alert(
+          `${ev.title}\n` +
+          `Od: ${s}\n` +
+          (e ? `Do: ${e}\n` : '') +
+          (ev.extendedProps?.renter ? `Najemca: ${ev.extendedProps.renter}\n` : '') +
+          (ev.extendedProps?.notes ? `Uwagi: ${ev.extendedProps.notes}` : '')
+        );
+      },
+      // wyraźniejsze zajętości: zdarzenia jako „blok”
+      eventDisplay: 'block',
+      eventColor: '#fecaca',        // jasnoczerwone tło
+      eventBorderColor: '#ef4444',  // czerwony border
+      eventTextColor: '#7f1d1d'
+    });
+    fc.render();
+  } else {
+    // przenieś na aktualny miesiąc
+    fc.gotoDate(state.currentDate);
+    fc.refetchEvents();
+  }
+}
+
+function closeFcModal() {
+  document.getElementById("fcModal").classList.add("hidden");
+}
+
+// Hooki do przycisków
+document.addEventListener('click', (e) => {
+  if (e.target.id === 'openMonthPreview') openFcModal();
+  if (e.target.id === 'closeFcModal' || e.target.id === 'fcModal') closeFcModal();
+});
+
+// ESC zamknij
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && !document.getElementById("fcModal").classList.contains("hidden")) {
+    closeFcModal();
+  }
+});
 
 
 /* === Zdarzenia UI (nawigacja dni, tryb, suwaki) === */
