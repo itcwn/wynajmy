@@ -152,7 +152,6 @@ export function renderMain() {
             <button class="px-4 py-2 rounded-xl bg-blue-600 text-white" type="submit">
               Złóż wstępną rezerwację
             </button>
-            <a id="genDocsLink" href="#" class="no-print hidden text-blue-700 underline">Generuj dokumenty</a>
             <button id="cancelThisBooking" type="button" class="no-print hidden px-3 py-2 border rounded-xl">Anuluj tę rezerwację</button>
             <div id="formMsg" class="text-sm ml-2"></div>
           </div>

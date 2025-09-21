@@ -137,8 +137,6 @@ export function createBookingForm({ state, supabase, domUtils, formatUtils, dayV
     state.lastBooking = bookingRow;
     state.bookingsCache.clear();
     await dayView.renderDay();
-    const docsLink = $('#genDocsLink');
-    docsLink?.classList.remove('hidden');
     const cancelBtn = $('#cancelThisBooking');
     cancelBtn?.classList.remove('hidden');
     if (bookingRow) {
@@ -169,14 +167,6 @@ export function createBookingForm({ state, supabase, domUtils, formatUtils, dayV
       await dayView.renderDay();
     } else {
       alert('Nie znaleziono lub już anulowana.');
-    }
-  }
-
-  function handleDocsLinkClick(event) {
-    event.preventDefault();
-    const el = $('#docGen');
-    if (el) {
-      window.scrollTo({ top: el.offsetTop - 20, behavior: 'smooth' });
     }
   }
 
@@ -241,10 +231,6 @@ export function createBookingForm({ state, supabase, domUtils, formatUtils, dayV
       cancelBtn.addEventListener('click', () => {
         void handleCancelClick();
       });
-    }
-    const docsLink = $('#genDocsLink');
-    if (docsLink) {
-      docsLink.addEventListener('click', handleDocsLinkClick);
     }
   }
 
