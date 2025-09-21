@@ -1,0 +1,15 @@
+export const state = {
+  facilities: [],
+  amenities: {},
+  eventTypes: [],
+  selectedFacility: null,
+  currentDate: new Date(),
+  bookingsCache: new Map(),
+  lastBooking: null,
+  templates: [],
+  mode: 'day',
+  mapsReady: false,
+  docFormValues: {},
+  docSelectedTemplate: null,
+  renderSeq: 0,
+};
