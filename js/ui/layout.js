@@ -35,8 +35,26 @@ export function renderMain() {
   root.innerHTML = `
     <div id="mainInner" class="space-y-6">
       <div id="facilityCard" class="hidden bg-white rounded-2xl shadow-md overflow-hidden">
-        <div class="grid grid-cols-1 md:grid-cols-3">
-          <img id="facilityImg" class="w-full h-56 object-cover md:col-span-1" alt="Zdjęcie świetlicy"/>
+        <div class="grid grid-cols-1 md:grid-cols-3 md:gap-4">
+          <div class="md:col-span-1">
+            <div id="facilityGallery" class="flex flex-col md:h-full">
+              <div class="relative">
+                <img id="facilityImgMain" class="w-full h-56 object-cover" alt="Zdjęcie świetlicy"/>
+                <button
+                  id="openGalleryBtn"
+                  type="button"
+                  class="absolute bottom-2 right-2 px-3 py-1 rounded-full text-xs sm:text-sm bg-black/70 text-white shadow focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  aria-haspopup="dialog"
+                >
+                  Otwórz galerię
+                </button>
+              </div>
+              <div id="facilityThumbs" class="hidden mt-2 flex gap-2 overflow-x-auto pb-1"></div>
+              <div id="galleryColumnInfo" class="mt-2 text-xs text-gray-500 leading-snug">
+                Wybierz świetlicę, aby zobaczyć zdjęcia.
+              </div>
+            </div>
+          </div>
           <div class="p-4 md:col-span-2">
             <h2 id="facilityName" class="text-xl font-bold"></h2>
             <p id="facilityDesc" class="text-sm text-gray-600 mt-1"></p>
@@ -163,6 +181,42 @@ export function renderMain() {
         </form>
 
         <div id="docGen" class="mt-6"></div>
+      </div>
+    </div>
+
+    <div id="galleryModal" class="fixed inset-0 z-50 hidden">
+      <div id="galleryModalBackdrop" data-role="gallery-overlay" class="absolute inset-0 bg-black/60"></div>
+      <div class="relative mx-auto my-10 w-[min(960px,94vw)] bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+        <div class="flex flex-wrap items-center justify-between gap-3 px-5 py-3 border-b">
+          <div class="flex flex-col">
+            <span id="galleryModalTitle" class="font-semibold">Galeria zdjęć</span>
+            <span id="galleryModalCounter" class="text-xs text-gray-500"></span>
+          </div>
+          <button id="closeGalleryModal" class="px-3 py-1 border rounded text-sm">Zamknij</button>
+        </div>
+        <div class="relative bg-black flex items-center justify-center min-h-[320px]">
+          <button
+            id="galleryPrev"
+            class="absolute left-3 md:left-6 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white rounded-full w-10 h-10 flex items-center justify-center text-lg font-semibold shadow focus:outline-none focus:ring-2 focus:ring-blue-500"
+            type="button"
+            aria-label="Poprzednie zdjęcie"
+          >
+            &#10094;
+          </button>
+          <img id="galleryModalImage" class="max-h-[70vh] w-auto max-w-full object-contain" alt="Zdjęcie obiektu" />
+          <button
+            id="galleryNext"
+            class="absolute right-3 md:right-6 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white rounded-full w-10 h-10 flex items-center justify-center text-lg font-semibold shadow focus:outline-none focus:ring-2 focus:ring-blue-500"
+            type="button"
+            aria-label="Następne zdjęcie"
+          >
+            &#10095;
+          </button>
+          <div id="galleryModalEmpty" class="absolute inset-0 hidden items-center justify-center px-6 text-center text-sm text-white/90">
+            Brak zdjęć dla tej świetlicy.
+          </div>
+        </div>
+        <div id="galleryModalThumbs" class="hidden flex gap-2 overflow-x-auto p-3 bg-gray-50"></div>
       </div>
     </div>
 
