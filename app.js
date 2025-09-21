@@ -98,6 +98,7 @@ function renderMain() {
             <button id="todayBtn" class="px-3 py-2 rounded-xl border">Dziś</button>
             <button id="nextDay" class="px-3 py-2 rounded-xl border">▶</button>
             <input id="dayPicker" type="date" class="border rounded-xl px-3 py-2"/>
+            <button id="openMonthPreview" class="px-3 py-2 rounded-xl border">Podgląd miesiąca</button>
           </div>
           <div class="flex items-center gap-3">
             <span class="text-sm">Tryb:</span>
