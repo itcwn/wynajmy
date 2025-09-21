@@ -384,6 +384,18 @@ async function fetchBookingsForDay(facilityId, date) {
   return data || [];
 }
 
+function statusClasses(status) {
+  // kolorystyka kart/komórek
+  switch ((status || '').toLowerCase()) {
+    case 'active':
+      return { bg: 'bg-red-50', border: 'border-red-300', text: 'text-red-900', chipBg: 'bg-red-100', chipText: 'text-red-800', chipBorder: 'border-red-200', chipLabel: 'zajęte' };
+    case 'pending':
+      return { bg: 'bg-amber-50', border: 'border-amber-300', text: 'text-amber-900', chipBg: 'bg-amber-100', chipText: 'text-amber-800', chipBorder: 'border-amber-200', chipLabel: 'wstępna' };
+    default:
+      return { bg: 'bg-gray-50', border: 'border-gray-200', text: 'text-gray-700', chipBg: 'bg-gray-100', chipText: 'text-gray-700', chipBorder: 'border-gray-200', chipLabel: '' };
+  }
+}
+
 async function renderDay() {
   if (!state.selectedFacility) return;
 
