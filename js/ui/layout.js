@@ -60,6 +60,15 @@ export function renderMain() {
             <button id="nextDay" class="px-3 py-2 rounded-xl border">▶</button>
             <input id="dayPicker" type="date" class="border rounded-xl px-3 py-2"/>
             <button id="openMonthPreview" class="px-3 py-2 rounded-xl border">Podgląd miesiąca</button>
+            <button
+              id="openFacilityInstructions"
+              type="button"
+              class="w-9 h-9 inline-flex items-center justify-center rounded-full bg-blue-600 text-white font-semibold shadow-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-40 disabled:cursor-not-allowed"
+              title="Instrukcja od opiekuna"
+              disabled
+            >
+              i
+            </button>
           </div>
           <div class="flex items-center gap-3">
             <span class="text-sm">Tryb:</span>
@@ -166,6 +175,26 @@ export function renderMain() {
         </div>
         <div id="fcContainer" class="p-3">
           <div id="fullCalendar" class="fc fc-media-screen"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="instructionsModal" class="fixed inset-0 z-50 hidden">
+      <div class="absolute inset-0 bg-black/40"></div>
+      <div class="relative mx-auto my-10 w-[min(640px,92vw)] bg-white rounded-2xl shadow-2xl overflow-hidden">
+        <div class="flex items-center justify-between px-4 py-3 border-b">
+          <div class="font-semibold">Instrukcja od opiekuna</div>
+          <div class="flex items-center gap-2">
+            <a
+              id="editInstructionsLink"
+              href="./editDescription.html"
+              class="px-3 py-1 rounded border text-sm text-blue-700 hover:bg-blue-50"
+            >Edytuj</a>
+            <button id="closeInstructionsModal" class="px-3 py-1 border rounded text-sm">Zamknij</button>
+          </div>
+        </div>
+        <div class="p-4">
+          <div id="instructionsContent" class="text-sm leading-relaxed text-gray-700 whitespace-pre-line"></div>
         </div>
       </div>
     </div>

@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Instrukcje opiekunów — zarządzanie</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body class="bg-gray-50 text-gray-900">
+  <header class="p-4 bg-white shadow">
+    <div class="max-w-4xl mx-auto flex items-center justify-between gap-3 flex-wrap">
+      <div>
+        <h1 class="text-xl font-bold">Instrukcje opiekunów świetlic</h1>
+        <p class="text-sm text-gray-500">Zarządzaj tekstem wyświetlanym użytkownikom w aplikacji głównej.</p>
+      </div>
+      <a href="./index.html" class="text-sm text-blue-700 underline">← powrót do aplikacji</a>
+    </div>
+  </header>
+
+  <main class="max-w-4xl mx-auto p-4 space-y-4">
+    <section class="bg-white rounded-2xl shadow-md p-5 space-y-4">
+      <div>
+        <label for="facilitySelect" class="block text-sm font-medium text-gray-700">Wybierz świetlicę</label>
+        <select id="facilitySelect" class="mt-1 w-full border rounded-xl px-3 py-2">
+          <option value="">— wybierz świetlicę —</option>
+        </select>
+      </div>
+      <div id="facilityMeta" class="text-sm text-gray-500 min-h-[1.5rem]"></div>
+      <div>
+        <label for="instructionsInput" class="block text-sm font-medium text-gray-700">Instrukcja od opiekuna</label>
+        <textarea
+          id="instructionsInput"
+          class="mt-1 w-full border rounded-xl px-3 py-2 h-64 resize-y"
+          placeholder="Opisz zasady korzystania ze świetlicy, np. sposób odbioru kluczy, wymagane dokumenty..."
+          disabled
+        ></textarea>
+      </div>
+      <div class="flex items-center gap-3 flex-wrap">
+        <button id="saveInstructions" type="button" class="px-4 py-2 rounded-xl bg-blue-600 text-white disabled:opacity-40 disabled:cursor-not-allowed" disabled>
+          💾 Zapisz instrukcję
+        </button>
+        <span id="saveMessage" class="text-sm text-gray-500"></span>
+      </div>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="./supabase-config.js"></script>
+  <script type="module">
+    import { INSTRUCTION_FIELDS, findInstructionInfo } from './js/utils/instructions.js';
+
+    const selectEl = document.getElementById('facilitySelect');
+    const textarea = document.getElementById('instructionsInput');
+    const saveBtn = document.getElementById('saveInstructions');
+    const messageEl = document.getElementById('saveMessage');
+    const metaEl = document.getElementById('facilityMeta');
+
+    const SUPABASE_URL = window.__SUPA?.SUPABASE_URL;
+    const SUPABASE_ANON_KEY = window.__SUPA?.SUPABASE_ANON_KEY;
+
+    if (!window.supabase || !window.supabase.createClient) {
+      alert('Nie wykryto Supabase SDK. Sprawdź dołączone skrypty.');
+    } else if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+      alert('Uzupełnij plik supabase-config.js poprawnymi danymi.');
+    } else {
+      const supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      let facilities = [];
+      let selectedFacility = null;
+      let isSaving = false;
+
+      function showMessage(text, tone = 'info') {
+        if (!messageEl) {
+          return;
+        }
+        messageEl.textContent = text;
+        messageEl.classList.remove('text-red-600', 'text-emerald-600', 'text-gray-500');
+        if (!text) {
+          return;
+        }
+        if (tone === 'error') {
+          messageEl.classList.add('text-red-600');
+        } else if (tone === 'success') {
+          messageEl.classList.add('text-emerald-600');
+        } else {
+          messageEl.classList.add('text-gray-500');
+        }
+      }
+
+      function describeFacility(facility) {
+        if (!facility) {
+          return '';
+        }
+        const parts = [];
+        if (facility.postal_code || facility.city) {
+          parts.push([facility.postal_code, facility.city].filter(Boolean).join(' '));
+        }
+        if (facility.address_line1 || facility.address_line2) {
+          parts.push([facility.address_line1, facility.address_line2].filter(Boolean).join(', '));
+        }
+        return parts.filter(Boolean).join(' · ');
+      }
+
+      function updateMeta(facility) {
+        if (!metaEl) {
+          return;
+        }
+        const description = describeFacility(facility);
+        metaEl.textContent = description || '';
+      }
+
+      function updateForm() {
+        const info = findInstructionInfo(selectedFacility);
+        if (!selectedFacility) {
+          textarea.value = '';
+          textarea.disabled = true;
+          saveBtn.disabled = true;
+          updateMeta(null);
+          showMessage('Wybierz świetlicę, aby edytować instrukcję.', 'info');
+          return;
+        }
+        textarea.disabled = false;
+        textarea.value = info.text || '';
+        saveBtn.disabled = false;
+        updateMeta(selectedFacility);
+        showMessage('', 'info');
+      }
+
+      function getCandidateColumns(facility) {
+        const seen = new Set();
+        const list = [];
+        if (facility?.__instructionsColumn) {
+          seen.add(facility.__instructionsColumn);
+          list.push(facility.__instructionsColumn);
+        }
+        for (const column of INSTRUCTION_FIELDS) {
+          if (!seen.has(column)) {
+            seen.add(column);
+            list.push(column);
+          }
+        }
+        return list;
+      }
+
+      async function persistInstructions(newValue) {
+        if (!selectedFacility) {
+          return;
+        }
+        const facilityId = selectedFacility.id;
+        const candidates = getCandidateColumns(selectedFacility);
+        let savedColumn = null;
+        let blockingError = null;
+        for (const column of candidates) {
+          const payload = { [column]: newValue };
+          const { error } = await supa.from('facilities').update(payload).eq('id', facilityId);
+          if (!error) {
+            savedColumn = column;
+            break;
+          }
+          if (error.code && error.code !== '42703') {
+            blockingError = error;
+            break;
+          }
+          if (!error.code && error.message && !/column/i.test(error.message)) {
+            blockingError = error;
+            break;
+          }
+        }
+        if (!savedColumn) {
+          throw blockingError || new Error('Nie udało się zapisać instrukcji dla tej świetlicy.');
+        }
+        selectedFacility.__instructionsColumn = savedColumn;
+        selectedFacility[savedColumn] = newValue;
+      }
+
+      async function handleSave() {
+        if (!selectedFacility || isSaving) {
+          return;
+        }
+        isSaving = true;
+        const originalLabel = saveBtn.textContent;
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Zapisywanie...';
+        selectEl.disabled = true;
+        showMessage('Trwa zapisywanie...', 'info');
+        const normalized = textarea.value.replace(/\r\n/g, '\n');
+        try {
+          await persistInstructions(normalized);
+          showMessage('Instrukcja została zapisana.', 'success');
+        } catch (error) {
+          console.error(error);
+          showMessage(error?.message || 'Wystąpił błąd podczas zapisu.', 'error');
+        } finally {
+          isSaving = false;
+          saveBtn.disabled = false;
+          saveBtn.textContent = originalLabel;
+          selectEl.disabled = false;
+        }
+      }
+
+      function renderFacilities() {
+        const previousValue = selectEl.value;
+        selectEl.innerHTML = '';
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.textContent = '— wybierz świetlicę —';
+        selectEl.appendChild(placeholder);
+
+        const sorted = [...facilities].sort((a, b) => {
+          const left = (a.name || '').toLocaleLowerCase('pl');
+          const right = (b.name || '').toLocaleLowerCase('pl');
+          if (left < right) return -1;
+          if (left > right) return 1;
+          return 0;
+        });
+
+        for (const facility of sorted) {
+          const option = document.createElement('option');
+          option.value = String(facility.id);
+          option.textContent = facility.name || `ID ${facility.id}`;
+          selectEl.appendChild(option);
+        }
+
+        if (previousValue) {
+          selectEl.value = previousValue;
+        }
+      }
+
+      function applySelectionFromQuery() {
+        const params = new URLSearchParams(window.location.search);
+        const fromQuery = params.get('facility');
+        if (!fromQuery) {
+          return;
+        }
+        const match = facilities.find((item) => String(item.id) === String(fromQuery));
+        if (match) {
+          selectEl.value = String(match.id);
+          selectedFacility = match;
+        }
+      }
+
+      async function loadFacilities() {
+        showMessage('Ładowanie listy świetlic...', 'info');
+        const { data, error } = await supa.from('facilities').select('*').order('name');
+        if (error) {
+          console.error(error);
+          showMessage('Nie udało się pobrać listy świetlic.', 'error');
+          return;
+        }
+        facilities = data || [];
+        renderFacilities();
+        applySelectionFromQuery();
+        if (!selectedFacility && facilities.length) {
+          selectedFacility = facilities[0];
+          selectEl.value = String(selectedFacility.id);
+        }
+        updateForm();
+      }
+
+      selectEl.addEventListener('change', () => {
+        const value = selectEl.value;
+        selectedFacility = facilities.find((facility) => String(facility.id) === String(value)) || null;
+        updateForm();
+      });
+
+      saveBtn.addEventListener('click', handleSave);
+      textarea.addEventListener('keydown', (event) => {
+        if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
+          event.preventDefault();
+          void handleSave();
+        }
+      });
+
+      void loadFacilities();
+    }
+  </script>
+</body>
+</html>
