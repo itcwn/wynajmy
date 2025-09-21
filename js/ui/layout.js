@@ -143,11 +143,6 @@ export function renderMain() {
             <textarea name="notes" class="w-full border rounded-xl px-3 py-2" rows="2"></textarea>
           </div>
 
-          <div class="flex items-center gap-2 md:col-span-2">
-            <input id="is_public" type="checkbox" checked class="w-4 h-4"/>
-            <label for="is_public" class="text-sm">Pokaż tytuł wydarzenia publicznie w kalendarzu</label>
-          </div>
-
           <div class="md:col-span-2 flex gap-2 items-center">
             <button class="px-4 py-2 rounded-xl bg-blue-600 text-white" type="submit">
               Złóż wstępną rezerwację

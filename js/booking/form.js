@@ -121,7 +121,7 @@ export function createBookingForm({ state, supabase, domUtils, formatUtils, dayV
       renter_name: form.renter_name.value.trim(),
       renter_email: form.renter_email.value.trim(),
       notes: form.notes.value.trim() || null,
-      is_public: $('#is_public')?.checked ?? true,
+      is_public: true,
       status: 'pending',
     };
     const { data, error } = await supabase.from('bookings').insert(payload).select();
