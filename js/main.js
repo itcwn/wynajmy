@@ -15,6 +15,7 @@ import { createDayView } from './calendar/dayView.js';
 import { createMonthModal } from './calendar/monthModal.js';
 import { createBookingForm } from './booking/form.js';
 import { createDocGenerator } from './documents/docGenerator.js';
+import { createInstructionsModal } from './ui/instructionsModal.js';
 
 const supabase = createSupabaseClient();
 
@@ -26,6 +27,7 @@ if (!supabase) {
 
   const dayView = createDayView({ state, supabase, domUtils, formatUtils });
   const docGenerator = createDocGenerator({ state, supabase, domUtils, formatUtils });
+  const instructionsModal = createInstructionsModal({ state, domUtils });
   const facilities = createFacilitiesModule({
     state,
     supabase,
@@ -33,6 +35,7 @@ if (!supabase) {
     formatUtils,
     dayView,
     docGenerator,
+    instructionsModal,
     googleMapsKey: GOOGLE_MAPS_API_KEY,
   });
   const monthModal = createMonthModal({
@@ -49,6 +52,7 @@ if (!supabase) {
     renderSidebar({ onSearch: facilities.renderFacilityList });
     renderMain();
     dayView.attachDayViewListeners();
+    instructionsModal.attachListeners();
     monthModal.attachMonthModalListeners();
     bookingForm.installListeners();
     await facilities.loadDictionaries();

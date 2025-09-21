@@ -5,6 +5,7 @@ export function createFacilitiesModule({
   formatUtils,
   dayView,
   docGenerator,
+  instructionsModal,
   googleMapsKey,
 }) {
   const { $ } = domUtils;
@@ -130,6 +131,9 @@ export function createFacilitiesModule({
       return;
     }
     state.selectedFacility = facility;
+    if (instructionsModal?.updateContent) {
+      instructionsModal.updateContent(facility);
+    }
     const card = $('#facilityCard');
     const selectors = $('#selectors');
     const booking = $('#booking');
