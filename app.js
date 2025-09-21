@@ -1,4 +1,9 @@
-/* app.js — MVP v3 (układ poziomy, suwak godzin filtruje kalendarz, dokumenty HTML live, anulowanie) */
+/* app.js — MVP v3.2
+   - wstępne rezerwacje (status: pending)
+   - blokada kolizji (pending + active)
+   - podgląd miesiąca (FullCalendar) z kropkami i kolorami statusów
+   - poprawki renderu dnia i stylistyki
+*/
 
 /* === Konfiguracja === */
 const SUPABASE_URL = window.__SUPA?.SUPABASE_URL;
@@ -9,7 +14,7 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
   alert("Brak konfiguracji Supabase — uzupełnij supabase-config.js");
 }
 if (!window.supabase || !window.supabase.createClient) {
-  console.error('Supabase SDK niezaładowany. Upewnij się, że masz <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script> przed app.js');
+  console.error('Supabase SDK niezaładowany. Dodaj: <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script> przed app.js');
 }
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -25,9 +30,9 @@ const state = {
   templates: [],
   mode: "day", // 'day' | 'hour'
   mapsReady: false,
-  // LIVE wartości pól dla wybranego szablonu (bez zapisu do DB)
-  docFormValues: {},     // { placeholderKey: value }
-  docSelectedTemplate: null
+  docFormValues: {}, // LIVE wartości formularza dokumentu (bez zapisu)
+  docSelectedTemplate: null,
+  renderSeq: 0
 };
 
 /* === Utils === */
@@ -50,15 +55,15 @@ function renderSidebar() {
   const root = $("#sidebar");
   if (!root) { console.warn("#sidebar not found"); return; }
   root.innerHTML = `
-    <div class="bg-white rounded-xl shadow p-4">
+    <div class="bg-white rounded-xl shadow-md p-4">
       <h2 class="font-semibold mb-3">Wyszukaj</h2>
       <input id="q" class="w-full border rounded-xl px-3 py-2" placeholder="Szukaj ..." />
     </div>
-    <div class="bg-white rounded-xl shadow p-4 mt-3">
+    <div class="bg-white rounded-xl shadow-md p-4 mt-3">
       <h2 class="font-semibold mb-3">Świetlice (<span id="count">0</span>)</h2>
       <ul id="facilities" class="space-y-3"></ul>
     </div>
-    <div id="mapCard" class="hidden bg-white rounded-xl shadow p-4 mt-3">
+    <div id="mapCard" class="hidden bg-white rounded-xl shadow-md p-4 mt-3">
       <h3 class="font-semibold mb-3">Mapa</h3>
       <div id="map" style="width:100%;height:280px;border-radius:12px;"></div>
     </div>
@@ -70,9 +75,9 @@ function renderMain() {
   const root = $("#main");
   if (!root) { console.warn("#main not found"); return; }
   root.innerHTML = `
-    <div id="mainInner" class="space-y-6">  <!-- większe odstępy -->
+    <div id="mainInner" class="space-y-6">
       <!-- (1) Nagłówek obiektu -->
-      <div id="facilityCard" class="hidden bg-white rounded-2xl shadow-md overflow-hidden"> <!-- delikatnie mocniejszy cień -->
+      <div id="facilityCard" class="hidden bg-white rounded-2xl shadow-md overflow-hidden">
         <div class="grid grid-cols-1 md:grid-cols-3">
           <img id="facilityImg" class="w-full h-56 object-cover md:col-span-1" alt="Zdjęcie świetlicy"/>
           <div class="p-4 md:col-span-2">
@@ -128,90 +133,91 @@ function renderMain() {
       </div>
 
       <!-- (3) Formularz rezerwacji -->
-    
-    <!-- (3) Formularz rezerwacji -->
-    <div id="booking" class="hidden bg-white rounded-2xl shadow p-4">
-      <h3 class="font-semibold mb-3">Nowa rezerwacja</h3>
-      <form id="bookingForm" class="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <div>
-          <label class="text-sm">Tytuł wydarzenia</label>
-          <input name="title" required class="w-full border rounded-xl px-3 py-2" placeholder="np. Urodziny" />
-        </div>
-        <div>
-          <label class="text-sm">Rodzaj</label>
-          <select name="event_type_id" class="w-full border rounded-xl px-3 py-2"></select>
-        </div>
+      <div id="booking" class="hidden bg-white rounded-2xl shadow p-4">
+        <h3 class="font-semibold mb-3">Nowa rezerwacja</h3>
+        <form id="bookingForm" class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label class="text-sm">Tytuł wydarzenia</label>
+            <input name="title" required class="w-full border rounded-xl px-3 py-2" placeholder="np. Urodziny" />
+          </div>
+          <div>
+            <label class="text-sm">Rodzaj</label>
+            <select name="event_type_id" class="w-full border rounded-xl px-3 py-2"></select>
+          </div>
 
-        <div data-day-fields>
-          <label class="text-sm">Dzień rezerwacji</label>
-          <input name="day_only" type="date" class="w-full border rounded-xl px-3 py-2" />
-        </div>
+          <div data-day-fields>
+            <label class="text-sm">Dzień rezerwacji</label>
+            <input name="day_only" type="date" class="w-full border rounded-xl px-3 py-2" />
+          </div>
 
-        <div data-hour-fields class="hidden">
-          <label class="text-sm">Początek (godzina)</label>
-          <input name="start_time" type="datetime-local" class="w-full border rounded-xl px-3 py-2" />
-        </div>
-        <div data-hour-fields class="hidden">
-          <label class="text-sm">Koniec (godzina)</label>
-          <input name="end_time" type="datetime-local" class="w-full border rounded-xl px-3 py-2" />
-        </div>
+          <div data-hour-fields class="hidden">
+            <label class="text-sm">Początek (godzina)</label>
+            <input name="start_time" type="datetime-local" class="w-full border rounded-xl px-3 py-2" />
+          </div>
+          <div data-hour-fields class="hidden">
+            <label class="text-sm">Koniec (godzina)</label>
+            <input name="end_time" type="datetime-local" class="w-full border rounded-xl px-3 py-2" />
+          </div>
 
-        <div>
-          <label class="text-sm">Imię i nazwisko</label>
-          <input name="renter_name" required class="w-full border rounded-xl px-3 py-2" />
-        </div>
-        <div>
-          <label class="text-sm">E-mail</label>
-          <input name="renter_email" type="email" required class="w-full border rounded-xl px-3 py-2" />
-        </div>
+          <div>
+            <label class="text-sm">Imię i nazwisko</label>
+            <input name="renter_name" required class="w-full border rounded-xl px-3 py-2" />
+          </div>
+          <div>
+            <label class="text-sm">E-mail</label>
+            <input name="renter_email" type="email" required class="w-full border rounded-xl px-3 py-2" />
+          </div>
 
-        <div class="md:col-span-2">
-          <label class="text-sm">Uwagi (opcjonalnie)</label>
-          <textarea name="notes" class="w-full border rounded-xl px-3 py-2" rows="2"></textarea>
-        </div>
+          <div class="md:col-span-2">
+            <label class="text-sm">Uwagi (opcjonalnie)</label>
+            <textarea name="notes" class="w-full border rounded-xl px-3 py-2" rows="2"></textarea>
+          </div>
 
-        <div class="flex items-center gap-2 md:col-span-2">
-          <input id="is_public" type="checkbox" checked class="w-4 h-4"/>
-          <label for="is_public" class="text-sm">Pokaż tytuł wydarzenia publicznie w kalendarzu</label>
-        </div>
+          <div class="flex items-center gap-2 md:col-span-2">
+            <input id="is_public" type="checkbox" checked class="w-4 h-4"/>
+            <label for="is_public" class="text-sm">Pokaż tytuł wydarzenia publicznie w kalendarzu</label>
+          </div>
 
-        <div class="md:col-span-2 flex gap-2 items-center">
-           <button class="px-4 py-2 rounded-xl bg-blue-600 text-white" type="submit">
-            Złóż wstępną rezerwację
-          </button>
-          <a id="genDocsLink" href="#" class="no-print hidden text-blue-700 underline">Generuj dokumenty</a>
-          <button id="cancelThisBooking" type="button" class="no-print hidden px-3 py-2 border rounded-xl">Anuluj tę rezerwację</button>
-          <div id="formMsg" class="text-sm ml-2"></div>
-        </div>
-        <p class="text-xs text-gray-500 md:col-span-2">
-          Po dokonaniu rezerwacji otrzymasz e-mail z potwierdzeniem oraz linkiem do anulowania (jeśli będzie potrzebne).
-        </p>
-      </form>
+          <div class="md:col-span-2 flex gap-2 items-center">
+            <button class="px-4 py-2 rounded-xl bg-blue-600 text-white" type="submit">
+              Złóż wstępną rezerwację
+            </button>
+            <a id="genDocsLink" href="#" class="no-print hidden text-blue-700 underline">Generuj dokumenty</a>
+            <button id="cancelThisBooking" type="button" class="no-print hidden px-3 py-2 border rounded-xl">Anuluj tę rezerwację</button>
+            <div id="formMsg" class="text-sm ml-2"></div>
+          </div>
 
-      <!-- Live generator dokumentu po rezerwacji -->
-      <div id="docGen" class="mt-6"></div>
-    </div>
+          <p class="text-xs text-gray-500 md:col-span-2">
+            Wstępna rezerwacja trafia do opiekuna obiektu do akceptacji. Dostaniesz e-mail z decyzją.
+          </p>
+        </form>
+
+        <!-- Live generator dokumentu po rezerwacji -->
+        <div id="docGen" class="mt-6"></div>
+      </div>
 
       <!-- (4) Kalendarz dzienny -->
       <div id="calendar" class="hidden bg-white rounded-2xl shadow-md p-4">
-        <div id="hours" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"></div> <!-- większa przerwa między komórkami -->
-        <p class="text-xs text-gray-500 mt-2">Widok dzienny 00–23. Rezerwacje dzienne zajmują cały dzień.</p>
+        <div id="hours" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+        <p class="text-xs text-gray-500 mt-2">
+          🔴 Zajęte (potwierdzone) · 🟡 Wstępne (czeka na akceptację) · brak koloru = dostępne
+        </p>
       </div>
     </div>
 
+    <!-- Modal z FullCalendar -->
     <div id="fcModal" class="fixed inset-0 z-50 hidden">
-    <div class="absolute inset-0 bg-black/40"></div>
-    <div class="relative mx-auto my-10 w-[min(1000px,92vw)] bg-white rounded-2xl shadow-2xl overflow-hidden">
-      <div class="flex items-center justify-between px-4 py-3 border-b">
-        <div class="font-semibold">Kalendarz miesięczny</div>
-        <button id="closeFcModal" class="px-3 py-1 border rounded">Zamknij</button>
-      </div>
-      <div id="fcContainer" class="p-3">
-        <div id="fullCalendar" class="fc fc-media-screen"></div>
+      <div class="absolute inset-0 bg-black/40"></div>
+      <div class="relative mx-auto my-10 w-[min(1000px,92vw)] bg-white rounded-2xl shadow-2xl overflow-hidden">
+        <div class="flex items-center justify-between px-4 py-3 border-b">
+          <div class="font-semibold">Kalendarz miesięczny</div>
+          <button id="closeFcModal" class="px-3 py-1 border rounded">Zamknij</button>
+        </div>
+        <div id="fcContainer" class="p-3">
+          <div id="fullCalendar" class="fc fc-media-screen"></div>
+        </div>
       </div>
     </div>
-  </div>
-
   `;
 }
 
@@ -294,7 +300,6 @@ async function selectFacility(id) {
   $("#selectors").classList.remove("hidden");
   $("#booking").classList.remove("hidden");
   $("#calendar").classList.remove("hidden");
- 
 
   $("#facilityImg").src = f.image_url || "https://picsum.photos/800/400";
   $("#facilityName").textContent = `${f.name} ${f.postal_code ? "(" + f.postal_code + ")" : ""}`;
@@ -321,7 +326,6 @@ async function selectFacility(id) {
   setDayPickerFromCurrent();
   initHourSliderDefaults();
   await renderDay();
- 
   renderMap();
 }
 
@@ -342,11 +346,11 @@ function initHourSliderDefaults() {
 }
 
 function getVisibleHourRange() {
-  if (state.mode !== "hour") return { start: 0, end: 24 }; // pełna doba
+  if (state.mode !== "hour") return { start: 0, end: 24 };
   let s = parseInt($("#hourStart").value, 10);
   let e = parseInt($("#hourEnd").value, 10);
-  if (e <= s) e = s + 1; // min 1h
-  return { start: s, end: e }; // [start, end)
+  if (e <= s) e = s + 1;
+  return { start: s, end: e };
 }
 
 function updateHourLabels() {
@@ -385,7 +389,6 @@ async function fetchBookingsForDay(facilityId, date) {
 }
 
 function statusClasses(status) {
-  // kolorystyka kart/komórek
   switch ((status || '').toLowerCase()) {
     case 'active':
       return { bg: 'bg-red-50', border: 'border-red-300', text: 'text-red-900', chipBg: 'bg-red-100', chipText: 'text-red-800', chipBorder: 'border-red-200', chipLabel: 'zajęte' };
@@ -399,16 +402,15 @@ function statusClasses(status) {
 async function renderDay() {
   if (!state.selectedFacility) return;
 
-
   state.renderSeq = (state.renderSeq || 0) + 1;
   const mySeq = state.renderSeq;
-  
+
+  const d = state.currentDate;
   $("#dateLabel").textContent = fmtDateLabel(d);
 
   const hoursEl = $("#hours");
   hoursEl.innerHTML = "";
 
-  // pobierz rezerwacje (z widoku public_bookings, który ma już pending + active)
   const bookings = await fetchBookingsForDay(state.selectedFacility.id, d);
   if (mySeq !== state.renderSeq) return;
 
@@ -419,7 +421,6 @@ async function renderDay() {
       empty.textContent = "Brak rezerwacji w tym dniu.";
       hoursEl.appendChild(empty);
     } else {
-      // Pasek info
       const activeCount = bookings.filter(b => (b.status||'').toLowerCase()==='active').length;
       const pendingCount = bookings.filter(b => (b.status||'').toLowerCase()==='pending').length;
       const info = document.createElement("div");
@@ -430,7 +431,6 @@ async function renderDay() {
       `;
       hoursEl.appendChild(info);
 
-      // Lista rezerwacji z kolorami wg statusu
       bookings.forEach((b) => {
         const s = new Date(b.start_time);
         const e = new Date(b.end_time);
@@ -455,8 +455,7 @@ async function renderDay() {
     return;
   }
 
-  // TRYB GODZINOWY – z rozróżnieniem statusów w siatce
-  // busy[h] = null | { title, status }
+  // TRYB GODZINOWY
   const busy = new Array(24).fill(null);
   bookings.forEach((b) => {
     const s = new Date(b.start_time);
@@ -490,15 +489,14 @@ async function renderDay() {
   }
 }
 
-/* === Modal z FullCalendar (simple) === */
-let fc; // instancja FullCalendar
+/* === FullCalendar modal (miesiąc) === */
+let fc; // instancja
 
 function openFcModal() {
   if (!state.selectedFacility) return;
   const modal = document.getElementById("fcModal");
   modal.classList.remove("hidden");
 
-  // Inicjalizuj tylko raz
   if (!fc) {
     const el = document.getElementById("fullCalendar");
     fc = new FullCalendar.Calendar(el, {
@@ -507,11 +505,7 @@ function openFcModal() {
       firstDay: 1,
       height: 'auto',
       fixedWeekCount: false,
-      headerToolbar: {
-        left: 'prev,next today',
-        center: 'title',
-        right: '' // czysto
-      },
+      headerToolbar: { left: 'prev,next today', center: 'title', right: '' },
       buttonText: { today: 'Dziś' },
       // Ładowanie wydarzeń z Supabase dla zakresu, o jaki prosi FC
       events: async (info, success, failure) => {
@@ -525,13 +519,18 @@ function openFcModal() {
             .order('start_time');
           if (error) throw error;
 
-          const events = (data || []).map(b => ({
-            id: b.id,
-            title: b.title || 'Rezerwacja',
-            start: b.start_time,
-            end: b.end_time,
-            extendedProps: { renter: b.renter_name || '', notes: b.notes || '' }
-          }));
+          const events = (data || []).map(b => {
+            const status = (b.status || '').toLowerCase();
+            const color = status === 'active' ? '#ef4444' : '#f59e0b'; // czerwony / żółty
+            return {
+              id: b.id,
+              title: b.title || 'Rezerwacja',
+              start: b.start_time,
+              end: b.end_time,
+              color, // dot/etykieta w kolorze statusu
+              extendedProps: { status, renter: b.renter_name || '', notes: b.notes || '' }
+            };
+          });
           success(events);
         } catch (e) {
           console.error(e);
@@ -539,14 +538,12 @@ function openFcModal() {
         }
       },
       dateClick: (arg) => {
-        // klik dnia → ustaw datę w aplikacji i zamknij modal
         state.currentDate = new Date(arg.dateStr + 'T00:00:00');
         setDayPickerFromCurrent();
         renderDay();
         closeFcModal();
       },
       eventClick: (info) => {
-        // prościutki podgląd eventu (bez rozbudowanych tooltipów)
         const ev = info.event;
         const s = new Date(ev.start).toLocaleString('pl-PL', { dateStyle: 'medium', timeStyle: 'short' });
         const e = ev.end ? new Date(ev.end).toLocaleString('pl-PL', { dateStyle: 'medium', timeStyle: 'short' }) : '';
@@ -555,40 +552,26 @@ function openFcModal() {
           `Od: ${s}\n` +
           (e ? `Do: ${e}\n` : '') +
           (ev.extendedProps?.renter ? `Najemca: ${ev.extendedProps.renter}\n` : '') +
+          (ev.extendedProps?.status ? `Status: ${ev.extendedProps.status}\n` : '') +
           (ev.extendedProps?.notes ? `Uwagi: ${ev.extendedProps.notes}` : '')
         );
-      },
-      // wyraźniejsze zajętości: zdarzenia jako „blok”
-      eventDisplay: 'block',
-      eventColor: '#fecaca',        // jasnoczerwone tło
-      eventBorderColor: '#ef4444',  // czerwony border
-      eventTextColor: '#7f1d1d'
+      }
+      // UWAGA: bez eventDisplay:'block' — zostawiamy domyślne (doty/etykiety)
     });
     fc.render();
   } else {
-    // przenieś na aktualny miesiąc
     fc.gotoDate(state.currentDate);
     fc.refetchEvents();
   }
 }
-
-function closeFcModal() {
-  document.getElementById("fcModal").classList.add("hidden");
-}
-
-// Hooki do przycisków
+function closeFcModal() { document.getElementById("fcModal").classList.add("hidden"); }
 document.addEventListener('click', (e) => {
   if (e.target.id === 'openMonthPreview') openFcModal();
   if (e.target.id === 'closeFcModal' || e.target.id === 'fcModal') closeFcModal();
 });
-
-// ESC zamknij
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && !document.getElementById("fcModal").classList.contains("hidden")) {
-    closeFcModal();
-  }
+  if (e.key === 'Escape' && !document.getElementById("fcModal").classList.contains("hidden")) closeFcModal();
 });
-
 
 /* === Zdarzenia UI (nawigacja dni, tryb, suwaki) === */
 document.addEventListener("click", (e) => {
@@ -633,6 +616,22 @@ document.addEventListener("change", (e) => {
   }
 });
 
+/* === Kolizje — sprawdzenie przed insertem === */
+async function hasOverlap(facilityId, startIso, endIso) {
+  const { data, error } = await supabase
+    .from("bookings")
+    .select("id,status,start_time,end_time")
+    .eq("facility_id", facilityId)
+    .in("status", ["active", "pending"])
+    .lt("start_time", endIso)  // start < endNew
+    .gt("end_time", startIso); // end   > startNew
+  if (error) {
+    console.warn("Błąd sprawdzania kolizji:", error);
+    return false; // nie blokuj awaryjnie, ale zaloguj
+  }
+  return (data || []).length > 0;
+}
+
 /* === Formularz rezerwacji === */
 document.addEventListener("submit", async (e) => {
   if (e.target.id !== "bookingForm") return;
@@ -656,6 +655,13 @@ document.addEventListener("submit", async (e) => {
     if (new Date(endIso) <= new Date(startIso)) { msg.textContent = "Koniec musi być po początku."; return; }
   }
 
+  // SPRAWDŹ KOLIZJE
+  const overlap = await hasOverlap(state.selectedFacility.id, startIso, endIso);
+  if (overlap) {
+    msg.textContent = "Wybrany termin koliduje z istniejącą rezerwacją (wstępna lub potwierdzona). Wybierz inny termin.";
+    return;
+  }
+
   const payload = {
     facility_id: state.selectedFacility.id,
     title: form.title.value.trim(),
@@ -666,9 +672,8 @@ document.addEventListener("submit", async (e) => {
     renter_email: form.renter_email.value.trim(),
     notes: form.notes.value.trim() || null,
     is_public: $("#is_public").checked,
-    status: 'pending' // ⬅️ NOWOŚĆ: wstępna rezerwacja
+    status: 'pending'
   };
-
 
   const { data, error } = await supabase.from("bookings").insert(payload).select();
   if (error) { console.error(error); msg.textContent = "Błąd: " + (error.message || "nie udało się utworzyć rezerwacji."); return; }
@@ -679,14 +684,9 @@ document.addEventListener("submit", async (e) => {
   $("#genDocsLink").classList.remove("hidden");
   $("#cancelThisBooking").classList.remove("hidden");
 
-  // LIVE generator: pokaż pod formularzem
   if (state.lastBooking) {
     const docMount = $("#docGen");
     showTemplateSelectorLive(state.lastBooking, docMount);
-  }
-
-  // (opcjonalny) link anulowania do logów
-  if (state.lastBooking) {
     const cancelUrl = new URL(window.location.href);
     cancelUrl.searchParams.set("cancel", state.lastBooking.cancel_token);
     console.log("Cancel URL (do e-maila):", cancelUrl.toString());
@@ -704,59 +704,24 @@ document.addEventListener("click", async (e) => {
   else { alert("Nie znaleziono lub już anulowana."); }
 });
 
-/* === Dokumenty — lista szablonów (sekcja niżej na link "Generuj dokumenty") === */
+/* === Dokumenty – podgląd/druk (live) === */
 async function loadTemplatesForFacility() {
   const f = state.selectedFacility;
   if (!f) return;
   const { data: local } = await supabase
-    .from("document_templates")
-    .select("*")
-    .eq("is_active", true)
-    .eq("facility_id", f.id)
+    .from("document_templates").select("*")
+    .eq("is_active", true).eq("facility_id", f.id)
     .order("name");
   const { data: global } = await supabase
-    .from("document_templates")
-    .select("*")
-    .eq("is_active", true)
-    .is("facility_id", null)
+    .from("document_templates").select("*")
+    .eq("is_active", true).is("facility_id", null)
     .order("name");
 
   const codes = new Set((local || []).map((t) => t.code));
   const merged = [...(local || []), ...(global || []).filter((t) => !codes.has(t.code))];
   state.templates = merged;
-
-  const ul = $("#templateItems");
-  ul.innerHTML = merged
-    .map(
-      (t) => `
-      <li class="flex items-center justify-between border rounded-xl p-3">
-        <div>
-          <div class="font-medium">${t.name}</div>
-          <div class="text-xs text-gray-500">${t.code}${t.facility_id ? " • lokalny" : " • globalny"}</div>
-        </div>
-        <div class="flex gap-2">
-          <button class="px-3 py-2 border rounded-xl" data-action="preview" data-id="${t.id}">Otwórz</button>
-          <button class="px-3 py-2 border rounded-xl" data-action="print" data-id="${t.id}">Drukuj</button>
-        </div>
-      </li>`
-    )
-    .join("");
-   
-
-  ul.querySelectorAll("button").forEach((btn) =>
-    btn.addEventListener("click", async (ev) => {
-      const id = ev.currentTarget.dataset.id;
-      const act = ev.currentTarget.dataset.action;
-      const tpl = merged.find((x) => x.id === id);
-      if (!tpl) return;
-      const html = await renderTemplateHTML(tpl.html);
-      if (act === "preview") openPreviewWindow(html);
-      if (act === "print") openPreviewWindow(html, true);
-    })
-  );
 }
 
-/* === Kontekst i wypełnianie prostych placeholderów (dla sekcji listy szablonów) === */
 function getBookingContext() {
   if (state.lastBooking) {
     return {
@@ -844,11 +809,9 @@ function openPreviewWindow(html, doPrint = false) {
 async function showTemplateSelectorLive(bookingRow, mountEl) {
   if (!mountEl) return;
 
-  // reset pamięci formularza
   state.docFormValues = {};
   state.docSelectedTemplate = null;
 
-  // UI kontener
   mountEl.innerHTML = `
     <div class="p-4 border rounded bg-gray-50">
       <h3 class="font-bold mb-3">Wybierz szablon i uzupełnij pola, aby wygenerować/ wydrukować wniosek</h3>
@@ -859,33 +822,23 @@ async function showTemplateSelectorLive(bookingRow, mountEl) {
   const list = mountEl.querySelector("#tplList");
   const fieldsWrap = mountEl.querySelector("#tplFields");
 
-  // ⬇️ POBIERANIE: bez .in(..., null) — używamy .or(...)
+  // Pobierz szablony (lokalne + globalne)
   let templates = [];
-  let tErr = null;
-
   if (bookingRow.facility_id) {
     const { data, error } = await supabase
-      .from("document_templates")
-      .select("*")
+      .from("document_templates").select("*")
       .eq("is_active", true)
       .or(`facility_id.eq.${bookingRow.facility_id},facility_id.is.null`)
       .order("name");
+    if (error) { fieldsWrap.innerHTML = `<div class="p-3 border rounded bg-red-50 text-red-800">Błąd pobierania szablonów: ${error.message}</div>`; return; }
     templates = data || [];
-    tErr = error;
   } else {
     const { data, error } = await supabase
-      .from("document_templates")
-      .select("*")
-      .eq("is_active", true)
-      .is("facility_id", null)
+      .from("document_templates").select("*")
+      .eq("is_active", true).is("facility_id", null)
       .order("name");
+    if (error) { fieldsWrap.innerHTML = `<div class="p-3 border rounded bg-red-50 text-red-800">Błąd pobierania szablonów: ${error.message}</div>`; return; }
     templates = data || [];
-    tErr = error;
-  }
-
-  if (tErr) {
-    fieldsWrap.innerHTML = `<div class="p-3 border rounded bg-red-50 text-red-800">Błąd pobierania szablonów: ${tErr.message}</div>`;
-    return;
   }
 
   if (!templates.length) {
@@ -893,7 +846,6 @@ async function showTemplateSelectorLive(bookingRow, mountEl) {
     return;
   }
 
-  // ⬇️ RENDER LISTY (teraz, po pobraniu)
   templates.forEach(t => {
     const el = document.createElement("button");
     el.type = "button";
@@ -911,11 +863,9 @@ async function showTemplateSelectorLive(bookingRow, mountEl) {
     list.appendChild(el);
   });
 
-  // === generator pól live z placeholderów ===
   function renderLiveFields(tpl) {
     fieldsWrap.innerHTML = "";
 
-    // znajdź wszystkie {{booking.extra.X}}
     const matches = [...tpl.html.matchAll(/\{\{booking\.extra\.([a-zA-Z0-9_]+)\}\}/g)];
     const keys = [...new Set(matches.map(m => m[1]))];
 
@@ -960,7 +910,6 @@ async function showTemplateSelectorLive(bookingRow, mountEl) {
       });
     }
 
-    // przyciski podgląd/druk
     const actions = document.createElement("div");
     actions.className = "p-3 flex gap-2";
     actions.innerHTML = `
@@ -974,7 +923,6 @@ async function showTemplateSelectorLive(bookingRow, mountEl) {
       const b = bookingRow;
       let html = tpl.html;
 
-      // podstawowe placeholdery
       const map = {
         "{{facility.name}}": fac?.name ?? "",
         "{{facility.address}}": `${fac?.address_line1 || ""}${fac?.address_line2 ? ", " + fac.address_line2 : ""}, ${fac?.postal_code || ""} ${fac?.city || ""}`.trim(),
@@ -991,7 +939,6 @@ async function showTemplateSelectorLive(bookingRow, mountEl) {
       };
       for (const [k,v] of Object.entries(map)) html = html.split(k).join(escapeHtml(String(v ?? "")));
 
-      // daty/czasy
       const fmtD = (iso) => (iso ? new Date(iso).toLocaleDateString("pl-PL") : "");
       const fmtT = (iso) => (iso ? new Date(iso).toLocaleTimeString("pl-PL",{hour:"2-digit",minute:"2-digit"}) : "");
       html = html.replace(/\{\{\s*date\s+booking\.start_time\s*\}\}/g, fmtD(b?.start_time));
@@ -1000,7 +947,6 @@ async function showTemplateSelectorLive(bookingRow, mountEl) {
       html = html.replace(/\{\{\s*time\s+booking\.end_time\s*\}\}/g, fmtT(b?.end_time));
       html = html.replace(/\{\{\s*date\s+booking\.request_date\s*\}\}/g, fmtD(b?.request_date));
 
-      // LIVE extra — bez zapisu do DB
       html = html.replace(/\{\{booking\.extra\.([a-zA-Z0-9_]+)\}\}/g, (_, key) => {
         const val = state.docFormValues?.[key];
         return val == null ? "" : escapeHtml(String(val));
@@ -1016,8 +962,6 @@ async function showTemplateSelectorLive(bookingRow, mountEl) {
     fieldsWrap.querySelector("#printDoc")?.addEventListener("click", () => doPreview(true));
   }
 }
-
- 
 
 /* === URL: anulowanie po tokenie (?cancel=...) === */
 async function tryCancelFromUrl() {
@@ -1043,16 +987,15 @@ async function init() {
   await loadDictionaries();
   await loadFacilities();
 
-$("#genDocsLink")?.addEventListener("click", (e) => {
-  e.preventDefault();
-  const el = $("#docGen");
-  if (el) window.scrollTo({ top: el.offsetTop - 20, behavior: "smooth" });
-});
+  $("#genDocsLink")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    const el = $("#docGen");
+    if (el) window.scrollTo({ top: el.offsetTop - 20, behavior: "smooth" });
+  });
 
   await tryCancelFromUrl();
 }
 
-// Bezpiecznie po załadowaniu DOM
 if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", init);
 } else {
