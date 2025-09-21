@@ -10,7 +10,7 @@ Ten pakiet zawiera działające MVP:
 1. W Supabase wykonaj `schema.sql` (SQL Editor).
 2. W `index.html` podmień `SUPABASE_URL` oraz `SUPABASE_ANON_KEY`.
 3. Wgraj `index.html` do GitHub i włącz Pages.
-4. Wybierz świetlicę, utwórz rezerwację — po zapisie pojawi się link **„Generuj dokumenty”**.
+4. Wybierz świetlicę, utwórz rezerwację — po zapisie pojawi się sekcja generowania dokumentów.
 5. Wybierz szablon i drukuj (PDF z przeglądarki).
 
 ## Szablony dokumentów
