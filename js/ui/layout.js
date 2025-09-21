@@ -107,12 +107,12 @@ export function renderMain() {
         <h3 class="font-semibold mb-3">Nowa rezerwacja</h3>
         <form id="bookingForm" class="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
-            <label class="text-sm">Tytuł wydarzenia</label>
-            <input name="title" required readonly class="w-full border rounded-xl px-3 py-2 bg-gray-50" placeholder="Uzupełni się automatycznie" />
-          </div>
-          <div>
             <label class="text-sm">Rodzaj</label>
             <select name="event_type_id" class="w-full border rounded-xl px-3 py-2"></select>
+          </div>
+          <div>
+            <label class="text-sm">Tytuł wydarzenia</label>
+            <input name="title" required readonly class="w-full border rounded-xl px-3 py-2 bg-gray-50" placeholder="Uzupełni się automatycznie" />
           </div>
 
           <div data-day-fields>
