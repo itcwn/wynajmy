@@ -17,6 +17,7 @@ import { createBookingForm } from './booking/form.js';
 import { createDocGenerator } from './documents/docGenerator.js';
 import { createInstructionsModal } from './ui/instructionsModal.js';
 import { createGalleryModal } from './ui/galleryModal.js';
+import { createIntroVideoModal } from './ui/introVideo.js';
 
 const supabase = createSupabaseClient();
 
@@ -30,6 +31,7 @@ if (!supabase) {
   const docGenerator = createDocGenerator({ state, supabase, domUtils, formatUtils });
   const instructionsModal = createInstructionsModal({ state, domUtils });
   const galleryModal = createGalleryModal({ state, domUtils, formatUtils });
+  const introVideoModal = createIntroVideoModal();
   const facilities = createFacilitiesModule({
     state,
     supabase,
@@ -52,6 +54,7 @@ if (!supabase) {
   window.initMapsApi = facilities.initMapsApi;
 
   async function init() {
+    introVideoModal.showIfNeeded();
     renderSidebar({ onSearch: facilities.renderFacilityList });
     renderMain();
     dayView.attachDayViewListeners();
