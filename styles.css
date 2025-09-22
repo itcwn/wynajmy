@@ -1,4 +1,72 @@
 /* Dodatkowe style poza Tailwind */
+
+.main-shell {
+  position: relative;
+  isolation: isolate;
+  border-radius: 40px;
+  background-color: #0f172a;
+  background-image:
+    radial-gradient(140% 140% at 50% 0%, rgba(56, 189, 248, 0.18), rgba(15, 23, 42, 0.92)),
+    radial-gradient(120% 120% at 80% 100%, rgba(99, 102, 241, 0.25), rgba(15, 23, 42, 0.95));
+  box-shadow: 0 45px 120px rgba(15, 23, 42, 0.45);
+  overflow: hidden;
+}
+
+.main-shell::before,
+.main-shell::after {
+  content: '';
+  position: absolute;
+  border-radius: 9999px;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  opacity: 0.6;
+  z-index: 0;
+}
+
+.main-shell::before {
+  top: -180px;
+  left: -140px;
+  width: 420px;
+  height: 420px;
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.4), rgba(56, 189, 248, 0) 68%);
+}
+
+.main-shell::after {
+  bottom: -240px;
+  right: -180px;
+  width: 520px;
+  height: 520px;
+  background: radial-gradient(circle, rgba(129, 140, 248, 0.35), rgba(129, 140, 248, 0) 70%);
+}
+
+.main-shell > * {
+  position: relative;
+  z-index: 1;
+}
+
+@media (max-width: 768px) {
+  .main-shell {
+    border-radius: 28px;
+  }
+
+  .main-shell::before {
+    width: 320px;
+    height: 320px;
+    top: -200px;
+    left: -180px;
+  }
+
+  .main-shell::after {
+    width: 360px;
+    height: 360px;
+    bottom: -280px;
+    right: -200px;
+  }
+}
+
+.flow-space > .hidden + * {
+  margin-top: 0 !important;
+}
 @media print {
   .no-print { display: none !important; }
 }
