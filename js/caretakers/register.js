@@ -1,17 +1,13 @@
 import { createSupabaseClient } from '../config/supabaseClient.js';
 import { $ } from '../utils/dom.js';
-import { escapeHtml } from '../utils/format.js';
 
 const supabase = createSupabaseClient();
 
 const form = $('#caretakerForm');
 const messageEl = $('#formMessage');
-const facilitySelect = $('#facilitySelect');
-const facilityLoadingOverlay = $('#facilityLoading');
-const facilityInfo = $('#facilitySelectionInfo');
-
+const emailInput = $('#email');
+const loginInput = $('#login');
 const state = {
-  facilities: [],
   isSubmitting: false,
 };
 
@@ -45,89 +41,6 @@ function toggleFormDisabled(disabled) {
   });
 }
 
-function setFacilityLoading(isLoading) {
-  if (facilityLoadingOverlay) {
-    facilityLoadingOverlay.classList.toggle('hidden', !isLoading);
-  }
-  if (facilitySelect) {
-    facilitySelect.toggleAttribute('disabled', isLoading);
-  }
-}
-
-function describeFacility(facility) {
-  if (!facility) {
-    return '';
-  }
-  const parts = [facility.name || ''];
-  const addressParts = [facility.postal_code, facility.city].filter(Boolean).join(' ');
-  if (addressParts) {
-    parts.push(addressParts);
-  }
-  return parts.filter(Boolean).join(' • ');
-}
-
-function renderFacilities() {
-  if (!facilitySelect) {
-    return;
-  }
-  if (!state.facilities.length) {
-    facilitySelect.innerHTML = '';
-    facilitySelect.setAttribute('disabled', 'true');
-    if (facilityInfo) {
-      facilityInfo.textContent = '';
-    }
-    return;
-  }
-  const options = state.facilities
-    .map((facility) => {
-      const label = describeFacility(facility);
-      const value = escapeHtml(String(facility.id));
-      const text = escapeHtml(label);
-      return `<option value="${value}">${text}</option>`;
-    })
-    .join('');
-  facilitySelect.innerHTML = options;
-  facilitySelect.removeAttribute('disabled');
-  updateFacilitySelectionInfo();
-}
-
-function updateFacilitySelectionInfo() {
-  if (!facilityInfo) {
-    return;
-  }
-  if (!facilitySelect || !state.facilities.length) {
-    facilityInfo.textContent = '';
-    return;
-  }
-  const selectedCount = facilitySelect.selectedOptions?.length || 0;
-  const total = state.facilities.length;
-  facilityInfo.textContent = selectedCount
-    ? `Wybrano ${selectedCount} z ${total}`
-    : `Dostępnych: ${total}`;
-}
-
-async function loadFacilities() {
-  if (!supabase || !facilitySelect) {
-    return;
-  }
-  setFacilityLoading(true);
-  const { data, error } = await supabase
-    .from('facilities')
-    .select('id, name, city, postal_code')
-    .order('name');
-  setFacilityLoading(false);
-  if (error) {
-    console.error('Nie udało się pobrać świetlic:', error);
-    setMessage('Nie udało się pobrać listy świetlic. Spróbuj ponownie później.', 'error');
-    return;
-  }
-  state.facilities = data || [];
-  if (!state.facilities.length) {
-    setMessage('Brak zdefiniowanych świetlic w bazie danych.', 'error');
-  }
-  renderFacilities();
-}
-
 async function hashPassword(password) {
   const encoder = new TextEncoder();
   const data = encoder.encode(password);
@@ -140,26 +53,19 @@ async function hashPassword(password) {
   return btoa(binary);
 }
 
-function collectSelectedFacilityIds() {
-  if (!facilitySelect) {
-    return [];
-  }
-  return Array.from(facilitySelect.selectedOptions || []).map((option) => {
-    const match = state.facilities.find((facility) => String(facility.id) === option.value);
-    return match ? match.id : option.value;
-  });
-}
-
 function sanitizePhone(value) {
   return value.replace(/\s+/g, ' ').trim();
 }
 
-function sanitizeLogin(value) {
+function sanitizeEmail(value) {
   return value.trim().toLowerCase();
 }
 
-function sanitizeEmail(value) {
-  return value.trim().toLowerCase();
+function updateLoginFromEmail() {
+  if (!emailInput || !loginInput) {
+    return;
+  }
+  loginInput.value = sanitizeEmail(emailInput.value || '');
 }
 
 async function handleSubmit(event) {
@@ -172,23 +78,16 @@ async function handleSubmit(event) {
   const lastNameOrCompany = String(formData.get('last_name_or_company') || '').trim();
   const phone = sanitizePhone(String(formData.get('phone') || ''));
   const email = sanitizeEmail(String(formData.get('email') || ''));
-  const loginRaw = String(formData.get('login') || '');
   const password = String(formData.get('password') || '');
   const passwordConfirm = String(formData.get('passwordConfirm') || '');
-  const facilityIds = collectSelectedFacilityIds();
 
-  if (!firstName || !lastNameOrCompany || !phone || !email || !loginRaw || !password) {
+  if (!firstName || !lastNameOrCompany || !phone || !email || !password) {
     setMessage('Uzupełnij wszystkie wymagane pola formularza.', 'error');
     return;
   }
 
   if (password !== passwordConfirm) {
     setMessage('Hasła muszą być identyczne.', 'error');
-    return;
-  }
-
-  if (!facilityIds.length) {
-    setMessage('Wybierz co najmniej jedną świetlicę.', 'error');
     return;
   }
 
@@ -205,7 +104,7 @@ async function handleSubmit(event) {
 
   try {
     const passwordHash = await hashPassword(password);
-    const login = sanitizeLogin(loginRaw);
+    const login = email;
     const payload = {
       first_name: firstName,
       last_name_or_company: lastNameOrCompany,
@@ -235,24 +134,9 @@ async function handleSubmit(event) {
       return;
     }
 
-    const assignments = facilityIds.map((facilityId) => ({
-      facility_id: facilityId,
-      caretaker_id: caretaker.id,
-    }));
-    const { error: joinError } = await supabase
-      .from('facility_caretakers')
-      .insert(assignments);
-
-    if (joinError) {
-      await supabase.from('caretakers').delete().eq('id', caretaker.id);
-      console.error('Błąd łączenia opiekuna ze świetlicami:', joinError);
-      setMessage('Nie udało się przypisać opiekuna do świetlic. Spróbuj ponownie.', 'error');
-      return;
-    }
-
     form.reset();
-    updateFacilitySelectionInfo();
-    setMessage('Opiekun został zarejestrowany i przypisany do wybranych świetlic.', 'success');
+    updateLoginFromEmail();
+    setMessage('Opiekun został zarejestrowany. Przypisz go do świetlic w panelu opiekuna.', 'success');
   } catch (error) {
     console.error('Błąd rejestracji opiekuna:', error);
     setMessage('Wystąpił nieoczekiwany błąd podczas rejestracji.', 'error');
@@ -267,15 +151,18 @@ if (!supabase) {
   if (form) {
     toggleFormDisabled(true);
   }
-} else {
-  if (facilitySelect) {
-    facilitySelect.addEventListener('change', updateFacilitySelectionInfo);
-    facilitySelect.addEventListener('input', updateFacilitySelectionInfo);
-  }
-  if (form) {
-    form.addEventListener('submit', (event) => {
-      void handleSubmit(event);
-    });
-  }
-  void loadFacilities();
+} else if (form) {
+  form.addEventListener('submit', (event) => {
+    void handleSubmit(event);
+  });
+}
+
+if (emailInput && loginInput) {
+  updateLoginFromEmail();
+  emailInput.addEventListener('input', () => {
+    updateLoginFromEmail();
+  });
+  form?.addEventListener('reset', () => {
+    updateLoginFromEmail();
+  });
 }
