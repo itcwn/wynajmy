@@ -6,10 +6,13 @@ export function createFacilitiesModule({
   dayView,
   docGenerator,
   instructionsModal,
+  galleryModal,
   googleMapsKey,
 }) {
   const { $ } = domUtils;
   const { escapeHtml } = formatUtils;
+  const PLACEHOLDER_IMAGE = 'https://picsum.photos/800/400';
+  let galleryListenersAttached = false;
 
   async function loadDictionaries() {
     state.amenities = {};
@@ -123,6 +126,218 @@ export function createFacilitiesModule({
     return parts.join(' · ');
   }
 
+  function getRawImageSource(facility) {
+    if (!facility) {
+      return '';
+    }
+    if (Array.isArray(facility.image_urls)) {
+      return facility.image_urls
+        .map((value) => String(value ?? '').trim())
+        .filter(Boolean)
+        .join(';');
+    }
+    if (typeof facility.image_urls === 'string' && facility.image_urls.trim()) {
+      return facility.image_urls;
+    }
+    if (Array.isArray(facility.image_url)) {
+      return facility.image_url
+        .map((value) => String(value ?? '').trim())
+        .filter(Boolean)
+        .join(';');
+    }
+    if (typeof facility.image_url === 'string') {
+      return facility.image_url;
+    }
+    return '';
+  }
+
+  function parseImageUrls(facility) {
+    if (!facility) {
+      return [];
+    }
+    if (Array.isArray(facility.image_urls)) {
+      return facility.image_urls.map((url) => String(url ?? '').trim()).filter(Boolean);
+    }
+    if (Array.isArray(facility.image_url)) {
+      return facility.image_url.map((url) => String(url ?? '').trim()).filter(Boolean);
+    }
+    const source = typeof facility.image_urls === 'string' && facility.image_urls.trim()
+      ? facility.image_urls
+      : typeof facility.image_url === 'string'
+        ? facility.image_url
+        : '';
+    if (!source) {
+      return [];
+    }
+    return source
+      .split(';')
+      .map((part) => part.trim())
+      .filter((part) => part && part.toLowerCase() !== 'null' && part.toLowerCase() !== 'undefined');
+  }
+
+  function highlightActiveThumb(index) {
+    const thumbs = $('#facilityThumbs');
+    if (!thumbs) {
+      return;
+    }
+    thumbs.querySelectorAll('button[data-index]').forEach((btn) => {
+      if (Number(btn.dataset.index) === index) {
+        btn.classList.add('border-blue-500', 'ring-2', 'ring-blue-500');
+        btn.classList.remove('border-transparent');
+      } else {
+        btn.classList.add('border-transparent');
+        btn.classList.remove('border-blue-500', 'ring-2', 'ring-blue-500');
+      }
+    });
+  }
+
+  function setMainGalleryImage(index, { skipModalUpdate = false } = {}) {
+    const images = state.galleryImages || [];
+    if (!images.length) {
+      return;
+    }
+    const numeric = Number(index);
+    const safeIndex = Number.isFinite(numeric)
+      ? Math.min(Math.max(Math.trunc(numeric), 0), images.length - 1)
+      : 0;
+    state.galleryCurrentIndex = safeIndex;
+    const mainImg = $('#facilityImgMain');
+    if (mainImg) {
+      mainImg.src = images[safeIndex];
+      mainImg.dataset.index = String(safeIndex);
+      if (state.selectedFacility?.name) {
+        mainImg.alt = `Zdjęcie obiektu ${state.selectedFacility.name}`;
+      }
+    }
+    highlightActiveThumb(safeIndex);
+    if (!skipModalUpdate && galleryModal?.update) {
+      galleryModal.update(safeIndex);
+    }
+  }
+
+  function ensureGalleryListeners() {
+    if (galleryListenersAttached) {
+      return;
+    }
+    const mainImg = $('#facilityImgMain');
+    const openBtn = $('#openGalleryBtn');
+    const thumbs = $('#facilityThumbs');
+    if (!mainImg || !openBtn || !thumbs) {
+      return;
+    }
+    galleryListenersAttached = true;
+    openBtn.addEventListener('click', () => {
+      if (!state.galleryImages?.length) {
+        return;
+      }
+      galleryModal?.open?.(state.galleryCurrentIndex || 0);
+    });
+    mainImg.addEventListener('click', () => {
+      if (!state.galleryImages?.length) {
+        return;
+      }
+      galleryModal?.open?.(state.galleryCurrentIndex || 0);
+    });
+    thumbs.addEventListener('click', (event) => {
+      const target = event.target.closest('button[data-index]');
+      if (!target) {
+        return;
+      }
+      const idx = Number(target.dataset.index);
+      if (Number.isFinite(idx)) {
+        setMainGalleryImage(idx);
+      }
+    });
+    document.addEventListener('gallery:index-changed', (event) => {
+      const detailIndex = Number(event.detail?.index);
+      if (Number.isFinite(detailIndex)) {
+        setMainGalleryImage(detailIndex, { skipModalUpdate: true });
+      }
+    });
+  }
+
+  function updateGalleryPreview(facility) {
+    const images = parseImageUrls(facility);
+    state.galleryImages = images;
+    state.galleryCurrentIndex = images.length ? 0 : 0;
+    state.galleryFacilityName = facility?.name || '';
+
+    const mainImg = $('#facilityImgMain');
+    if (mainImg) {
+      const src = images[0] || PLACEHOLDER_IMAGE;
+      mainImg.src = src;
+      mainImg.dataset.index = images.length ? '0' : '';
+      mainImg.classList.toggle('cursor-zoom-in', images.length > 0);
+      if (facility?.name) {
+        mainImg.alt = `Zdjęcie obiektu ${facility.name}`;
+      } else {
+        mainImg.alt = 'Zdjęcie świetlicy';
+      }
+    }
+
+    const openBtn = $('#openGalleryBtn');
+    if (openBtn) {
+      const hasImages = images.length > 0;
+      openBtn.disabled = !hasImages;
+      openBtn.setAttribute('aria-disabled', hasImages ? 'false' : 'true');
+      openBtn.classList.toggle('opacity-60', !hasImages);
+      openBtn.classList.toggle('cursor-not-allowed', !hasImages);
+      openBtn.textContent = images.length > 1
+        ? `Otwórz galerię (${images.length})`
+        : hasImages
+          ? 'Zobacz zdjęcie'
+          : 'Brak zdjęć';
+    }
+
+    const thumbs = $('#facilityThumbs');
+    if (thumbs) {
+      if (images.length > 1) {
+        thumbs.innerHTML = images
+          .map((url, idx) => `
+            <button
+              type="button"
+              class="relative w-16 h-16 flex-shrink-0 overflow-hidden rounded-xl border-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${idx === 0 ? 'border-blue-500 ring-2 ring-blue-500' : 'border-transparent'}"
+              data-index="${idx}"
+              aria-label="Podgląd zdjęcia ${idx + 1} z ${images.length}"
+            >
+              <img
+                src="${escapeHtml(url)}"
+                alt="Miniatura ${idx + 1}"
+                class="w-full h-full object-cover"
+                loading="lazy"
+              />
+            </button>
+          `)
+          .join('');
+        thumbs.classList.remove('hidden');
+      } else {
+        thumbs.innerHTML = '';
+        thumbs.classList.add('hidden');
+      }
+    }
+
+    ensureGalleryListeners();
+    if (galleryModal?.setImages) {
+      galleryModal.setImages(images, facility?.name || '');
+    }
+  }
+
+  function updateGalleryColumnInfo(facility) {
+    const infoEl = $('#galleryColumnInfo');
+    if (!infoEl) {
+      return;
+    }
+    const raw = getRawImageSource(facility);
+    const hasImages = Boolean(raw && raw.trim());
+    infoEl.classList.remove('text-red-600');
+
+    if (hasImages) {
+      infoEl.textContent = 'Linki do zdjęć są przechowywane w Supabase.';
+    } else {
+      infoEl.textContent = 'Brak zapisanych linków do zdjęć.';
+    }
+  }
+
   async function selectFacility(id) {
     loadMapsIfKey();
     const facility = state.facilities.find((f) => String(f.id) === String(id));
@@ -143,10 +358,8 @@ export function createFacilitiesModule({
     booking?.classList.remove('hidden');
     calendar?.classList.remove('hidden');
 
-    const img = $('#facilityImg');
-    if (img) {
-      img.src = facility.image_url || 'https://picsum.photos/800/400';
-    }
+    updateGalleryPreview(facility);
+    updateGalleryColumnInfo(facility);
     const name = $('#facilityName');
     if (name) {
       const postal = facility.postal_code ? ` (${facility.postal_code})` : '';

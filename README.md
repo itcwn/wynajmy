@@ -10,7 +10,7 @@ Ten pakiet zawiera działające MVP:
 1. W Supabase wykonaj `schema.sql` (SQL Editor).
 2. W `index.html` podmień `SUPABASE_URL` oraz `SUPABASE_ANON_KEY`.
 3. Wgraj `index.html` do GitHub i włącz Pages.
-4. Wybierz świetlicę, utwórz rezerwację — po zapisie pojawi się link **„Generuj dokumenty”**.
+4. Wybierz świetlicę, utwórz rezerwację — po zapisie pojawi się sekcja generowania dokumentów.
 5. Wybierz szablon i drukuj (PDF z przeglądarki).
 
 ## Szablony dokumentów
@@ -24,3 +24,8 @@ Ten pakiet zawiera działające MVP:
 ## Modyfikacje
 - Dodaj nowe szablony w `document_templates` (INSERT) lub stwórz prosty panel w UI.
 - Możesz dostosować CSS w sekcji `<style id="print-styles">` w oknie wydruku.
+
+## Rejestracja opiekuna
+- W nagłówku aplikacji dostępny jest link „Zarejestruj opiekuna”, który prowadzi do formularza `registerCaretaker.html`.
+- Formularz zapisuje dane do tabeli `caretakers` oraz przypisania w tabeli `facility_caretakers`.
+- Strukturę i polityki RLS dla nowych tabel zawiera skrypt `supabase/caretakers.sql` — uruchom go po wdrożeniu głównego schematu bazy.
