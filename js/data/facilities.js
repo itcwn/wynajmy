@@ -309,6 +309,10 @@ export function createFacilitiesModule({
             </button>
           `)
           .join('');
+        thumbs.querySelectorAll('button[data-index]').forEach((btn) => {
+          btn.classList.remove('flex-shrink-0');
+          btn.classList.add('md:w-full', 'md:h-auto', 'md:flex-shrink', 'md:aspect-square');
+        });
         thumbs.classList.remove('hidden');
       } else {
         thumbs.innerHTML = '';
