@@ -100,10 +100,10 @@ export function createGalleryModal({ state, domUtils, formatUtils }) {
             'border-2',
             'focus:outline-none',
             'focus:ring-2',
-            'focus:ring-blue-500',
+            'focus:ring-amber-300',
           ];
           if (idx === index) {
-            classes.push('border-blue-500', 'ring-2', 'ring-blue-500');
+            classes.push('border-amber-400', 'ring-2', 'ring-amber-300');
           } else {
             classes.push('border-transparent');
           }

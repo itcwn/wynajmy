@@ -41,19 +41,19 @@ export function createInstructionsModal({ state, domUtils }) {
         : 'Dodaj instrukcję od opiekuna';
       trigger.dataset.hasInstructions = text ? '1' : '0';
       if (text) {
-        trigger.classList.add('bg-blue-600', 'text-white');
-        trigger.classList.remove('bg-white', 'text-blue-600', 'border', 'border-blue-600');
+        trigger.classList.add('bg-amber-500', 'text-white');
+        trigger.classList.remove('bg-white', 'text-amber-700', 'border', 'border-amber-300');
       } else {
-        trigger.classList.add('bg-white', 'text-blue-600', 'border', 'border-blue-600');
-        trigger.classList.remove('bg-blue-600', 'text-white');
+        trigger.classList.add('bg-white', 'text-amber-700', 'border', 'border-amber-300');
+        trigger.classList.remove('bg-amber-500', 'text-white');
       }
     } else {
       trigger.disabled = true;
       trigger.setAttribute('aria-disabled', 'true');
       trigger.title = 'Wybierz świetlicę, aby zobaczyć instrukcję';
       trigger.dataset.hasInstructions = '0';
-      trigger.classList.add('bg-blue-600', 'text-white');
-      trigger.classList.remove('bg-white', 'text-blue-600', 'border', 'border-blue-600');
+      trigger.classList.add('bg-amber-500', 'text-white');
+      trigger.classList.remove('bg-white', 'text-amber-700', 'border', 'border-amber-300');
     }
   }
 
