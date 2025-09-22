@@ -11,7 +11,6 @@ export const state = {
   mapsReady: false,
   galleryImages: [],
   galleryCurrentIndex: 0,
-  galleryColumnMeta: null,
   galleryFacilityName: '',
   docFormValues: {},
   docSelectedTemplate: null,
