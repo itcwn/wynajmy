@@ -13,6 +13,10 @@ export function createBookingForm({
   let titleInput;
   let typeSelect;
   let renterNameInput;
+  const facilitiesModule = facilities || state.facilitiesModule || null;
+  if (facilitiesModule && state.facilitiesModule !== facilitiesModule) {
+    state.facilitiesModule = facilitiesModule;
+  }
 
   function setFormMessage(text) {
     const msg = $('#formMsg');
@@ -207,7 +211,8 @@ export function createBookingForm({
       return false;
     }
     const stringId = String(facilityId);
-    const alreadySelected = state.selectedFacility && String(state.selectedFacility.id) === stringId;
+    const alreadySelected = state.selectedFacility
+      && String(state.selectedFacility.id) === stringId;
     let facility = state.facilities.find((f) => String(f.id) === stringId);
     if (!facility) {
       const { data: facilityRow, error } = await supabase
@@ -227,10 +232,13 @@ export function createBookingForm({
         state.facilities.push(facilityRow);
       }
     }
-    if (!alreadySelected && facilities?.selectFacility) {
-      await facilities.selectFacility(facility.id);
-    } else if (!state.selectedFacility) {
-      state.selectedFacility = facility;
+    const module = facilitiesModule || state.facilitiesModule;
+    if (!alreadySelected) {
+      if (module?.selectFacility) {
+        await module.selectFacility(facility.id);
+      } else {
+        state.selectedFacility = facility;
+      }
     }
     return true;
   }
@@ -258,6 +266,7 @@ export function createBookingForm({
       alert('Nie udało się wczytać świetlicy powiązanej z rezerwacją.');
       return null;
     }
+    state.bookingsCache.clear();
     if (bookingRow.start_time) {
       const startDate = new Date(bookingRow.start_time);
       if (!Number.isNaN(startDate.getTime())) {
@@ -273,7 +282,7 @@ export function createBookingForm({
     return bookingRow;
   }
 
-  async function tryLoadBookingFromUrl() {
+  async function tryCancelFromUrl() {
     const url = new URL(window.location.href);
     const cancelToken = url.searchParams.get('cancel');
     const bookingToken = url.searchParams.get('booking');
@@ -285,28 +294,26 @@ export function createBookingForm({
       ? 'Wczytano rezerwację z linku. Potwierdź anulowanie, aby kontynuować.'
       : 'Wczytano rezerwację z linku. Możesz ją anulować lub wygenerować dokumenty.';
     const bookingRow = await loadBookingFromToken(tokenToLoad, { message });
-    if (!bookingRow) {
+    if (!bookingRow || !cancelToken) {
       return;
     }
-    if (cancelToken) {
-      if (!confirm('Wykryto link anulowania rezerwacji. Czy chcesz kontynuować?')) {
-        return;
+    if (!confirm('Wykryto link anulowania rezerwacji. Czy chcesz kontynuować?')) {
+      return;
+    }
+    const { data, error } = await supabase.rpc('cancel_booking', { p_token: cancelToken });
+    if (error) {
+      alert(`Błąd anulowania: ${error.message || ''}`);
+      return;
+    }
+    if (data) {
+      alert('Rezerwacja anulowana.');
+      setFormMessage('Rezerwacja anulowana.');
+      state.bookingsCache.clear();
+      if (state.selectedFacility) {
+        await dayView.renderDay();
       }
-      const { data, error } = await supabase.rpc('cancel_booking', { p_token: cancelToken });
-      if (error) {
-        alert(`Błąd anulowania: ${error.message || ''}`);
-        return;
-      }
-      if (data) {
-        alert('Rezerwacja anulowana.');
-        setFormMessage('Rezerwacja anulowana.');
-        state.bookingsCache.clear();
-        if (state.selectedFacility) {
-          await dayView.renderDay();
-        }
-      } else {
-        alert('Nie znaleziono lub już anulowana.');
-      }
+    } else {
+      alert('Nie znaleziono lub już anulowana.');
     }
   }
 
@@ -353,5 +360,9 @@ export function createBookingForm({
     }
   }
 
-  return { installListeners, tryLoadBookingFromUrl };
+  return {
+    installListeners,
+    tryCancelFromUrl,
+    tryLoadBookingFromUrl: tryCancelFromUrl,
+  };
 }
