@@ -332,7 +332,7 @@ export function createFacilitiesModule({
     infoEl.classList.remove('text-red-600');
 
     if (hasImages) {
-      infoEl.textContent = 'Linki do zdjęć są przechowywane w Supabase.';
+      infoEl.textContent = 'Galeria zawiera zapisane linki do zdjęć.';
     } else {
       infoEl.textContent = 'Brak zapisanych linków do zdjęć.';
     }
