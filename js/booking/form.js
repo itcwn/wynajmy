@@ -186,24 +186,49 @@ export function createBookingForm({
     }
   }
 
+  function setCancelButtonVisible(visible) {
+    const cancelBtn = $('#cancelThisBooking');
+    if (!cancelBtn) {
+      return;
+    }
+    cancelBtn.classList.toggle('hidden', !visible);
+  }
+
+  async function revealDocGenerator(bookingRow = null) {
+    const docsLink = $('#genDocsLink');
+    docsLink?.classList.remove('hidden');
+    if (!docGenerator?.showTemplateSelectorLive) {
+      return;
+    }
+    const mount = $('#docGen');
+    if (mount) {
+      await docGenerator.showTemplateSelectorLive(bookingRow, mount);
+    }
+  }
+
   async function showPostBookingActions(bookingRow, { logCancelUrl = false } = {}) {
     if (!bookingRow) {
       return;
     }
     state.lastBooking = bookingRow;
-    const docsLink = $('#genDocsLink');
-    docsLink?.classList.remove('hidden');
-    const cancelBtn = $('#cancelThisBooking');
-    cancelBtn?.classList.remove('hidden');
-    const mount = $('#docGen');
-    if (mount) {
-      await docGenerator.showTemplateSelectorLive(bookingRow, mount);
-    }
+    await revealDocGenerator(bookingRow);
+    setCancelButtonVisible(true);
     if (logCancelUrl && bookingRow.cancel_token) {
       const cancelUrl = new URL(window.location.href);
       cancelUrl.searchParams.set('cancel', bookingRow.cancel_token);
       console.log('Cancel URL (do e-maila):', cancelUrl.toString());
     }
+  }
+
+  async function showDocumentsForFacility(facilityId) {
+    const facilityLoaded = await ensureFacilitySelected(facilityId);
+    if (!facilityLoaded) {
+      return false;
+    }
+    state.lastBooking = null;
+    await revealDocGenerator(null);
+    setCancelButtonVisible(false);
+    return true;
   }
 
   async function ensureFacilitySelected(facilityId) {
@@ -282,38 +307,69 @@ export function createBookingForm({
     return bookingRow;
   }
 
-  async function tryCancelFromUrl() {
+  async function tryLoadFromUrl() {
     const url = new URL(window.location.href);
+    const bookingParam = url.searchParams.get('booking');
     const cancelToken = url.searchParams.get('cancel');
-    const bookingToken = url.searchParams.get('booking');
-    const tokenToLoad = bookingToken || cancelToken;
-    if (!tokenToLoad) {
+    if (!bookingParam && !cancelToken) {
       return;
     }
-    const message = cancelToken
-      ? 'Wczytano rezerwację z linku. Potwierdź anulowanie, aby kontynuować.'
-      : 'Wczytano rezerwację z linku. Możesz ją anulować lub wygenerować dokumenty.';
-    const bookingRow = await loadBookingFromToken(tokenToLoad, { message });
-    if (!bookingRow || !cancelToken) {
-      return;
-    }
-    if (!confirm('Wykryto link anulowania rezerwacji. Czy chcesz kontynuować?')) {
-      return;
-    }
-    const { data, error } = await supabase.rpc('cancel_booking', { p_token: cancelToken });
-    if (error) {
-      alert(`Błąd anulowania: ${error.message || ''}`);
-      return;
-    }
-    if (data) {
-      alert('Rezerwacja anulowana.');
-      setFormMessage('Rezerwacja anulowana.');
-      state.bookingsCache.clear();
-      if (state.selectedFacility) {
-        await dayView.renderDay();
+
+    setCancelButtonVisible(false);
+
+    if (cancelToken) {
+      const bookingRow = await loadBookingFromToken(cancelToken, {
+        message: 'Wczytano rezerwację z linku. Potwierdź anulowanie, aby kontynuować.',
+      });
+      if (!bookingRow) {
+        return;
       }
-    } else {
-      alert('Nie znaleziono lub już anulowana.');
+      if (!confirm('Wykryto link anulowania rezerwacji. Czy chcesz kontynuować?')) {
+        return;
+      }
+      const { data, error } = await supabase.rpc('cancel_booking', { p_token: cancelToken });
+      if (error) {
+        alert(`Błąd anulowania: ${error.message || ''}`);
+        return;
+      }
+      if (data) {
+        alert('Rezerwacja anulowana.');
+        setFormMessage('Rezerwacja anulowana.');
+        state.bookingsCache.clear();
+        if (state.selectedFacility) {
+          await dayView.renderDay();
+        }
+      } else {
+        alert('Nie znaleziono lub już anulowana.');
+      }
+      return;
+    }
+
+    if (!bookingParam) {
+      return;
+    }
+
+    const trimmedBooking = bookingParam.trim();
+    if (!trimmedBooking) {
+      return;
+    }
+
+    let handledAsFacility = false;
+    const looksLikeFacilityId = /^\d+$/.test(trimmedBooking);
+    if (looksLikeFacilityId) {
+      handledAsFacility = await showDocumentsForFacility(trimmedBooking);
+      if (handledAsFacility) {
+        setFormMessage('Wczytano dane świetlicy z linku. Możesz wygenerować dokumenty.');
+        return;
+      }
+    }
+
+    const bookingRow = await loadBookingFromToken(trimmedBooking, {
+      message: 'Wczytano rezerwację z linku. Możesz ją anulować lub wygenerować dokumenty.',
+    });
+
+    if (!bookingRow && looksLikeFacilityId && !handledAsFacility) {
+      setFormMessage('Nie udało się wczytać danych powiązanych z tym linkiem.');
     }
   }
 
@@ -362,7 +418,8 @@ export function createBookingForm({
 
   return {
     installListeners,
-    tryCancelFromUrl,
-    tryLoadBookingFromUrl: tryCancelFromUrl,
+    tryLoadFromUrl,
+    tryCancelFromUrl: tryLoadFromUrl,
+    tryLoadBookingFromUrl: tryLoadFromUrl,
   };
 }
