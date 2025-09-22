@@ -322,69 +322,17 @@ export function createFacilitiesModule({
     }
   }
 
-  async function ensureImageColumnMeta() {
-    if (state.galleryColumnMeta) {
-      return state.galleryColumnMeta;
-    }
-    try {
-      const { data, error } = await supabase
-        .from('information_schema.columns')
-        .select('character_maximum_length,data_type')
-        .eq('table_name', 'facilities')
-        .eq('column_name', 'image_url')
-        .maybeSingle();
-      if (error) {
-        console.warn('Nie udało się pobrać informacji o kolumnie image_url', error);
-        state.galleryColumnMeta = { error: error.message || 'Nieznany błąd' };
-      } else if (data) {
-        state.galleryColumnMeta = {
-          maxLength: data.character_maximum_length,
-          dataType: data.data_type,
-        };
-      } else {
-        state.galleryColumnMeta = { error: 'Brak danych o kolumnie.' };
-      }
-    } catch (err) {
-      state.galleryColumnMeta = { error: err?.message || 'Błąd podczas pobierania informacji o kolumnie.' };
-    }
-    return state.galleryColumnMeta;
-  }
-
   function updateGalleryColumnInfo(facility) {
     const infoEl = $('#galleryColumnInfo');
     if (!infoEl) {
       return;
     }
-    const meta = state.galleryColumnMeta;
-    if (!meta) {
-      infoEl.textContent = 'Trwa sprawdzanie limitu kolumny...';
-      infoEl.classList.remove('text-red-600');
-      return;
-    }
-
     const raw = getRawImageSource(facility);
-    const length = raw ? raw.length : 0;
-
-    if (meta.error) {
-      infoEl.textContent = `Nie udało się ustalić limitu kolumny: ${meta.error}`;
-      infoEl.classList.add('text-red-600');
-      return;
-    }
-
+    const hasImages = Boolean(raw && raw.trim());
     infoEl.classList.remove('text-red-600');
 
-    if (length > 0) {
-      if (meta.maxLength) {
-        infoEl.textContent = `Łączna długość linków: ${length} znaków (limit kolumny: ${meta.maxLength}).`;
-      } else if (meta.dataType) {
-        infoEl.textContent = `Łączna długość linków: ${length} znaków. Kolumna typu ${meta.dataType} nie ma określonego limitu znaków.`;
-      } else {
-        infoEl.textContent = `Łączna długość linków: ${length} znaków.`;
-      }
-    } else if (meta.maxLength) {
-      infoEl.textContent = `Kolumna pozwala zapisać do ${meta.maxLength} znaków.`;
-    } else if (meta.dataType) {
-      infoEl.textContent = `Kolumna typu ${meta.dataType} nie ma określonego limitu znaków.`;
+    if (hasImages) {
+      infoEl.textContent = 'Linki do zdjęć są przechowywane w Supabase.';
     } else {
       infoEl.textContent = 'Brak zapisanych linków do zdjęć.';
     }
@@ -411,11 +359,7 @@ export function createFacilitiesModule({
     calendar?.classList.remove('hidden');
 
     updateGalleryPreview(facility);
-    const columnInfo = $('#galleryColumnInfo');
-    if (columnInfo) {
-      columnInfo.textContent = 'Trwa sprawdzanie limitu kolumny...';
-      columnInfo.classList.remove('text-red-600');
-    }
+    updateGalleryColumnInfo(facility);
     const name = $('#facilityName');
     if (name) {
       const postal = facility.postal_code ? ` (${facility.postal_code})` : '';
@@ -448,9 +392,6 @@ export function createFacilitiesModule({
         .map((join) => `<span class="text-xs bg-emerald-50 border border-emerald-200 rounded-lg px-2 py-1">${escapeHtml(state.amenities[join.amenity_id] || '—')}</span>`)
         .join('');
     }
-
-    await ensureImageColumnMeta();
-    updateGalleryColumnInfo(facility);
 
     state.currentDate = new Date();
     state.bookingsCache.clear();
