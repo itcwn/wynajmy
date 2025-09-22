@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Logowanie opiekuna świetlicy</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body class="bg-gray-50 text-gray-900">
+  <header class="p-4 bg-white shadow">
+    <div class="max-w-3xl mx-auto flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <h1 class="text-xl font-bold">Panel opiekuna świetlicy</h1>
+        <p class="text-sm text-gray-500">Zaloguj się, aby zarządzać instrukcjami i wyposażeniem swoich obiektów.</p>
+      </div>
+      <nav class="flex items-center gap-3 text-sm">
+        <a href="./index.html" class="text-blue-700 hover:underline">Aplikacja rezerwacyjna</a>
+        <a href="./registerCaretaker.html" class="text-blue-700 hover:underline">Rejestracja opiekuna</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="max-w-3xl mx-auto p-4 space-y-6">
+    <section class="bg-white rounded-2xl shadow-md p-6 space-y-6">
+      <div class="space-y-2">
+        <h2 class="text-lg font-semibold">Logowanie</h2>
+        <p class="text-sm text-gray-500">Wprowadź swój login i hasło przekazane przez urząd gminy.</p>
+      </div>
+      <form id="caretakerLoginForm" class="space-y-5">
+        <div>
+          <label for="caretakerLogin" class="block text-sm font-medium text-gray-700">Login</label>
+          <input
+            id="caretakerLogin"
+            name="login"
+            type="text"
+            required
+            autocomplete="username"
+            class="mt-1 w-full border rounded-xl px-3 py-2"
+          />
+        </div>
+        <div>
+          <label for="caretakerPassword" class="block text-sm font-medium text-gray-700">Hasło</label>
+          <input
+            id="caretakerPassword"
+            name="password"
+            type="password"
+            required
+            autocomplete="current-password"
+            class="mt-1 w-full border rounded-xl px-3 py-2"
+          />
+        </div>
+        <div class="flex flex-wrap items-center gap-3">
+          <button
+            id="caretakerLoginSubmit"
+            type="submit"
+            class="px-4 py-2 rounded-xl bg-blue-600 text-white font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            Zaloguj się
+          </button>
+          <a
+            id="caretakerPanelLink"
+            href="./editDescription.html"
+            class="hidden text-sm text-emerald-700 hover:underline"
+          >
+            Przejdź do panelu
+          </a>
+          <button
+            id="caretakerLogout"
+            type="button"
+            class="hidden text-sm text-red-600 hover:text-red-700"
+          >
+            Wyloguj
+          </button>
+          <span id="caretakerLoginMessage" class="text-sm text-gray-500"></span>
+        </div>
+      </form>
+    </section>
+
+    <section class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-3 text-sm text-gray-600">
+      <h2 class="text-base font-semibold text-gray-700">Potrzebujesz konta?</h2>
+      <p>Jeżeli nie posiadasz jeszcze danych logowania, poproś administratora systemu o utworzenie konta w panelu rejestracji opiekuna.</p>
+      <a href="./registerCaretaker.html" class="inline-flex items-center gap-2 text-blue-700 hover:underline">
+        <span>→ Otwórz formularz rejestracji</span>
+      </a>
+    </section>
+  </main>
+
+  <footer class="max-w-3xl mx-auto px-4 pb-6 text-xs text-gray-500">
+    🦉 SOWA — panel logowania opiekuna świetlicy
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+  <script src="./supabase-config.js" defer></script>
+  <script type="module" src="./js/caretakers/login.js"></script>
+</body>
+</html>

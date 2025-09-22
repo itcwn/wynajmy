@@ -1,3 +1,4 @@
+import { clearCaretakerSession, requireCaretakerSession } from '../caretakers/session.js';
 import { INSTRUCTION_FIELDS, findInstructionInfo } from '../utils/instructions.js';
 
 const selectEl = document.getElementById('facilitySelect');
@@ -14,6 +15,7 @@ const checklistContainer = document.getElementById('checklistContainer');
 const checklistMessage = document.getElementById('checklistMessage');
 const addChecklistItemBtn = document.getElementById('addChecklistItem');
 const saveChecklistBtn = document.getElementById('saveChecklist');
+const logoutBtn = document.getElementById('caretakerLogout');
 
 const SUPABASE_URL = window.__SUPA?.SUPABASE_URL;
 const SUPABASE_ANON_KEY = window.__SUPA?.SUPABASE_ANON_KEY;
@@ -60,13 +62,30 @@ function escapeSelector(value) {
   return String(value).replace(/[^a-zA-Z0-9_-]/g, '\\$&');
 }
 
-if (!window.supabase || !window.supabase.createClient) {
-  // eslint-disable-next-line no-alert
-  alert('Nie wykryto Supabase SDK. Sprawdź dołączone skrypty.');
-} else if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-  // eslint-disable-next-line no-alert
-  alert('Uzupełnij plik supabase-config.js poprawnymi danymi.');
-} else {
+async function bootstrap() {
+  if (!window.supabase || !window.supabase.createClient) {
+    // eslint-disable-next-line no-alert
+    alert('Nie wykryto Supabase SDK. Sprawdź dołączone skrypty.');
+    return;
+  }
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    // eslint-disable-next-line no-alert
+    alert('Uzupełnij plik supabase-config.js poprawnymi danymi.');
+    return;
+  }
+
+  const session = await requireCaretakerSession({ redirectTo: './caretakerLogin.html' });
+  if (!session) {
+    return;
+  }
+
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', () => {
+      clearCaretakerSession();
+      window.location.replace('./caretakerLogin.html');
+    });
+  }
+
   const supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   let facilities = [];
   let selectedFacility = null;
@@ -799,3 +818,5 @@ if (!window.supabase || !window.supabase.createClient) {
   void loadAmenitiesDictionary();
   void loadFacilities();
 }
+
+void bootstrap();
