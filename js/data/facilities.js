@@ -182,11 +182,11 @@ export function createFacilitiesModule({
     }
     thumbs.querySelectorAll('button[data-index]').forEach((btn) => {
       if (Number(btn.dataset.index) === index) {
-        btn.classList.add('border-blue-500', 'ring-2', 'ring-blue-500');
+        btn.classList.add('border-amber-400', 'ring-2', 'ring-amber-300');
         btn.classList.remove('border-transparent');
       } else {
         btn.classList.add('border-transparent');
-        btn.classList.remove('border-blue-500', 'ring-2', 'ring-blue-500');
+        btn.classList.remove('border-amber-400', 'ring-2', 'ring-amber-300');
       }
     });
   }
@@ -296,7 +296,7 @@ export function createFacilitiesModule({
           .map((url, idx) => `
             <button
               type="button"
-              class="relative w-16 h-16 flex-shrink-0 overflow-hidden rounded-xl border-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${idx === 0 ? 'border-blue-500 ring-2 ring-blue-500' : 'border-transparent'}"
+              class="relative w-16 h-16 flex-shrink-0 overflow-hidden rounded-xl border-2 focus:outline-none focus:ring-2 focus:ring-amber-300 ${idx === 0 ? 'border-amber-400 ring-2 ring-amber-300' : 'border-transparent'}"
               data-index="${idx}"
               aria-label="Podgląd zdjęcia ${idx + 1} z ${images.length}"
             >

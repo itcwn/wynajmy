@@ -1,4 +1,72 @@
 /* Dodatkowe style poza Tailwind */
+
+.main-shell {
+  position: relative;
+  isolation: isolate;
+  border-radius: 40px;
+  background-color: #f6eee3;
+  background-image:
+    radial-gradient(120% 120% at 0% 0%, rgba(250, 222, 199, 0.55), rgba(246, 236, 222, 0.95)),
+    radial-gradient(140% 140% at 100% 100%, rgba(244, 209, 215, 0.45), rgba(246, 236, 222, 0.98));
+  box-shadow: 0 45px 120px rgba(194, 160, 122, 0.28);
+  overflow: hidden;
+}
+
+.main-shell::before,
+.main-shell::after {
+  content: '';
+  position: absolute;
+  border-radius: 9999px;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  opacity: 0.6;
+  z-index: 0;
+}
+
+.main-shell::before {
+  top: -180px;
+  left: -140px;
+  width: 420px;
+  height: 420px;
+  background: radial-gradient(circle, rgba(250, 214, 174, 0.4), rgba(250, 214, 174, 0) 70%);
+}
+
+.main-shell::after {
+  bottom: -240px;
+  right: -180px;
+  width: 520px;
+  height: 520px;
+  background: radial-gradient(circle, rgba(246, 190, 199, 0.35), rgba(246, 190, 199, 0) 70%);
+}
+
+.main-shell > * {
+  position: relative;
+  z-index: 1;
+}
+
+@media (max-width: 768px) {
+  .main-shell {
+    border-radius: 28px;
+  }
+
+  .main-shell::before {
+    width: 320px;
+    height: 320px;
+    top: -200px;
+    left: -180px;
+  }
+
+  .main-shell::after {
+    width: 360px;
+    height: 360px;
+    bottom: -280px;
+    right: -200px;
+  }
+}
+
+.flow-space > .hidden + * {
+  margin-top: 0 !important;
+}
 @media print {
   .no-print { display: none !important; }
 }
@@ -23,7 +91,7 @@ body.intro-video-open {
 .intro-video-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.92);
+  background: rgba(56, 44, 36, 0.92);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -45,14 +113,14 @@ body.intro-video-open {
   justify-content: center;
   font-size: 1.75rem;
   color: #fff;
-  background: rgba(15, 23, 42, 0.72);
+  background: rgba(56, 44, 36, 0.72);
   cursor: pointer;
   transition: background 0.2s ease;
 }
 
 .intro-video-close:hover,
 .intro-video-close:focus-visible {
-  background: rgba(15, 23, 42, 0.88);
+  background: rgba(56, 44, 36, 0.88);
   outline: none;
 }
 

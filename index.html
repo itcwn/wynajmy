@@ -12,7 +12,7 @@
   <!-- Style własne -->
   <link rel="stylesheet" href="./styles.css">
 </head>
-<body class="bg-gray-50 text-gray-900" data-intro-video-src="./assets/intro.mp4">
+<body class="bg-[#f9f5ee] text-gray-900" data-intro-video-src="./assets/intro.mp4">
   <!-- Nagłówek -->
   <header class="p-4 bg-white shadow">
     <div class="max-w-6xl mx-auto flex items-center justify-between gap-4 flex-wrap">
@@ -23,7 +23,7 @@
         <div class="text-gray-500">🦉 SOWA System Online do Wsparcia Automatycznej rezerwacji świetlic</div>
         <a
           href="./registerCaretaker.html"
-          class="inline-flex items-center gap-1 rounded-xl border border-blue-200 px-3 py-1 font-medium text-blue-700 hover:bg-blue-50"
+          class="inline-flex items-center gap-1 rounded-xl border border-amber-200 px-3 py-1 font-medium text-amber-700 hover:bg-amber-50"
         >
           Zarejestruj opiekuna
         </a>
@@ -32,14 +32,14 @@
   </header>
 
   <!-- Layout -->
-  <main class="max-w-6xl mx-auto p-4 grid grid-cols-1 lg:grid-cols-3 gap-6">
+  <main class="main-shell mx-auto my-8 grid max-w-6xl grid-cols-1 gap-8 p-6 sm:p-8 lg:grid-cols-3">
     <!-- Lewa kolumna -->
-    <section class="lg:col-span-1 space-y-3">
+    <section class="lg:col-span-1">
       <div id="sidebar"></div>
     </section>
 
     <!-- Prawa kolumna -->
-    <section class="lg:col-span-2 space-y-4">
+    <section class="lg:col-span-2">
       <div id="main"></div>
     </section>
   </main>
