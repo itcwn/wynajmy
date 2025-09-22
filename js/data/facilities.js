@@ -413,7 +413,7 @@ export function createFacilitiesModule({
     renderMap();
   }
 
-  return {
+  const module = {
     initMapsApi,
     loadDictionaries,
     loadFacilities,
@@ -422,4 +422,8 @@ export function createFacilitiesModule({
     renderMap,
     selectFacility,
   };
+
+  state.facilitiesModule = module;
+
+  return module;
 }

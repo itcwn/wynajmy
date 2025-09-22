@@ -49,7 +49,15 @@ if (!supabase) {
     renderDay: dayView.renderDay,
     setDayPickerFromCurrent: dayView.setDayPickerFromCurrent,
   });
-  const bookingForm = createBookingForm({ state, supabase, domUtils, formatUtils, dayView, docGenerator });
+  const bookingForm = createBookingForm({
+    state,
+    supabase,
+    domUtils,
+    formatUtils,
+    dayView,
+    docGenerator,
+    facilities,
+  });
 
   window.initMapsApi = facilities.initMapsApi;
 
@@ -64,7 +72,7 @@ if (!supabase) {
     bookingForm.installListeners();
     await facilities.loadDictionaries();
     await facilities.loadFacilities();
-    await bookingForm.tryCancelFromUrl();
+    await bookingForm.tryLoadBookingFromUrl();
   }
 
   if (document.readyState === 'loading') {
