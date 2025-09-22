@@ -12,7 +12,7 @@
     <div class="max-w-4xl mx-auto flex items-center justify-between gap-3 flex-wrap">
       <div>
         <h1 class="text-xl font-bold">Rejestracja opiekuna świetlicy</h1>
-        <p class="text-sm text-gray-500">Utwórz konto opiekuna i przypisz je do świetlic.</p>
+        <p class="text-sm text-gray-500">Utwórz konto opiekuna i umożliw mu korzystanie z panelu.</p>
       </div>
       <nav class="flex items-center gap-3 text-sm">
         <a href="./index.html" class="text-blue-700 hover:underline">Aplikacja rezerwacyjna</a>
@@ -113,29 +113,6 @@
               autocomplete="new-password"
               class="mt-1 w-full border rounded-xl px-3 py-2"
             />
-          </div>
-        </div>
-
-        <div class="space-y-2">
-          <div class="flex items-center justify-between gap-2">
-            <label for="facilitySelect" class="block text-sm font-medium text-gray-700">
-              Przypisz opiekuna do świetlic
-            </label>
-            <span id="facilitySelectionInfo" class="text-xs text-gray-500"></span>
-          </div>
-          <p class="text-xs text-gray-500">Wybierz jedną lub więcej świetlic, za które opiekun będzie odpowiedzialny.</p>
-          <div id="facilitySelectWrap" class="relative">
-            <select
-              id="facilitySelect"
-              name="facility_ids"
-              class="w-full border rounded-xl px-3 py-2 h-48"
-              multiple
-              size="8"
-              aria-describedby="facilitySelectionInfo"
-            ></select>
-            <div id="facilityLoading" class="absolute inset-0 flex items-center justify-center bg-white/70 backdrop-blur-sm hidden">
-              <span class="text-sm text-gray-600">Ładowanie listy świetlic...</span>
-            </div>
           </div>
         </div>
 
