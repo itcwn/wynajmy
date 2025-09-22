@@ -296,7 +296,7 @@ export function createFacilitiesModule({
           .map((url, idx) => `
             <button
               type="button"
-              class="relative w-16 h-16 flex-shrink-0 overflow-hidden rounded-xl border-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${idx === 0 ? 'border-blue-500 ring-2 ring-blue-500' : 'border-transparent'}"
+              class="relative w-16 h-16 overflow-hidden rounded-xl border-2 focus:outline-none focus:ring-2 focus:ring-blue-500 md:w-full md:h-auto md:flex-shrink md:aspect-square ${idx === 0 ? 'border-blue-500 ring-2 ring-blue-500' : 'border-transparent'}"
               data-index="${idx}"
               aria-label="Podgląd zdjęcia ${idx + 1} z ${images.length}"
             >

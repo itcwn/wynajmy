@@ -89,7 +89,10 @@ export function renderMain() {
                     Otwórz galerię
                   </button>
                 </div>
-                <div id="facilityThumbs" class="hidden flex gap-2 overflow-x-auto pb-1"></div>
+                <div
+                  id="facilityThumbs"
+                  class="hidden flex gap-2 overflow-x-auto pb-1 md:grid md:grid-cols-[repeat(auto-fit,minmax(6rem,1fr))] md:gap-3 md:overflow-visible md:pb-0"
+                ></div>
                 <div id="galleryColumnInfo" class="text-xs leading-snug text-slate-500">
                   Wybierz świetlicę, aby zobaczyć zdjęcia.
                 </div>
