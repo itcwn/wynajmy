@@ -150,9 +150,7 @@ export function createBookingForm({
     const bookingRow = data && data[0] ? data[0] : null;
     state.bookingsCache.clear();
     await dayView.renderDay();
-    if (bookingRow) {
-      await showPostBookingActions(bookingRow, { logCancelUrl: true });
-    }
+    await showPostBookingActions(bookingRow, { logCancelUrl: true });
   }
 
   async function handleCancelClick() {
@@ -171,8 +169,10 @@ export function createBookingForm({
     if (data) {
       alert('Rezerwacja anulowana.');
       setFormMessage('Rezerwacja anulowana.');
+      state.lastBooking = null;
       state.bookingsCache.clear();
       await dayView.renderDay();
+      setCancelButtonVisible(false);
     } else {
       alert('Nie znaleziono lub już anulowana.');
     }
@@ -194,7 +194,7 @@ export function createBookingForm({
     cancelBtn.classList.toggle('hidden', !visible);
   }
 
-  async function revealDocGenerator(bookingRow = null) {
+  async function revealDocGenerator(bookingRow) {
     const docsLink = $('#genDocsLink');
     docsLink?.classList.remove('hidden');
     if (!docGenerator?.showTemplateSelectorLive) {
@@ -207,28 +207,14 @@ export function createBookingForm({
   }
 
   async function showPostBookingActions(bookingRow, { logCancelUrl = false } = {}) {
-    if (!bookingRow) {
-      return;
-    }
-    state.lastBooking = bookingRow;
-    await revealDocGenerator(bookingRow);
-    setCancelButtonVisible(true);
-    if (logCancelUrl && bookingRow.cancel_token) {
+    state.lastBooking = bookingRow || null;
+    await revealDocGenerator(bookingRow || null);
+    setCancelButtonVisible(Boolean(bookingRow));
+    if (bookingRow && logCancelUrl && bookingRow.cancel_token) {
       const cancelUrl = new URL(window.location.href);
       cancelUrl.searchParams.set('cancel', bookingRow.cancel_token);
       console.log('Cancel URL (do e-maila):', cancelUrl.toString());
     }
-  }
-
-  async function showDocumentsForFacility(facilityId) {
-    const facilityLoaded = await ensureFacilitySelected(facilityId);
-    if (!facilityLoaded) {
-      return false;
-    }
-    state.lastBooking = null;
-    await revealDocGenerator(null);
-    setCancelButtonVisible(false);
-    return true;
   }
 
   async function ensureFacilitySelected(facilityId) {
@@ -263,8 +249,21 @@ export function createBookingForm({
         await module.selectFacility(facility.id);
       } else {
         state.selectedFacility = facility;
+        if (docGenerator?.loadTemplatesForFacility) {
+          await docGenerator.loadTemplatesForFacility(facility.id);
+        }
       }
     }
+    return true;
+  }
+
+  async function showDocumentsForFacility(facilityId) {
+    const facilityLoaded = await ensureFacilitySelected(facilityId);
+    if (!facilityLoaded) {
+      return false;
+    }
+    state.bookingsCache.clear();
+    await showPostBookingActions(null);
     return true;
   }
 
@@ -307,7 +306,7 @@ export function createBookingForm({
     return bookingRow;
   }
 
-  async function tryLoadFromUrl() {
+  async function tryLoadBookingFromUrl() {
     const url = new URL(window.location.href);
     const bookingParam = url.searchParams.get('booking');
     const cancelToken = url.searchParams.get('cancel');
@@ -335,10 +334,12 @@ export function createBookingForm({
       if (data) {
         alert('Rezerwacja anulowana.');
         setFormMessage('Rezerwacja anulowana.');
+        state.lastBooking = null;
         state.bookingsCache.clear();
         if (state.selectedFacility) {
           await dayView.renderDay();
         }
+        setCancelButtonVisible(false);
       } else {
         alert('Nie znaleziono lub już anulowana.');
       }
@@ -354,8 +355,8 @@ export function createBookingForm({
       return;
     }
 
-    let handledAsFacility = false;
     const looksLikeFacilityId = /^\d+$/.test(trimmedBooking);
+    let handledAsFacility = false;
     if (looksLikeFacilityId) {
       handledAsFacility = await showDocumentsForFacility(trimmedBooking);
       if (handledAsFacility) {
@@ -418,8 +419,7 @@ export function createBookingForm({
 
   return {
     installListeners,
-    tryLoadFromUrl,
-    tryCancelFromUrl: tryLoadFromUrl,
-    tryLoadBookingFromUrl: tryLoadFromUrl,
+    tryLoadBookingFromUrl,
+    tryCancelFromUrl: tryLoadBookingFromUrl,
   };
 }
