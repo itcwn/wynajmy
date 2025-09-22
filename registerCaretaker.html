@@ -27,6 +27,7 @@
         <h2 class="text-lg font-semibold">Dane opiekuna</h2>
         <p class="text-sm text-gray-600">
           Wypełnij formularz, aby umożliwić wysyłkę powiadomień oraz logowanie opiekuna do panelu.
+          Przypisanie świetlic wykonasz później z poziomu panelu opiekuna.
         </p>
       </div>
       <form id="caretakerForm" class="space-y-5">
@@ -87,8 +88,13 @@
               required
               minlength="3"
               autocomplete="username"
-              class="mt-1 w-full border rounded-xl px-3 py-2"
+              readonly
+              aria-describedby="loginTooltip"
+              class="mt-1 w-full border rounded-xl px-3 py-2 bg-gray-100 text-gray-600"
             />
+            <p id="loginTooltip" class="mt-1 text-xs text-gray-500">
+              Login jest ustawiany automatycznie i odpowiada adresowi e-mail opiekuna.
+            </p>
           </div>
           <div>
             <label for="password" class="block text-sm font-medium text-gray-700">Hasło</label>

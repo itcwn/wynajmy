@@ -5,6 +5,8 @@ const supabase = createSupabaseClient();
 
 const form = $('#caretakerForm');
 const messageEl = $('#formMessage');
+const emailInput = $('#email');
+const loginInput = $('#login');
 const state = {
   isSubmitting: false,
 };
@@ -55,12 +57,15 @@ function sanitizePhone(value) {
   return value.replace(/\s+/g, ' ').trim();
 }
 
-function sanitizeLogin(value) {
+function sanitizeEmail(value) {
   return value.trim().toLowerCase();
 }
 
-function sanitizeEmail(value) {
-  return value.trim().toLowerCase();
+function updateLoginFromEmail() {
+  if (!emailInput || !loginInput) {
+    return;
+  }
+  loginInput.value = sanitizeEmail(emailInput.value || '');
 }
 
 async function handleSubmit(event) {
@@ -73,11 +78,10 @@ async function handleSubmit(event) {
   const lastNameOrCompany = String(formData.get('last_name_or_company') || '').trim();
   const phone = sanitizePhone(String(formData.get('phone') || ''));
   const email = sanitizeEmail(String(formData.get('email') || ''));
-  const loginRaw = String(formData.get('login') || '');
   const password = String(formData.get('password') || '');
   const passwordConfirm = String(formData.get('passwordConfirm') || '');
 
-  if (!firstName || !lastNameOrCompany || !phone || !email || !loginRaw || !password) {
+  if (!firstName || !lastNameOrCompany || !phone || !email || !password) {
     setMessage('Uzupełnij wszystkie wymagane pola formularza.', 'error');
     return;
   }
@@ -100,7 +104,7 @@ async function handleSubmit(event) {
 
   try {
     const passwordHash = await hashPassword(password);
-    const login = sanitizeLogin(loginRaw);
+    const login = email;
     const payload = {
       first_name: firstName,
       last_name_or_company: lastNameOrCompany,
@@ -131,7 +135,8 @@ async function handleSubmit(event) {
     }
 
     form.reset();
-    setMessage('Opiekun został zarejestrowany.', 'success');
+    updateLoginFromEmail();
+    setMessage('Opiekun został zarejestrowany. Przypisz go do świetlic w panelu opiekuna.', 'success');
   } catch (error) {
     console.error('Błąd rejestracji opiekuna:', error);
     setMessage('Wystąpił nieoczekiwany błąd podczas rejestracji.', 'error');
@@ -149,5 +154,15 @@ if (!supabase) {
 } else if (form) {
   form.addEventListener('submit', (event) => {
     void handleSubmit(event);
+  });
+}
+
+if (emailInput && loginInput) {
+  updateLoginFromEmail();
+  emailInput.addEventListener('input', () => {
+    updateLoginFromEmail();
+  });
+  form?.addEventListener('reset', () => {
+    updateLoginFromEmail();
   });
 }
