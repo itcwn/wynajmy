@@ -3,10 +3,9 @@ import { $ } from '../utils/dom.js';
 
 const CARD_BASE_CLASSES =
   'rounded-3xl border border-amber-900/10 bg-white/75 backdrop-blur shadow-xl shadow-amber-500/10';
-const HEADING_ACCENT_CLASSES =
-  'bg-gradient-to-r from-[#d4a373] via-[#f0b8b8] to-[#f4d9b8] bg-clip-text text-transparent';
+const HEADING_ACCENT_CLASSES = 'text-black';
 const HEADING_DIVIDER_CLASSES =
-  'h-px flex-1 bg-gradient-to-r from-amber-500/25 via-rose-300/10 to-transparent';
+  'h-px flex-1 bg-gradient-to-r from-slate-400/30 via-slate-300/15 to-transparent';
 
 export function renderSidebar({ onSearch } = {}) {
   const root = $('#sidebar');
@@ -18,7 +17,7 @@ export function renderSidebar({ onSearch } = {}) {
     <div class="space-y-6">
       <div class="${CARD_BASE_CLASSES} p-6">
         <div class="flex items-center gap-3 pb-4">
-          <h2 class="text-lg font-semibold tracking-tight text-slate-900">
+          <h2 class="text-lg font-semibold tracking-tight text-black">
             <span class="${HEADING_ACCENT_CLASSES}">Wyszukaj</span>
           </h2>
           <span class="${HEADING_DIVIDER_CLASSES}"></span>
@@ -31,7 +30,7 @@ export function renderSidebar({ onSearch } = {}) {
       </div>
       <div class="${CARD_BASE_CLASSES} p-6">
         <div class="flex items-center gap-3 pb-4">
-          <h2 class="text-lg font-semibold tracking-tight text-slate-900">
+          <h2 class="text-lg font-semibold tracking-tight text-black">
             <span class="${HEADING_ACCENT_CLASSES}">Świetlice</span>
             <span class="ml-2 text-sm font-medium text-slate-600">(<span id="count">0</span>)</span>
           </h2>
@@ -41,7 +40,7 @@ export function renderSidebar({ onSearch } = {}) {
       </div>
       <div id="mapCard" class="hidden ${CARD_BASE_CLASSES} p-6">
         <div class="flex items-center gap-3 pb-4">
-          <h3 class="text-lg font-semibold tracking-tight text-slate-900">
+          <h3 class="text-lg font-semibold tracking-tight text-black">
             <span class="${HEADING_ACCENT_CLASSES}">Mapa</span>
           </h3>
           <span class="${HEADING_DIVIDER_CLASSES}"></span>
@@ -71,7 +70,7 @@ export function renderMain() {
       <div id="facilityCard" class="hidden ${CARD_BASE_CLASSES}">
         <div class="flow-space space-y-6 p-6">
           <div class="flex items-center gap-3">
-            <h2 class="text-lg font-semibold tracking-tight text-slate-900">
+            <h2 class="text-lg font-semibold tracking-tight text-black">
               <span class="${HEADING_ACCENT_CLASSES}">Wybrana świetlica</span>
             </h2>
             <span class="${HEADING_DIVIDER_CLASSES}"></span>
@@ -98,7 +97,7 @@ export function renderMain() {
             </div>
             <div class="space-y-4 md:col-span-2">
               <div>
-                <h2 id="facilityName" class="text-2xl font-semibold tracking-tight text-slate-900"></h2>
+                <h2 id="facilityName" class="text-2xl font-semibold tracking-tight text-black"></h2>
                 <p id="facilityDesc" class="mt-1 text-sm text-slate-600"></p>
               </div>
               <div class="space-y-3 text-sm text-slate-700">
@@ -117,7 +116,7 @@ export function renderMain() {
       <div id="selectors" class="hidden ${CARD_BASE_CLASSES}">
         <div class="flow-space space-y-6 p-6">
           <div class="flex items-center gap-3">
-            <h3 class="text-lg font-semibold tracking-tight text-slate-900">
+            <h3 class="text-lg font-semibold tracking-tight text-black">
               <span class="${HEADING_ACCENT_CLASSES}">Planowanie rezerwacji</span>
             </h3>
             <span class="${HEADING_DIVIDER_CLASSES}"></span>
@@ -141,11 +140,11 @@ export function renderMain() {
                 <button
                   id="openFacilityInstructions"
                   type="button"
-                  class="inline-flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-r from-amber-400 via-rose-300 to-amber-300 text-white font-semibold shadow-lg shadow-amber-500/20 focus:outline-none focus:ring-2 focus:ring-amber-300/60 focus:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-40 sm:h-9 sm:w-9"
+                  class="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-slate-500/80 via-slate-400/70 to-slate-500/80 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-amber-500/20 focus:outline-none focus:ring-2 focus:ring-slate-300/60 focus:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-40 sm:px-3 sm:py-2"
                   title="Instrukcja od opiekuna"
                   disabled
                 >
-                  i
+                  Instrukcja
                 </button>
               </div>
             </div>
@@ -172,14 +171,14 @@ export function renderMain() {
               </div>
             </div>
           </div>
-          <div id="dateLabel" class="text-lg font-semibold tracking-tight text-slate-800"></div>
+          <div id="dateLabel" class="text-lg font-semibold tracking-tight text-black"></div>
         </div>
       </div>
 
       <div id="calendar" class="hidden ${CARD_BASE_CLASSES}">
         <div class="flow-space space-y-6 p-6">
           <div class="flex items-center gap-3">
-            <h3 class="text-lg font-semibold tracking-tight text-slate-900">
+            <h3 class="text-lg font-semibold tracking-tight text-black">
               <span class="${HEADING_ACCENT_CLASSES}">Dostępność</span>
             </h3>
             <span class="${HEADING_DIVIDER_CLASSES}"></span>
@@ -194,7 +193,7 @@ export function renderMain() {
       <div id="booking" class="hidden ${CARD_BASE_CLASSES}">
         <div class="flow-space space-y-6 p-6">
           <div class="flex items-center gap-3">
-            <h3 class="text-lg font-semibold tracking-tight text-slate-900">
+            <h3 class="text-lg font-semibold tracking-tight text-black">
               <span class="${HEADING_ACCENT_CLASSES}">Nowa rezerwacja</span>
             </h3>
             <span class="${HEADING_DIVIDER_CLASSES}"></span>

@@ -4,11 +4,11 @@
   position: relative;
   isolation: isolate;
   border-radius: 40px;
-  background-color: #f6eee3;
+  background-color: #f2efe8;
   background-image:
-    radial-gradient(120% 120% at 0% 0%, rgba(250, 222, 199, 0.55), rgba(246, 236, 222, 0.95)),
-    radial-gradient(140% 140% at 100% 100%, rgba(244, 209, 215, 0.45), rgba(246, 236, 222, 0.98));
-  box-shadow: 0 45px 120px rgba(194, 160, 122, 0.28);
+    radial-gradient(120% 120% at 0% 0%, rgba(223, 220, 214, 0.55), rgba(242, 240, 233, 0.95)),
+    radial-gradient(140% 140% at 100% 100%, rgba(199, 209, 219, 0.35), rgba(242, 240, 233, 0.98));
+  box-shadow: 0 45px 120px rgba(170, 174, 184, 0.25);
   overflow: hidden;
 }
 
@@ -28,7 +28,7 @@
   left: -140px;
   width: 420px;
   height: 420px;
-  background: radial-gradient(circle, rgba(250, 214, 174, 0.4), rgba(250, 214, 174, 0) 70%);
+  background: radial-gradient(circle, rgba(202, 207, 214, 0.35), rgba(202, 207, 214, 0) 70%);
 }
 
 .main-shell::after {
@@ -36,7 +36,7 @@
   right: -180px;
   width: 520px;
   height: 520px;
-  background: radial-gradient(circle, rgba(246, 190, 199, 0.35), rgba(246, 190, 199, 0) 70%);
+  background: radial-gradient(circle, rgba(196, 189, 180, 0.3), rgba(196, 189, 180, 0) 70%);
 }
 
 .main-shell > * {
