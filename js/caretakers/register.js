@@ -114,11 +114,9 @@ async function handleSubmit(event) {
       password_hash: passwordHash,
     };
 
-    const { data: caretaker, error: insertError } = await supabase
+    const { error: insertError } = await supabase
       .from('caretakers')
-      .insert(payload)
-      .select()
-      .single();
+      .insert(payload, { defaultToNull: false });
 
     if (insertError) {
       if (insertError.code === '23505') {
@@ -126,11 +124,6 @@ async function handleSubmit(event) {
       } else {
         setMessage(insertError.message || 'Nie udało się utworzyć konta opiekuna.', 'error');
       }
-      return;
-    }
-
-    if (!caretaker || !caretaker.id) {
-      setMessage('Nie udało się uzyskać identyfikatora nowego opiekuna.', 'error');
       return;
     }
 
