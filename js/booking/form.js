@@ -1,10 +1,29 @@
-export function createBookingForm({ state, supabase, domUtils, formatUtils, dayView, docGenerator }) {
+export function createBookingForm({
+  state,
+  supabase,
+  domUtils,
+  formatUtils,
+  dayView,
+  docGenerator,
+  facilities,
+}) {
   const { $ } = domUtils;
   const { pad2 } = formatUtils;
   let listenersAttached = false;
   let titleInput;
   let typeSelect;
   let renterNameInput;
+  const facilitiesModule = facilities || state.facilitiesModule || null;
+  if (facilitiesModule && state.facilitiesModule !== facilitiesModule) {
+    state.facilitiesModule = facilitiesModule;
+  }
+
+  function setFormMessage(text) {
+    const msg = $('#formMsg');
+    if (msg) {
+      msg.textContent = text || '';
+    }
+  }
 
   function getSelectedEventTypeName() {
     if (!typeSelect || !typeSelect.value) {
@@ -76,16 +95,13 @@ export function createBookingForm({ state, supabase, domUtils, formatUtils, dayV
       return;
     }
     const form = event.target;
-    const msg = $('#formMsg');
-    if (msg) {
-      msg.textContent = 'Trwa zapisywanie...';
-    }
+    setFormMessage('Trwa zapisywanie...');
     let startIso;
     let endIso;
     if (state.mode === 'day') {
       const dayValue = form.day_only.value;
       if (!dayValue) {
-        if (msg) msg.textContent = 'Wybierz dzień.';
+        setFormMessage('Wybierz dzień.');
         return;
       }
       startIso = new Date(`${dayValue}T00:00`).toISOString();
@@ -93,7 +109,7 @@ export function createBookingForm({ state, supabase, domUtils, formatUtils, dayV
     } else {
       const dayValue = $('#dayPicker')?.value;
       if (!dayValue) {
-        if (msg) msg.textContent = 'Wybierz dzień.';
+        setFormMessage('Wybierz dzień.');
         return;
       }
       const startHour = pad2(parseInt($('#hourStart')?.value ?? '0', 10));
@@ -101,13 +117,13 @@ export function createBookingForm({ state, supabase, domUtils, formatUtils, dayV
       startIso = new Date(`${dayValue}T${startHour}:00`).toISOString();
       endIso = new Date(`${dayValue}T${endHour}:00`).toISOString();
       if (new Date(endIso) <= new Date(startIso)) {
-        if (msg) msg.textContent = 'Koniec musi być po początku.';
+        setFormMessage('Koniec musi być po początku.');
         return;
       }
     }
     const overlap = await hasOverlap(state.selectedFacility.id, startIso, endIso);
     if (overlap) {
-      if (msg) msg.textContent = 'Wybrany termin koliduje z istniejącą rezerwacją (wstępna lub potwierdzona). Wybierz inny termin.';
+      setFormMessage('Wybrany termin koliduje z istniejącą rezerwacją (wstępna lub potwierdzona). Wybierz inny termin.');
       return;
     }
     updateTitleField();
@@ -127,25 +143,14 @@ export function createBookingForm({ state, supabase, domUtils, formatUtils, dayV
     const { data, error } = await supabase.from('bookings').insert(payload).select();
     if (error) {
       console.error(error);
-      if (msg) msg.textContent = `Błąd: ${error.message || 'nie udało się utworzyć rezerwacji.'}`;
+      setFormMessage(`Błąd: ${error.message || 'nie udało się utworzyć rezerwacji.'}`);
       return;
     }
-    if (msg) {
-      msg.textContent = 'Wstępna rezerwacja złożona! Opiekun obiektu potwierdzi lub odrzuci.';
-    }
+    setFormMessage('Wstępna rezerwacja złożona! Opiekun obiektu potwierdzi lub odrzuci.');
     const bookingRow = data && data[0] ? data[0] : null;
-    state.lastBooking = bookingRow;
     state.bookingsCache.clear();
     await dayView.renderDay();
-    const cancelBtn = $('#cancelThisBooking');
-    cancelBtn?.classList.remove('hidden');
-    if (bookingRow) {
-      const mount = $('#docGen');
-      await docGenerator.showTemplateSelectorLive(bookingRow, mount);
-      const cancelUrl = new URL(window.location.href);
-      cancelUrl.searchParams.set('cancel', bookingRow.cancel_token);
-      console.log('Cancel URL (do e-maila):', cancelUrl.toString());
-    }
+    await showPostBookingActions(bookingRow, { logCancelUrl: true });
   }
 
   async function handleCancelClick() {
@@ -163,35 +168,209 @@ export function createBookingForm({ state, supabase, domUtils, formatUtils, dayV
     }
     if (data) {
       alert('Rezerwacja anulowana.');
+      setFormMessage('Rezerwacja anulowana.');
+      state.lastBooking = null;
       state.bookingsCache.clear();
       await dayView.renderDay();
+      setCancelButtonVisible(false);
     } else {
       alert('Nie znaleziono lub już anulowana.');
     }
   }
 
-  async function tryCancelFromUrl() {
-    const url = new URL(window.location.href);
-    const token = url.searchParams.get('cancel');
+  function handleDocsLinkClick(event) {
+    event.preventDefault();
+    const el = $('#docGen');
+    if (el) {
+      window.scrollTo({ top: el.offsetTop - 20, behavior: 'smooth' });
+    }
+  }
+
+  function setCancelButtonVisible(visible) {
+    const cancelBtn = $('#cancelThisBooking');
+    if (!cancelBtn) {
+      return;
+    }
+    cancelBtn.classList.toggle('hidden', !visible);
+  }
+
+  async function revealDocGenerator(bookingRow) {
+    const docsLink = $('#genDocsLink');
+    docsLink?.classList.remove('hidden');
+    if (!docGenerator?.showTemplateSelectorLive) {
+      return;
+    }
+    const mount = $('#docGen');
+    if (mount) {
+      await docGenerator.showTemplateSelectorLive(bookingRow, mount);
+    }
+  }
+
+  async function showPostBookingActions(bookingRow, { logCancelUrl = false } = {}) {
+    state.lastBooking = bookingRow || null;
+    await revealDocGenerator(bookingRow || null);
+    setCancelButtonVisible(Boolean(bookingRow));
+    if (bookingRow && logCancelUrl && bookingRow.cancel_token) {
+      const cancelUrl = new URL(window.location.href);
+      cancelUrl.searchParams.set('cancel', bookingRow.cancel_token);
+      console.log('Cancel URL (do e-maila):', cancelUrl.toString());
+    }
+  }
+
+  async function ensureFacilitySelected(facilityId) {
+    if (!facilityId) {
+      return false;
+    }
+    const stringId = String(facilityId);
+    const alreadySelected = state.selectedFacility
+      && String(state.selectedFacility.id) === stringId;
+    let facility = state.facilities.find((f) => String(f.id) === stringId);
+    if (!facility) {
+      const { data: facilityRow, error } = await supabase
+        .from('facilities')
+        .select('*')
+        .eq('id', facilityId)
+        .maybeSingle();
+      if (error) {
+        console.error('Błąd wczytywania świetlicy:', error);
+        return false;
+      }
+      if (!facilityRow) {
+        return false;
+      }
+      facility = facilityRow;
+      if (!state.facilities.some((item) => String(item.id) === stringId)) {
+        state.facilities.push(facilityRow);
+      }
+    }
+    const module = facilitiesModule || state.facilitiesModule;
+    if (!alreadySelected) {
+      if (module?.selectFacility) {
+        await module.selectFacility(facility.id);
+      } else {
+        state.selectedFacility = facility;
+        if (docGenerator?.loadTemplatesForFacility) {
+          await docGenerator.loadTemplatesForFacility(facility.id);
+        }
+      }
+    }
+    return true;
+  }
+
+  async function showDocumentsForFacility(facilityId) {
+    const facilityLoaded = await ensureFacilitySelected(facilityId);
+    if (!facilityLoaded) {
+      return false;
+    }
+    state.bookingsCache.clear();
+    await showPostBookingActions(null);
+    return true;
+  }
+
+  async function loadBookingFromToken(token, { message } = {}) {
     if (!token) {
-      return;
+      return null;
     }
-    if (!confirm('Wykryto link anulowania rezerwacji. Czy chcesz kontynuować?')) {
-      return;
-    }
-    const { data, error } = await supabase.rpc('cancel_booking', { p_token: token });
+    const { data: bookingRow, error } = await supabase
+      .from('bookings')
+      .select('*')
+      .eq('cancel_token', token)
+      .maybeSingle();
     if (error) {
-      alert(`Błąd anulowania: ${error.message || ''}`);
-      return;
+      console.error('Błąd wczytywania rezerwacji z linku:', error);
+      alert('Nie udało się wczytać rezerwacji. Spróbuj ponownie lub skontaktuj się z administratorem.');
+      return null;
     }
-    if (data) {
-      alert('Rezerwacja anulowana.');
-      state.bookingsCache.clear();
-      if (state.selectedFacility) {
+    if (!bookingRow) {
+      alert('Nie znaleziono rezerwacji powiązanej z tym linkiem.');
+      return null;
+    }
+    const facilityLoaded = await ensureFacilitySelected(bookingRow.facility_id);
+    if (!facilityLoaded) {
+      alert('Nie udało się wczytać świetlicy powiązanej z rezerwacją.');
+      return null;
+    }
+    state.bookingsCache.clear();
+    if (bookingRow.start_time) {
+      const startDate = new Date(bookingRow.start_time);
+      if (!Number.isNaN(startDate.getTime())) {
+        state.currentDate = startDate;
+        dayView.setDayPickerFromCurrent();
         await dayView.renderDay();
       }
-    } else {
-      alert('Nie znaleziono lub już anulowana.');
+    }
+    await showPostBookingActions(bookingRow, { logCancelUrl: false });
+    if (message) {
+      setFormMessage(message);
+    }
+    return bookingRow;
+  }
+
+  async function tryLoadBookingFromUrl() {
+    const url = new URL(window.location.href);
+    const bookingParam = url.searchParams.get('booking');
+    const cancelToken = url.searchParams.get('cancel');
+    if (!bookingParam && !cancelToken) {
+      return;
+    }
+
+    setCancelButtonVisible(false);
+
+    if (cancelToken) {
+      const bookingRow = await loadBookingFromToken(cancelToken, {
+        message: 'Wczytano rezerwację z linku. Potwierdź anulowanie, aby kontynuować.',
+      });
+      if (!bookingRow) {
+        return;
+      }
+      if (!confirm('Wykryto link anulowania rezerwacji. Czy chcesz kontynuować?')) {
+        return;
+      }
+      const { data, error } = await supabase.rpc('cancel_booking', { p_token: cancelToken });
+      if (error) {
+        alert(`Błąd anulowania: ${error.message || ''}`);
+        return;
+      }
+      if (data) {
+        alert('Rezerwacja anulowana.');
+        setFormMessage('Rezerwacja anulowana.');
+        state.lastBooking = null;
+        state.bookingsCache.clear();
+        if (state.selectedFacility) {
+          await dayView.renderDay();
+        }
+        setCancelButtonVisible(false);
+      } else {
+        alert('Nie znaleziono lub już anulowana.');
+      }
+      return;
+    }
+
+    if (!bookingParam) {
+      return;
+    }
+
+    const trimmedBooking = bookingParam.trim();
+    if (!trimmedBooking) {
+      return;
+    }
+
+    const looksLikeFacilityId = /^\d+$/.test(trimmedBooking);
+    let handledAsFacility = false;
+    if (looksLikeFacilityId) {
+      handledAsFacility = await showDocumentsForFacility(trimmedBooking);
+      if (handledAsFacility) {
+        setFormMessage('Wczytano dane świetlicy z linku. Możesz wygenerować dokumenty.');
+        return;
+      }
+    }
+
+    const bookingRow = await loadBookingFromToken(trimmedBooking, {
+      message: 'Wczytano rezerwację z linku. Możesz ją anulować lub wygenerować dokumenty.',
+    });
+
+    if (!bookingRow && looksLikeFacilityId && !handledAsFacility) {
+      setFormMessage('Nie udało się wczytać danych powiązanych z tym linkiem.');
     }
   }
 
@@ -234,5 +413,9 @@ export function createBookingForm({ state, supabase, domUtils, formatUtils, dayV
     }
   }
 
-  return { installListeners, tryCancelFromUrl };
+  return {
+    installListeners,
+    tryLoadBookingFromUrl,
+    tryCancelFromUrl: tryLoadBookingFromUrl,
+  };
 }
