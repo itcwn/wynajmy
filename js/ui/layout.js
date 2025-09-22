@@ -323,4 +323,14 @@ export function renderMain() {
       </div>
     </div>
   `;
+  const thumbs = root.querySelector('#facilityThumbs');
+  if (thumbs) {
+    thumbs.classList.add(
+      'md:grid',
+      'md:grid-cols-[repeat(auto-fit,minmax(6rem,1fr))]',
+      'md:gap-3',
+      'md:overflow-visible',
+      'md:pb-0',
+    );
+  }
 }
