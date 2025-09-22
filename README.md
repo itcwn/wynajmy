@@ -24,3 +24,8 @@ Ten pakiet zawiera działające MVP:
 ## Modyfikacje
 - Dodaj nowe szablony w `document_templates` (INSERT) lub stwórz prosty panel w UI.
 - Możesz dostosować CSS w sekcji `<style id="print-styles">` w oknie wydruku.
+
+## Rejestracja opiekuna
+- W nagłówku aplikacji dostępny jest link „Zarejestruj opiekuna”, który prowadzi do formularza `registerCaretaker.html`.
+- Formularz zapisuje dane do tabeli `caretakers` oraz przypisania w tabeli `facility_caretakers`.
+- Strukturę i polityki RLS dla nowych tabel zawiera skrypt `supabase/caretakers.sql` — uruchom go po wdrożeniu głównego schematu bazy.
