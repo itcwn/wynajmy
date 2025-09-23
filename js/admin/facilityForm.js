@@ -209,9 +209,7 @@ export function initFacilityForm({
     try {
       const { data, error } = await supabase
         .from('facilities')
-        .insert([payload])
-        .select()
-        .single();
+        .insert([payload]);
       if (error) {
         throw error;
       }
