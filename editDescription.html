@@ -22,6 +22,33 @@
   </header>
 
   <main class="max-w-4xl mx-auto p-4 space-y-4">
+    <section
+      id="caretakerBookingsSection"
+      class="bg-white rounded-2xl shadow-md p-5 space-y-5"
+    >
+      <div class="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <h2 class="text-lg font-semibold">Rezerwacje oczekujące na decyzję</h2>
+          <p class="text-sm text-gray-500">
+            Obsłuż zgłoszenia powiązane ze świetlicami przypisanymi do Twojego konta.
+          </p>
+        </div>
+        <button
+          id="caretakerBookingsRefresh"
+          type="button"
+          class="px-3 py-2 rounded-xl border border-gray-200 bg-gray-50 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          🔄 Odśwież listę
+        </button>
+      </div>
+      <div class="text-sm">
+        <span id="caretakerBookingsMessage" class="text-gray-500"></span>
+      </div>
+      <div id="caretakerBookingsList" class="space-y-4">
+        <p class="text-sm text-gray-500">Ładowanie modułu rezerwacji...</p>
+      </div>
+    </section>
+
     <section class="bg-white rounded-2xl shadow-md p-5 space-y-4">
       <div>
         <label for="facilitySelect" class="block text-sm font-medium text-gray-700">Wybierz świetlicę</label>
@@ -104,6 +131,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="./supabase-config.js"></script>
-    <script type="module" src="./js/admin/editDescriptionPage.js"></script>
+  <script type="module" src="./js/admin/editDescriptionPage.js"></script>
+  <script type="module" src="./js/admin/bookingsDashboard.js"></script>
 </body>
 </html>
