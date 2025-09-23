@@ -183,3 +183,25 @@ body.intro-video-open {
     width: min(40vw, 440px);
   }
 }
+
+@media (min-width: 1024px) {
+  #facilityThumbs {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(6rem, 1fr));
+    gap: 0.75rem;
+    overflow: visible;
+  }
+
+  #facilityThumbs button {
+    aspect-ratio: 1 / 1;
+    border-color: rgba(125, 211, 252, 0.6);
+    box-shadow:
+      0 0 0 1px rgba(125, 211, 252, 0.6),
+      0 10px 24px rgba(59, 130, 246, 0.12);
+  }
+
+  #facilityThumbs button.border-blue-500 {
+    border-color: #3b82f6;
+  }
+}
+

@@ -70,6 +70,7 @@ create policy "Caretaker update facilities"
       from public.facility_caretakers fc
       where fc.facility_id = id
         and fc.caretaker_id = public.current_caretaker_id()
+
     )
   )
   with check (
@@ -115,3 +116,4 @@ create trigger facilities_assign_caretaker
   after insert on public.facilities
   for each row
   execute function public.assign_caretaker_to_new_facility();
+
