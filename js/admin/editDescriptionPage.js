@@ -683,9 +683,12 @@ async function bootstrap() {
     }
     const previousValue = selectEl.value;
     selectEl.innerHTML = '';
+
     const placeholder = document.createElement('option');
     placeholder.value = '';
-    placeholder.textContent = '— wybierz świetlicę —';
+    placeholder.textContent = facilities.length
+      ? '— wybierz świetlicę —'
+      : '— brak przypisanych świetlic —';
     selectEl.appendChild(placeholder);
 
     const sorted = [...facilities].sort((a, b) => {
@@ -704,8 +707,13 @@ async function bootstrap() {
     }
 
     if (previousValue) {
-      selectEl.value = previousValue;
+      const hasPrevious = sorted.some((facility) => String(facility.id) === String(previousValue));
+      selectEl.value = hasPrevious ? previousValue : '';
+    } else {
+      selectEl.value = '';
     }
+
+    selectEl.disabled = facilities.length === 0;
   }
 
   function applySelectionFromQuery() {
@@ -725,12 +733,49 @@ async function bootstrap() {
     return false;
   }
 
+  async function fetchAssignedFacilityIds() {
+    if (!caretakerId) {
+      return null;
+    }
+    const { data, error } = await supa
+      .from('facility_caretakers')
+      .select('facility_id')
+      .eq('caretaker_id', caretakerId);
+    if (error) {
+      throw error;
+    }
+    const ids = (data || [])
+      .map((row) => row?.facility_id)
+      .filter((value) => value !== null && value !== undefined)
+      .map((value) => String(value));
+    return Array.from(new Set(ids));
+  }
+
   async function loadFacilities({ selectId = null, silent = false } = {}) {
     if (!silent) {
       showMessage('Ładowanie listy świetlic...', 'info');
     }
     try {
-      const { data, error } = await supa.from('facilities').select('*').order('name');
+      let assignedFacilityIds = null;
+      if (caretakerId) {
+        assignedFacilityIds = await fetchAssignedFacilityIds();
+        if (Array.isArray(assignedFacilityIds) && assignedFacilityIds.length === 0) {
+          facilities = [];
+          selectedFacility = null;
+          renderFacilities();
+          updateForm();
+          if (!silent) {
+            showMessage('Nie masz jeszcze żadnych świetlic. Skorzystaj z formularza powyżej, aby dodać pierwszą.', 'info');
+          }
+          return;
+        }
+      }
+
+      let query = supa.from('facilities').select('*').order('name');
+      if (caretakerId && Array.isArray(assignedFacilityIds) && assignedFacilityIds.length) {
+        query = query.in('id', assignedFacilityIds);
+      }
+      const { data, error } = await query;
       if (error) {
         throw error;
       }
@@ -773,6 +818,7 @@ async function bootstrap() {
 
   initFacilityForm({
     supabase: supa,
+    caretakerId,
     onFacilityCreated: async (createdFacility) => {
       const facilityId = createdFacility?.id ? String(createdFacility.id) : null;
       await loadFacilities({ selectId: facilityId, silent: true });
@@ -793,7 +839,11 @@ async function bootstrap() {
         saveBtn.disabled = true;
       }
       updateMeta(null);
-      showMessage('Wybierz świetlicę, aby edytować instrukcję.', 'info');
+      if (facilities.length) {
+        showMessage('Wybierz świetlicę, aby edytować instrukcję.', 'info');
+      } else {
+        showMessage('Nie masz jeszcze żadnych świetlic. Skorzystaj z formularza powyżej, aby dodać pierwszą.', 'info');
+      }
       selectedAmenityIds = new Set();
       renderAmenitiesList();
       setStatus(amenitiesMessage, 'Wybierz świetlicę, aby zarządzać udogodnieniami.', 'info');

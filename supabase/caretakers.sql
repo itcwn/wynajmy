@@ -1,6 +1,42 @@
 -- Struktura tabeli opiekunów oraz tabeli łączącej ich ze świetlicami.
 -- Uruchom w SQL Editorze Supabase po wcześniejszym wdrożeniu głównego schema.sql.
 
+create or replace function public.current_caretaker_id()
+returns uuid
+language plpgsql
+stable
+as $$
+declare
+  header text;
+  claims jsonb;
+  caretaker uuid;
+begin
+  header := nullif(current_setting('request.header.x-caretaker-id', true), '');
+  if header is not null then
+    begin
+      caretaker := header::uuid;
+      return caretaker;
+    exception when others then
+      null;
+    end;
+  end if;
+
+  claims := current_setting('request.jwt.claims', true)::jsonb;
+  if claims is not null then
+    begin
+      caretaker := (claims ->> 'caretaker_id')::uuid;
+      return caretaker;
+    exception when others then
+      return null;
+    end;
+  end if;
+
+  return null;
+end;
+$$;
+
+grant execute on function public.current_caretaker_id() to anon;
+
 create table if not exists public.caretakers (
   id uuid primary key default gen_random_uuid(),
   first_name text not null,
@@ -59,11 +95,6 @@ create policy "Allow anonymous caretakers insert"
   with check (true);
 
 drop policy if exists "Allow anonymous facility caretakers insert" on public.facility_caretakers;
-create policy "Allow anonymous facility caretakers insert"
-  on public.facility_caretakers
-  for insert
-  to anon
-  with check (true);
 
 -- Funkcja pomocnicza do logowania opiekuna po loginie.
 drop function if exists public.caretaker_login_get(text);
@@ -92,14 +123,14 @@ $$;
 
 grant execute on function public.caretaker_login_get(text) to anon;
 
--- Polityki RLS umożliwiające odczyt danych opiekuna po nadaniu claimu caretaker_id.
+-- Polityki RLS umożliwiające odczyt danych opiekuna z nagłówka X-Caretaker-Id lub claimu caretaker_id.
 drop policy if exists "Caretaker can read self" on public.caretakers;
 create policy "Caretaker can read self"
   on public.caretakers
   for select
   to anon
   using (
-    (current_setting('request.jwt.claims', true)::jsonb ->> 'caretaker_id')::uuid = id
+    public.current_caretaker_id() = id
   );
 
 drop policy if exists "Caretaker can see assigned facilities" on public.facility_caretakers;
@@ -108,7 +139,7 @@ create policy "Caretaker can see assigned facilities"
   for select
   to anon
   using (
-    (current_setting('request.jwt.claims', true)::jsonb ->> 'caretaker_id')::uuid = caretaker_id
+    public.current_caretaker_id() = caretaker_id
   );
 
 -- Funkcja zwracająca rezerwacje przypisane do opiekuna po zweryfikowaniu skrótu hasła.
