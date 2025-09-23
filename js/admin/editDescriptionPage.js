@@ -1,5 +1,6 @@
 import { clearCaretakerSession, requireCaretakerSession } from '../caretakers/session.js';
 import { INSTRUCTION_FIELDS, findInstructionInfo } from '../utils/instructions.js';
+import { initFacilityForm } from './facilityForm.js';
 
 const selectEl = document.getElementById('facilitySelect');
 const textarea = document.getElementById('instructionsInput');
@@ -86,7 +87,11 @@ async function bootstrap() {
     });
   }
 
-  const supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  const caretakerId = session?.caretakerId || session?.id || null;
+  const supabaseOptions = caretakerId
+    ? { global: { headers: { 'X-Caretaker-Id': caretakerId } } }
+    : undefined;
+  const supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, supabaseOptions);
   let facilities = [];
   let selectedFacility = null;
   let isSavingInstructions = false;
@@ -707,7 +712,7 @@ async function bootstrap() {
     const params = new URLSearchParams(window.location.search);
     const fromQuery = params.get('facility');
     if (!fromQuery) {
-      return;
+      return false;
     }
     const match = facilities.find((item) => String(item.id) === String(fromQuery));
     if (match) {
@@ -715,19 +720,41 @@ async function bootstrap() {
       if (selectEl) {
         selectEl.value = String(match.id);
       }
+      return true;
     }
+    return false;
   }
 
-  async function loadFacilities() {
-    showMessage('Ładowanie listy świetlic...', 'info');
+  async function loadFacilities({ selectId = null, silent = false } = {}) {
+    if (!silent) {
+      showMessage('Ładowanie listy świetlic...', 'info');
+    }
     try {
       const { data, error } = await supa.from('facilities').select('*').order('name');
       if (error) {
         throw error;
       }
       facilities = data || [];
+      const previousSelectionId = selectedFacility ? String(selectedFacility.id) : null;
+      if (previousSelectionId) {
+        const refreshed = facilities.find((item) => String(item.id) === previousSelectionId);
+        selectedFacility = refreshed || null;
+      }
       renderFacilities();
-      applySelectionFromQuery();
+      const queryApplied = applySelectionFromQuery();
+      if (selectId) {
+        const match = facilities.find((item) => String(item.id) === String(selectId));
+        if (match) {
+          selectedFacility = match;
+          if (selectEl) {
+            selectEl.value = String(match.id);
+          }
+        }
+      } else if (!queryApplied && selectedFacility) {
+        if (selectEl) {
+          selectEl.value = String(selectedFacility.id);
+        }
+      }
       if (!selectedFacility && facilities.length) {
         selectedFacility = facilities[0];
         if (selectEl) {
@@ -735,11 +762,25 @@ async function bootstrap() {
         }
       }
       updateForm();
+      if (!silent) {
+        showMessage('', 'info');
+      }
     } catch (error) {
       console.error(error);
       showMessage('Nie udało się pobrać listy świetlic.', 'error');
     }
   }
+
+  initFacilityForm({
+    supabase: supa,
+    onFacilityCreated: async (createdFacility) => {
+      const facilityId = createdFacility?.id ? String(createdFacility.id) : null;
+      await loadFacilities({ selectId: facilityId, silent: true });
+      if (facilityId && selectEl) {
+        selectEl.focus();
+      }
+    },
+  });
 
   function updateForm() {
     const info = findInstructionInfo(selectedFacility);
