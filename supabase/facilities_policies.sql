@@ -67,14 +67,51 @@ create policy "Caretaker update facilities"
   using (
     exists (
       select 1
-      from public.caretakers c
-      where c.id = public.current_caretaker_id()
+      from public.facility_caretakers fc
+      where fc.facility_id = id
+        and fc.caretaker_id = public.current_caretaker_id()
     )
   )
   with check (
     exists (
       select 1
-      from public.caretakers c
-      where c.id = public.current_caretaker_id()
+      from public.facility_caretakers fc
+      where fc.facility_id = id
+        and fc.caretaker_id = public.current_caretaker_id()
     )
   );
+
+drop function if exists public.assign_caretaker_to_new_facility();
+create or replace function public.assign_caretaker_to_new_facility()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  caretaker uuid;
+begin
+  caretaker := public.current_caretaker_id();
+  if caretaker is null then
+    return new;
+  end if;
+
+  begin
+    insert into public.facility_caretakers (caretaker_id, facility_id)
+    values (caretaker, new.id)
+    on conflict do nothing;
+  exception when others then
+    null;
+  end;
+
+  return new;
+end;
+$$;
+
+grant execute on function public.assign_caretaker_to_new_facility() to anon;
+
+drop trigger if exists facilities_assign_caretaker on public.facilities;
+create trigger facilities_assign_caretaker
+  after insert on public.facilities
+  for each row
+  execute function public.assign_caretaker_to_new_facility();

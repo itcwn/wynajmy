@@ -95,11 +95,6 @@ create policy "Allow anonymous caretakers insert"
   with check (true);
 
 drop policy if exists "Allow anonymous facility caretakers insert" on public.facility_caretakers;
-create policy "Allow anonymous facility caretakers insert"
-  on public.facility_caretakers
-  for insert
-  to anon
-  with check (true);
 
 -- Funkcja pomocnicza do logowania opiekuna po loginie.
 drop function if exists public.caretaker_login_get(text);

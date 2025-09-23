@@ -167,7 +167,6 @@ function collectPayload(form) {
 
 export function initFacilityForm({
   supabase,
-  caretakerId = null,
   form = document.getElementById('addFacilityForm'),
   submitButton = document.getElementById('addFacilitySubmit'),
   messageElement = document.getElementById('addFacilityMessage'),
@@ -188,33 +187,6 @@ export function initFacilityForm({
   function focusFirstField() {
     const firstInput = form.querySelector('input[name="name"]');
     firstInput?.focus();
-  }
-
-  async function assignCaretakerToFacility(facility) {
-    if (!caretakerId || !facility?.id) {
-      return;
-    }
-    try {
-      const { error } = await supabase
-        .from('facility_caretakers')
-        .upsert(
-          {
-            caretaker_id: caretakerId,
-            facility_id: facility.id,
-          },
-          { onConflict: 'caretaker_id,facility_id' },
-        );
-      if (error) {
-        throw error;
-      }
-    } catch (error) {
-      console.error('Nie udało się powiązać świetlicy z opiekunem:', error);
-      const assignmentError = new Error(
-        'Świetlica została dodana, ale nie udało się przypisać jej do Twojego konta. Spróbuj ponownie lub zgłoś problem administratorowi.',
-      );
-      assignmentError.cause = error;
-      throw assignmentError;
-    }
   }
 
   async function handleSubmit(event) {
@@ -243,7 +215,6 @@ export function initFacilityForm({
       if (error) {
         throw error;
       }
-      await assignCaretakerToFacility(data);
       form.reset();
       focusFirstField();
       setMessage(messageElement, 'Świetlica została dodana. Możesz teraz uzupełnić jej szczegóły.', 'success');
