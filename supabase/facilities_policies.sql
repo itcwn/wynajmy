@@ -95,6 +95,8 @@ create policy "Caretaker update facilities"
     )
   );
 
+drop trigger if exists facilities_assign_caretaker on public.facilities;
+
 drop function if exists public.assign_caretaker_to_new_facility();
 create or replace function public.assign_caretaker_to_new_facility()
 returns trigger
@@ -124,7 +126,6 @@ $$;
 
 grant execute on function public.assign_caretaker_to_new_facility() to anon;
 
-drop trigger if exists facilities_assign_caretaker on public.facilities;
 create trigger facilities_assign_caretaker
   after insert on public.facilities
   for each row
