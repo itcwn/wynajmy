@@ -1,4 +1,5 @@
 import { clearCaretakerSession, requireCaretakerSession } from '../caretakers/session.js';
+import { createCaretakerSupabaseClient } from '../caretakers/supabaseClient.js';
 import { INSTRUCTION_FIELDS, findInstructionInfo } from '../utils/instructions.js';
 import { initFacilityForm } from './facilityForm.js';
 
@@ -17,9 +18,6 @@ const checklistMessage = document.getElementById('checklistMessage');
 const addChecklistItemBtn = document.getElementById('addChecklistItem');
 const saveChecklistBtn = document.getElementById('saveChecklist');
 const logoutBtn = document.getElementById('caretakerLogout');
-
-const SUPABASE_URL = window.__SUPA?.SUPABASE_URL;
-const SUPABASE_ANON_KEY = window.__SUPA?.SUPABASE_ANON_KEY;
 
 const PHASE_OPTIONS = [
   { value: 'handover', label: 'Odbiór obiektu' },
@@ -69,11 +67,6 @@ async function bootstrap() {
     alert('Nie wykryto Supabase SDK. Sprawdź dołączone skrypty.');
     return;
   }
-  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-    // eslint-disable-next-line no-alert
-    alert('Uzupełnij plik supabase-config.js poprawnymi danymi.');
-    return;
-  }
 
   const session = await requireCaretakerSession({ redirectTo: './caretakerLogin.html' });
   if (!session) {
@@ -88,10 +81,11 @@ async function bootstrap() {
   }
 
   const caretakerId = session?.caretakerId || session?.id || null;
-  const supabaseOptions = caretakerId
-    ? { global: { headers: { 'X-Caretaker-Id': caretakerId } } }
-    : undefined;
-  const supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, supabaseOptions);
+  const supa = createCaretakerSupabaseClient({ caretakerId });
+  if (!supa) {
+    setStatus(messageEl, 'Brak konfiguracji Supabase lub identyfikatora opiekuna.', 'error');
+    return;
+  }
   let facilities = [];
   let selectedFacility = null;
   let isSavingInstructions = false;
@@ -325,6 +319,7 @@ async function bootstrap() {
       if (saveChecklistBtn) {
         saveChecklistBtn.disabled = true;
       }
+      setStatus(checklistMessage, '', 'info');
       return;
     }
     if (!checklistItems.length) {
@@ -550,7 +545,7 @@ async function bootstrap() {
     resetChecklistState();
     if (!facilityId) {
       renderChecklist();
-      setStatus(checklistMessage, 'Wybierz świetlicę, aby edytować listę kontrolną.', 'info');
+      setStatus(checklistMessage, '', 'info');
       return;
     }
     if (checklistContainer) {
@@ -849,7 +844,7 @@ async function bootstrap() {
       setStatus(amenitiesMessage, 'Wybierz świetlicę, aby zarządzać udogodnieniami.', 'info');
       resetChecklistState();
       renderChecklist();
-      setStatus(checklistMessage, 'Wybierz świetlicę, aby edytować listę kontrolną.', 'info');
+      setStatus(checklistMessage, '', 'info');
       return;
     }
     if (textarea) {
@@ -904,7 +899,7 @@ async function bootstrap() {
   renderAmenitiesList();
   renderChecklist();
   setStatus(amenitiesMessage, 'Wybierz świetlicę, aby zarządzać udogodnieniami.', 'info');
-  setStatus(checklistMessage, 'Wybierz świetlicę, aby edytować listę kontrolną.', 'info');
+  setStatus(checklistMessage, '', 'info');
 
   void loadAmenitiesDictionary();
   void loadFacilities();
