@@ -1,6 +1,8 @@
--- Struktura tabeli opiekunów oraz tabeli łączącej ich ze świetlicami.
--- Uruchom w SQL Editorze Supabase po wcześniejszym wdrożeniu głównego schema.sql.
+-- Kompleksowa konfiguracja tabel opiekunów, powiązań ze świetlicami
+-- oraz polityk RLS dla tabeli public.facilities.
+-- Uruchom w edytorze SQL Supabase po wdrożeniu bazowego schematu.
 
+-- Funkcja odczytująca identyfikator opiekuna z nagłówka HTTP lub claimów JWT.
 create or replace function public.current_caretaker_id()
 returns uuid
 language plpgsql
@@ -37,6 +39,7 @@ $$;
 
 grant execute on function public.current_caretaker_id() to anon;
 
+-- Tabela opiekunów świetlic.
 create table if not exists public.caretakers (
   id uuid primary key default gen_random_uuid(),
   first_name text not null,
@@ -70,9 +73,9 @@ create trigger caretakers_set_updated_at
 before update on public.caretakers
 for each row execute function public.set_caretaker_updated_at();
 
+-- Tabela wiążąca opiekunów ze świetlicami.
 create table if not exists public.facility_caretakers (
   caretaker_id uuid not null references public.caretakers(id) on delete cascade,
-  -- Upewnij się, że typ kolumny odpowiada typowi public.facilities.id (standardowo uuid).
   facility_id uuid not null references public.facilities(id) on delete cascade,
   created_at timestamptz not null default now(),
   primary key (caretaker_id, facility_id)
@@ -87,6 +90,7 @@ create index if not exists facility_caretakers_caretaker_idx
 alter table public.caretakers enable row level security;
 alter table public.facility_caretakers enable row level security;
 
+-- Polityki RLS dla tabeli opiekunów.
 drop policy if exists "Allow anonymous caretakers insert" on public.caretakers;
 create policy "Allow anonymous caretakers insert"
   on public.caretakers
@@ -94,7 +98,149 @@ create policy "Allow anonymous caretakers insert"
   to anon
   with check (true);
 
-drop policy if exists "Allow anonymous facility caretakers insert" on public.facility_caretakers;
+drop policy if exists "Caretaker can read self" on public.caretakers;
+create policy "Caretaker can read self"
+  on public.caretakers
+  for select
+  to anon
+  using (
+    public.current_caretaker_id() = id
+  );
+
+drop policy if exists "Caretaker can update self" on public.caretakers;
+create policy "Caretaker can update self"
+  on public.caretakers
+  for update
+  to anon
+  using (
+    public.current_caretaker_id() = id
+  )
+  with check (
+    public.current_caretaker_id() = id
+  );
+
+-- Polityki RLS dla powiązań opiekunów ze świetlicami.
+drop policy if exists "Caretaker can see assigned facilities" on public.facility_caretakers;
+create policy "Caretaker can see assigned facilities"
+  on public.facility_caretakers
+  for select
+  to anon
+  using (
+    public.current_caretaker_id() = caretaker_id
+  );
+
+drop policy if exists "Caretaker can assign self" on public.facility_caretakers;
+create policy "Caretaker can assign self"
+  on public.facility_caretakers
+  for insert
+  to anon
+  with check (
+    public.current_caretaker_id() = caretaker_id
+  );
+
+drop policy if exists "Caretaker can unassign self" on public.facility_caretakers;
+create policy "Caretaker can unassign self"
+  on public.facility_caretakers
+  for delete
+  to anon
+  using (
+    public.current_caretaker_id() = caretaker_id
+  );
+
+-- Funkcja sprawdzająca istnienie opiekuna wykorzystywana w politykach RLS.
+drop function if exists public.caretaker_exists(uuid);
+create or replace function public.caretaker_exists(p_caretaker_id uuid)
+returns boolean
+language sql
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.caretakers c
+    where c.id = p_caretaker_id
+  );
+$$;
+
+grant execute on function public.caretaker_exists(uuid) to anon;
+
+-- Polityki RLS dla tabeli public.facilities.
+alter table public.facilities enable row level security;
+
+drop policy if exists "Public read facilities" on public.facilities;
+create policy "Public read facilities"
+  on public.facilities
+  for select
+  to anon
+  using (true);
+
+drop policy if exists "Caretaker insert facilities" on public.facilities;
+create policy "Caretaker insert facilities"
+  on public.facilities
+  for insert
+  to anon
+  with check (
+    public.caretaker_exists(public.current_caretaker_id())
+  );
+
+drop policy if exists "Caretaker update facilities" on public.facilities;
+create policy "Caretaker update facilities"
+  on public.facilities
+  for update
+  to anon
+  using (
+    exists (
+      select 1
+      from public.facility_caretakers fc
+      where fc.facility_id = id
+        and fc.caretaker_id = public.current_caretaker_id()
+    )
+  )
+  with check (
+    exists (
+      select 1
+      from public.facility_caretakers fc
+      where fc.facility_id = id
+        and fc.caretaker_id = public.current_caretaker_id()
+    )
+  );
+
+-- Funkcja i trigger przypisujące nowego opiekuna do dodanej świetlicy.
+drop trigger if exists facilities_assign_caretaker on public.facilities;
+
+drop function if exists public.assign_caretaker_to_new_facility();
+create or replace function public.assign_caretaker_to_new_facility()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  caretaker uuid;
+begin
+  caretaker := public.current_caretaker_id();
+  if caretaker is null then
+    return new;
+  end if;
+
+  begin
+    insert into public.facility_caretakers (caretaker_id, facility_id)
+    values (caretaker, new.id)
+    on conflict do nothing;
+  exception when others then
+    null;
+  end;
+
+  return new;
+end;
+$$;
+
+grant execute on function public.assign_caretaker_to_new_facility() to anon;
+
+create trigger facilities_assign_caretaker
+  after insert on public.facilities
+  for each row
+  execute function public.assign_caretaker_to_new_facility();
 
 -- Funkcja pomocnicza do logowania opiekuna po loginie.
 drop function if exists public.caretaker_login_get(text);
@@ -123,26 +269,7 @@ $$;
 
 grant execute on function public.caretaker_login_get(text) to anon;
 
--- Polityki RLS umożliwiające odczyt danych opiekuna z nagłówka X-Caretaker-Id lub claimu caretaker_id.
-drop policy if exists "Caretaker can read self" on public.caretakers;
-create policy "Caretaker can read self"
-  on public.caretakers
-  for select
-  to anon
-  using (
-    public.current_caretaker_id() = id
-  );
-
-drop policy if exists "Caretaker can see assigned facilities" on public.facility_caretakers;
-create policy "Caretaker can see assigned facilities"
-  on public.facility_caretakers
-  for select
-  to anon
-  using (
-    public.current_caretaker_id() = caretaker_id
-  );
-
--- Funkcja zwracająca rezerwacje przypisane do opiekuna po zweryfikowaniu skrótu hasła.
+-- Funkcja zwracająca rezerwacje przypisane do opiekuna.
 drop function if exists public.caretaker_reservations_secure(text, text);
 create or replace function public.caretaker_reservations_secure(p_login text, p_password_hash text)
 returns table (
