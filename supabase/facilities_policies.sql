@@ -37,6 +37,23 @@ $$;
 
 grant execute on function public.current_caretaker_id() to anon;
 
+-- Pomocnicza funkcja sprawdzająca istnienie opiekuna (wywoływana w politykach RLS).
+drop function if exists public.caretaker_exists(uuid);
+create or replace function public.caretaker_exists(p_caretaker_id uuid)
+returns boolean
+language sql
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.caretakers c
+    where c.id = p_caretaker_id
+  );
+$$;
+
+grant execute on function public.caretaker_exists(uuid) to anon;
+
 alter table public.facilities enable row level security;
 
 drop policy if exists "Public read facilities" on public.facilities;
@@ -52,11 +69,7 @@ create policy "Caretaker insert facilities"
   for insert
   to anon
   with check (
-    exists (
-      select 1
-      from public.caretakers c
-      where c.id = public.current_caretaker_id()
-    )
+    public.caretaker_exists(public.current_caretaker_id())
   );
 
 drop policy if exists "Caretaker update facilities" on public.facilities;
@@ -81,6 +94,8 @@ create policy "Caretaker update facilities"
         and fc.caretaker_id = public.current_caretaker_id()
     )
   );
+
+drop trigger if exists facilities_assign_caretaker on public.facilities;
 
 drop function if exists public.assign_caretaker_to_new_facility();
 create or replace function public.assign_caretaker_to_new_facility()
@@ -111,7 +126,6 @@ $$;
 
 grant execute on function public.assign_caretaker_to_new_facility() to anon;
 
-drop trigger if exists facilities_assign_caretaker on public.facilities;
 create trigger facilities_assign_caretaker
   after insert on public.facilities
   for each row
