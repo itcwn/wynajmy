@@ -23,6 +23,169 @@
 
   <main class="max-w-4xl mx-auto p-4 space-y-4">
     <section class="bg-white rounded-2xl shadow-md p-5 space-y-4">
+      <div class="space-y-1">
+        <h2 class="text-lg font-semibold">Dodaj świetlicę</h2>
+        <p class="text-sm text-gray-500">
+          Uzupełnij podstawowe dane nowego obiektu. Po zapisaniu świetlica pojawi się na liście i będzie można przypisać do niej
+          instrukcje, udogodnienia oraz listy kontrolne.
+        </p>
+      </div>
+      <form id="addFacilityForm" class="space-y-5">
+        <div class="grid gap-4 md:grid-cols-2">
+          <div class="md:col-span-2">
+            <label for="facilityName" class="block text-sm font-medium text-gray-700">Nazwa świetlicy</label>
+            <input
+              id="facilityName"
+              name="name"
+              type="text"
+              required
+              class="mt-1 w-full border rounded-xl px-3 py-2"
+              placeholder="np. Świetlica Wiejska w Brzozowie"
+            />
+          </div>
+          <div>
+            <label for="facilityPostalCode" class="block text-sm font-medium text-gray-700">Kod pocztowy</label>
+            <input
+              id="facilityPostalCode"
+              name="postal_code"
+              type="text"
+              class="mt-1 w-full border rounded-xl px-3 py-2"
+              placeholder="00-000"
+              inputmode="numeric"
+              autocomplete="postal-code"
+            />
+          </div>
+          <div>
+            <label for="facilityCity" class="block text-sm font-medium text-gray-700">Miejscowość</label>
+            <input
+              id="facilityCity"
+              name="city"
+              type="text"
+              class="mt-1 w-full border rounded-xl px-3 py-2"
+              placeholder="np. Brzozów"
+              autocomplete="address-level2"
+            />
+          </div>
+          <div class="md:col-span-2">
+            <label for="facilityAddress1" class="block text-sm font-medium text-gray-700">Adres — linia 1</label>
+            <input
+              id="facilityAddress1"
+              name="address_line1"
+              type="text"
+              class="mt-1 w-full border rounded-xl px-3 py-2"
+              placeholder="ul. Główna 1"
+              autocomplete="address-line1"
+            />
+          </div>
+          <div class="md:col-span-2">
+            <label for="facilityAddress2" class="block text-sm font-medium text-gray-700">Adres — linia 2 (opcjonalnie)</label>
+            <input
+              id="facilityAddress2"
+              name="address_line2"
+              type="text"
+              class="mt-1 w-full border rounded-xl px-3 py-2"
+              placeholder="np. wejście od ul. Szkolnej"
+              autocomplete="address-line2"
+            />
+          </div>
+          <div>
+            <label for="facilityCapacity" class="block text-sm font-medium text-gray-700">Pojemność (liczba osób)</label>
+            <input
+              id="facilityCapacity"
+              name="capacity"
+              type="number"
+              min="0"
+              step="1"
+              class="mt-1 w-full border rounded-xl px-3 py-2"
+              placeholder="np. 80"
+              inputmode="numeric"
+            />
+          </div>
+          <div>
+            <label for="facilityPriceHour" class="block text-sm font-medium text-gray-700">Cena za godzinę (zł)</label>
+            <input
+              id="facilityPriceHour"
+              name="price_per_hour"
+              type="number"
+              min="0"
+              step="0.01"
+              class="mt-1 w-full border rounded-xl px-3 py-2"
+              placeholder="np. 50"
+              inputmode="decimal"
+            />
+          </div>
+          <div>
+            <label for="facilityPriceDay" class="block text-sm font-medium text-gray-700">Cena za dobę (zł)</label>
+            <input
+              id="facilityPriceDay"
+              name="price_per_day"
+              type="number"
+              min="0"
+              step="0.01"
+              class="mt-1 w-full border rounded-xl px-3 py-2"
+              placeholder="np. 400"
+              inputmode="decimal"
+            />
+          </div>
+          <div>
+            <label for="facilityLat" class="block text-sm font-medium text-gray-700">Szerokość geogr.</label>
+            <input
+              id="facilityLat"
+              name="lat"
+              type="number"
+              step="0.000001"
+              class="mt-1 w-full border rounded-xl px-3 py-2"
+              placeholder="np. 52.123456"
+              inputmode="decimal"
+            />
+          </div>
+          <div>
+            <label for="facilityLng" class="block text-sm font-medium text-gray-700">Długość geogr.</label>
+            <input
+              id="facilityLng"
+              name="lng"
+              type="number"
+              step="0.000001"
+              class="mt-1 w-full border rounded-xl px-3 py-2"
+              placeholder="np. 21.123456"
+              inputmode="decimal"
+            />
+          </div>
+        </div>
+        <div>
+          <label for="facilityDescription" class="block text-sm font-medium text-gray-700">Opis obiektu (opcjonalnie)</label>
+          <textarea
+            id="facilityDescription"
+            name="description"
+            rows="3"
+            class="mt-1 w-full border rounded-xl px-3 py-2"
+            placeholder="Krótki opis wyposażenia i przeznaczenia świetlicy"
+          ></textarea>
+        </div>
+        <div>
+          <label for="facilityImages" class="block text-sm font-medium text-gray-700">Adresy URL zdjęć (opcjonalnie)</label>
+          <textarea
+            id="facilityImages"
+            name="image_urls"
+            rows="2"
+            class="mt-1 w-full border rounded-xl px-3 py-2 text-sm"
+            placeholder="Wklej linki i oddziel je średnikiem lub nową linią"
+          ></textarea>
+        </div>
+        <div class="flex items-center gap-3 flex-wrap">
+          <button
+            id="addFacilitySubmit"
+            type="submit"
+            class="px-4 py-2 rounded-xl bg-emerald-600 text-white font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            ➕ Dodaj świetlicę
+          </button>
+          <span id="addFacilityMessage" class="text-sm text-gray-500 min-h-[1.5rem]"></span>
+        </div>
+      </form>
+    </section>
+
+    <section class="bg-white rounded-2xl shadow-md p-5 space-y-4">
       <div>
         <label for="facilitySelect" class="block text-sm font-medium text-gray-700">Wybierz świetlicę</label>
         <select id="facilitySelect" class="mt-1 w-full border rounded-xl px-3 py-2">
