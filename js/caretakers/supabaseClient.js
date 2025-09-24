@@ -23,8 +23,7 @@ function mergeGlobalOptions(baseOptions = {}, caretakerId) {
     : {};
 
   if (caretakerId) {
-    headers['x-caretaker-id'] = caretakerId;
-    headers['X-Caretaker-Id'] = caretakerId;
+    headers['x-caretaker-id'] = caretakerId; // Header names are case-insensitive
   }
 
   return {
