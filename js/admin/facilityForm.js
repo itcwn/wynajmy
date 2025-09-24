@@ -208,7 +208,7 @@ export function initFacilityForm({
     setMessage(messageElement, 'Zapisywanie nowej świetlicy...', 'info');
 
     try {
-      const { data, error } = await supabase.from('facilities').insert([payload]);
+      const { data, error } = await supabase.from('facilities').insert(payload);
       if (error) {
         throw error;
       }
