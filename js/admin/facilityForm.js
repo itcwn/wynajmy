@@ -171,6 +171,7 @@ export function initFacilityForm({
   submitButton = document.getElementById('addFacilitySubmit'),
   messageElement = document.getElementById('addFacilityMessage'),
   onFacilityCreated,
+  caretakerId = null,
 } = {}) {
   if (!form) {
     return { destroy() {}, reset() {} };
@@ -207,17 +208,42 @@ export function initFacilityForm({
     setMessage(messageElement, 'Zapisywanie nowej świetlicy...', 'info');
 
     try {
-      const { data, error } = await supabase
-        .from('facilities')
-        .insert([payload])
-        .select();
+      const { data, error } = await supabase.from('facilities').insert([payload]);
       if (error) {
         throw error;
       }
       const insertedFacility = Array.isArray(data) ? data[0] : data || null;
       form.reset();
       focusFirstField();
-      setMessage(messageElement, 'Świetlica została dodana. Możesz teraz uzupełnić jej szczegóły.', 'success');
+
+      let assignmentMessage = '';
+      if (caretakerId && insertedFacility?.id) {
+        const shouldAssign = window.confirm('Potwierdź przypisanie do opiekuna.');
+        if (shouldAssign) {
+          try {
+            const { error: assignError } = await supabase.from('facility_caretakers').insert([
+              {
+                caretaker_id: caretakerId,
+                facility_id: insertedFacility.id,
+              },
+            ]);
+            if (assignError) {
+              throw assignError;
+            }
+            assignmentMessage = ' Świetlica została przypisana do Twojego konta.';
+          } catch (assignError) {
+            console.error('Nie udało się przypisać świetlicy do opiekuna:', assignError);
+            assignmentMessage =
+              ' Nie udało się automatycznie przypisać świetlicy do opiekuna. Możesz spróbować ponownie później w panelu.';
+          }
+        }
+      }
+
+      setMessage(
+        messageElement,
+        `Świetlica została dodana. Możesz teraz uzupełnić jej szczegóły.${assignmentMessage}`,
+        'success',
+      );
       if (typeof onFacilityCreated === 'function') {
         try {
           await onFacilityCreated(insertedFacility);
