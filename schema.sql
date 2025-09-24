@@ -16,6 +16,7 @@ begin
 end;
 $$;
 
+
 -- Funkcja zwracająca identyfikator opiekuna na podstawie nagłówków żądania.
 create or replace function public.current_caretaker_id()
 returns uuid
@@ -52,6 +53,7 @@ end;
 $$;
 
 grant execute on function public.current_caretaker_id() to anon, authenticated;
+
 
 -- Tabela obiektów (świetlic).
 create table if not exists public.facilities (
@@ -113,6 +115,7 @@ create table if not exists public.facility_amenities (
 
 create index if not exists facility_amenities_amenity_idx
   on public.facility_amenities (amenity_id);
+
 
 -- Dane opiekunów świetlic.
 create table if not exists public.caretakers (
@@ -307,6 +310,7 @@ create trigger facilities_assign_caretaker
   after insert on public.facilities
   for each row
   execute function public.assign_caretaker_to_new_facility();
+
 
 -- Słownik typów wydarzeń wykorzystywany przy rezerwacjach.
 create table if not exists public.event_types (
