@@ -209,23 +209,25 @@ export function initFacilityForm({
     try {
       const { data, error } = await supabase
         .from('facilities')
-        .insert([payload]);
+        .insert([payload])
+        .select();
       if (error) {
         throw error;
       }
+      const insertedFacility = Array.isArray(data) ? data[0] : data || null;
       form.reset();
       focusFirstField();
       setMessage(messageElement, 'Świetlica została dodana. Możesz teraz uzupełnić jej szczegóły.', 'success');
       if (typeof onFacilityCreated === 'function') {
         try {
-          await onFacilityCreated(data);
+          await onFacilityCreated(insertedFacility);
         } catch (callbackError) {
           console.error('Błąd podczas odświeżania listy świetlic:', callbackError);
         }
       }
       document.dispatchEvent(
         new CustomEvent('facilities:changed', {
-          detail: { action: 'insert', facility: data },
+          detail: { action: 'insert', facility: insertedFacility },
         }),
       );
     } catch (error) {

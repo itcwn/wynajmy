@@ -2,7 +2,7 @@
 
 Ten pakiet zawiera działające MVP:
 - statyczny frontend `index.html` (GitHub Pages),
-- schemat bazy `schema.sql` (Supabase, z tabelą szablonów dokumentów przypisywanych do świetlic),
+- kompletny schemat bazy `schema.sql` (Supabase) z tabelami, checklistą oraz politykami RLS dla opiekunów i świetlic,
 - proste drukowanie dokumentów jako HTML (okno podglądu + `window.print()`),
 - przykładowe 2 szablony: **Wniosek o wynajem** oraz **Protokół** — przypisane do wybranej świetlicy oraz szablony globalne (fallback).
 
@@ -28,4 +28,4 @@ Ten pakiet zawiera działające MVP:
 ## Rejestracja opiekuna
 - W nagłówku aplikacji dostępny jest link „Zarejestruj opiekuna”, który prowadzi do formularza `registerCaretaker.html`.
 - Formularz zapisuje dane do tabeli `caretakers` oraz przypisania w tabeli `facility_caretakers`.
-- Strukturę i polityki RLS dla nowych tabel zawiera skrypt `supabase/caretakers.sql` — uruchom go po wdrożeniu głównego schematu bazy.
+- Wszystkie funkcje pomocnicze i polityki RLS wymagane do obsługi opiekunów są częścią `schema.sql`.
