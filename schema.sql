@@ -16,6 +16,45 @@ begin
 end;
 $$;
 
+
+-- Funkcja zwracająca identyfikator opiekuna na podstawie nagłówków żądania.
+create or replace function public.current_caretaker_id()
+returns uuid
+language plpgsql
+stable
+as $$
+declare
+  header text;
+  claims jsonb;
+  caretaker uuid;
+begin
+  header := nullif(current_setting('request.header.x-caretaker-id', true), '');
+  if header is not null then
+    begin
+      caretaker := header::uuid;
+      return caretaker;
+    exception when others then
+      null;
+    end;
+  end if;
+
+  claims := current_setting('request.jwt.claims', true)::jsonb;
+  if claims is not null then
+    begin
+      caretaker := (claims ->> 'caretaker_id')::uuid;
+      return caretaker;
+    exception when others then
+      return null;
+    end;
+  end if;
+
+  return null;
+end;
+$$;
+
+grant execute on function public.current_caretaker_id() to anon, authenticated;
+
+
 -- Tabela obiektów (świetlic).
 create table if not exists public.facilities (
   id uuid primary key default gen_random_uuid(),
@@ -76,6 +115,202 @@ create table if not exists public.facility_amenities (
 
 create index if not exists facility_amenities_amenity_idx
   on public.facility_amenities (amenity_id);
+
+
+-- Dane opiekunów świetlic.
+create table if not exists public.caretakers (
+  id uuid primary key default gen_random_uuid(),
+  first_name text not null,
+  last_name_or_company text not null,
+  phone text not null,
+  email text not null,
+  login text not null,
+  password_hash text not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create unique index if not exists caretakers_login_unique
+  on public.caretakers (lower(login));
+
+create unique index if not exists caretakers_email_unique
+  on public.caretakers (lower(email));
+
+drop trigger if exists caretakers_set_updated_at on public.caretakers;
+create trigger caretakers_set_updated_at
+before update on public.caretakers
+for each row execute function public.set_updated_at();
+
+-- Powiązania świetlic z opiekunami.
+create table if not exists public.facility_caretakers (
+  caretaker_id uuid not null references public.caretakers(id) on delete cascade,
+  facility_id uuid not null references public.facilities(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (caretaker_id, facility_id)
+);
+
+create index if not exists facility_caretakers_facility_idx
+  on public.facility_caretakers (facility_id);
+
+create index if not exists facility_caretakers_caretaker_idx
+  on public.facility_caretakers (caretaker_id);
+
+-- Funkcja pomocnicza sprawdzająca istnienie opiekuna.
+create or replace function public.caretaker_exists(p_caretaker_id uuid)
+returns boolean
+language sql
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.caretakers c
+    where c.id = p_caretaker_id
+  );
+$$;
+
+grant execute on function public.caretaker_exists(uuid) to anon, authenticated;
+
+-- Konfiguracja polityk RLS dla opiekunów i przypisań.
+alter table public.caretakers enable row level security;
+alter table public.facility_caretakers enable row level security;
+
+drop policy if exists "Allow anonymous caretakers insert" on public.caretakers;
+create policy "Allow anonymous caretakers insert"
+  on public.caretakers
+  for insert
+  to anon
+  with check (true);
+
+drop policy if exists "Caretaker can read self" on public.caretakers;
+create policy "Caretaker can read self"
+  on public.caretakers
+  for select
+  to anon
+  using (
+    public.current_caretaker_id() = id
+  );
+
+drop policy if exists "Caretaker can update self" on public.caretakers;
+create policy "Caretaker can update self"
+  on public.caretakers
+  for update
+  to anon
+  using (
+    public.current_caretaker_id() = id
+  )
+  with check (
+    public.current_caretaker_id() = id
+  );
+
+drop policy if exists "Caretaker can see assigned facilities" on public.facility_caretakers;
+create policy "Caretaker can see assigned facilities"
+  on public.facility_caretakers
+  for select
+  to anon
+  using (
+    public.current_caretaker_id() = caretaker_id
+  );
+
+drop policy if exists "Caretaker can assign self" on public.facility_caretakers;
+create policy "Caretaker can assign self"
+  on public.facility_caretakers
+  for insert
+  to anon
+  with check (
+    public.current_caretaker_id() = caretaker_id
+  );
+
+drop policy if exists "Caretaker can unassign self" on public.facility_caretakers;
+create policy "Caretaker can unassign self"
+  on public.facility_caretakers
+  for delete
+  to anon
+  using (
+    public.current_caretaker_id() = caretaker_id
+  );
+
+-- Polityki RLS dla tabeli świetlic.
+alter table public.facilities enable row level security;
+
+drop policy if exists "Public read facilities" on public.facilities;
+create policy "Public read facilities"
+  on public.facilities
+  for select
+  to anon, authenticated
+  using (true);
+
+drop policy if exists "Caretaker insert facilities" on public.facilities;
+create policy "Caretaker insert facilities"
+  on public.facilities
+  for insert
+  to anon, authenticated
+  with check (
+    exists (
+      select 1
+      from public.caretakers c
+      where c.id = public.current_caretaker_id()
+    )
+  );
+
+drop policy if exists "Caretaker update facilities" on public.facilities;
+create policy "Caretaker update facilities"
+  on public.facilities
+  for update
+  to anon, authenticated
+  using (
+    exists (
+      select 1
+      from public.facility_caretakers fc
+      where fc.facility_id = id
+        and fc.caretaker_id = public.current_caretaker_id()
+    )
+  )
+  with check (
+    exists (
+      select 1
+      from public.facility_caretakers fc
+      where fc.facility_id = id
+        and fc.caretaker_id = public.current_caretaker_id()
+    )
+  );
+
+-- Automatyczne przypisanie nowej świetlicy do bieżącego opiekuna.
+drop trigger if exists facilities_assign_caretaker on public.facilities;
+
+create or replace function public.assign_caretaker_to_new_facility()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  caretaker uuid;
+begin
+  caretaker := public.current_caretaker_id();
+  if caretaker is null then
+    return new;
+  end if;
+
+  begin
+    insert into public.facility_caretakers (caretaker_id, facility_id)
+    values (caretaker, new.id)
+    on conflict do nothing;
+  exception when others then
+    null;
+  end;
+
+  return new;
+end;
+$$;
+
+grant execute on function public.assign_caretaker_to_new_facility() to anon, authenticated;
+
+create trigger facilities_assign_caretaker
+  after insert on public.facilities
+  for each row
+  execute function public.assign_caretaker_to_new_facility();
+
 
 -- Słownik typów wydarzeń wykorzystywany przy rezerwacjach.
 create table if not exists public.event_types (
