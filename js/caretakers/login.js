@@ -5,6 +5,7 @@ import {
   getCaretakerSession,
   saveCaretakerSession,
 } from './session.js';
+import { syncCaretakerBackendSession } from './backendSession.js';
 import { $ } from '../utils/dom.js';
 
 const supabase = createSupabaseClient();
@@ -165,8 +166,15 @@ async function handleSubmit(event) {
       setMessage('Nieprawidłowy login lub hasło.', 'error');
       return;
     }
-    const session = await saveCaretakerSession(caretaker);
+    const { session, token } = await saveCaretakerSession(caretaker);
     updateUiForSession(session);
+    if (token) {
+      try {
+        await syncCaretakerBackendSession(token);
+      } catch (syncError) {
+        console.warn('Nie udało się przekazać sesji do backendu:', syncError);
+      }
+    }
     const displayName = getCaretakerDisplayName(session) || session.login;
     setMessage(`Zalogowano jako ${displayName}. Przekierowanie...`, 'success');
     const redirectTarget = resolveRedirectTarget();
