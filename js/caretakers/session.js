@@ -148,16 +148,27 @@ async function verifySignature(payload, signature, secretOverride) {
   return safeStringEquals(expected, signature);
 }
 
+function buildTokenObject(payload, signature) {
+  return { payload, signature };
+}
+
+function extractSessionFromTokenObject(tokenObject) {
+  if (!tokenObject || typeof tokenObject !== 'object') {
+    return null;
+  }
+  return normalizePayload(tokenObject.payload);
+}
+
 export async function saveCaretakerSession(caretaker, { storage = getBrowserStorage(), secret } = {}) {
   if (!storage) {
     throw new Error('Brak dostępu do przeglądarkowego storage.');
   }
   const payload = buildPayload(caretaker);
   const signature = await signPayload(payload, secret);
-  const tokenObject = { payload, signature };
+  const tokenObject = buildTokenObject(payload, signature);
   const token = encodeToken(tokenObject);
   storage.setItem(CARETAKER_SESSION_STORAGE_KEY, token);
-  return payload;
+  return { session: payload, token };
 }
 
 export function clearCaretakerSession({ storage = getBrowserStorage() } = {}) {
@@ -192,6 +203,31 @@ export async function getCaretakerSession({ storage = getBrowserStorage(), secre
   } catch (error) {
     console.warn('Nie udało się odczytać sesji opiekuna:', error);
     storage.removeItem(CARETAKER_SESSION_STORAGE_KEY);
+    return null;
+  }
+}
+
+export function getCaretakerSessionToken({ storage = getBrowserStorage() } = {}) {
+  if (!storage) {
+    return null;
+  }
+  try {
+    return storage.getItem(CARETAKER_SESSION_STORAGE_KEY);
+  } catch (error) {
+    console.warn('Nie udało się pobrać tokenu sesji opiekuna:', error);
+    return null;
+  }
+}
+
+export function decodeCaretakerSessionToken(token) {
+  if (!token) {
+    return null;
+  }
+  try {
+    const decoded = decodeToken(token);
+    return extractSessionFromTokenObject(decoded);
+  } catch (error) {
+    console.warn('Nie udało się zdekodować tokenu sesji opiekuna:', error);
     return null;
   }
 }
