@@ -5,8 +5,48 @@ function isJsonResponse(response) {
   return typeof contentType === 'string' && contentType.toLowerCase().includes('application/json');
 }
 
-export async function syncCaretakerBackendSession(token, { signal } = {}) {
-  if (!token) {
+function normalizeSessionPayload(sessionLike) {
+  if (!sessionLike) {
+    return null;
+  }
+
+  if (typeof sessionLike === 'string') {
+    console.warn(
+      'syncCaretakerBackendSession oczekuje obiektu z polami accessToken/refreshToken. Otrzymano string – traktuję jako access token.'
+    );
+    return { accessToken: sessionLike };
+  }
+
+  if (typeof sessionLike !== 'object') {
+    return null;
+  }
+
+  const accessToken = sessionLike.accessToken || sessionLike.access_token || null;
+  const refreshToken = sessionLike.refreshToken || sessionLike.refresh_token || null;
+  const userId = sessionLike.userId || sessionLike.user_id || null;
+
+  if (!accessToken) {
+    return null;
+  }
+
+  const payload = {
+    access_token: accessToken,
+  };
+
+  if (refreshToken) {
+    payload.refresh_token = refreshToken;
+  }
+
+  if (userId) {
+    payload.user_id = userId;
+  }
+
+  return payload;
+}
+
+export async function syncCaretakerBackendSession(sessionTokens, { signal } = {}) {
+  const payload = normalizeSessionPayload(sessionTokens);
+  if (!payload) {
     return null;
   }
 
@@ -23,7 +63,7 @@ export async function syncCaretakerBackendSession(token, { signal } = {}) {
       headers: {
         'content-type': 'application/json',
       },
-      body: JSON.stringify({ token }),
+      body: JSON.stringify(payload),
       signal,
     });
 
