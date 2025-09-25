@@ -7,6 +7,37 @@ let baseSupabase = null;
 let cachedSession = undefined;
 let loadingPromise = null;
 let authSubscription = null;
+const profileCache = new Map();
+const profilePromiseCache = new Map();
+
+function getProfileCacheKey(caretakerId) {
+  if (!caretakerId) {
+    return null;
+  }
+  try {
+    return String(caretakerId);
+  } catch (error) {
+    console.warn('Nie udało się znormalizować klucza pamięci podręcznej profilu opiekuna:', error);
+    return null;
+  }
+}
+
+function setProfileCacheEntry(caretakerId, profile) {
+  const cacheKey = getProfileCacheKey(caretakerId);
+  if (!cacheKey) {
+    return;
+  }
+  if (profile) {
+    profileCache.set(cacheKey, profile);
+  } else {
+    profileCache.delete(cacheKey);
+  }
+}
+
+function clearProfileCache() {
+  profileCache.clear();
+  profilePromiseCache.clear();
+}
 
 function computeDisplayName(firstName, lastNameOrCompany, fallback = '') {
   const parts = [];
@@ -37,6 +68,7 @@ function ensureSupabaseClient() {
         cachedSession = null;
         return null;
       });
+      clearProfileCache();
       loadingPromise.then((value) => {
         cachedSession = value ?? null;
       });
@@ -73,29 +105,52 @@ function buildClientPriorityList({ caretakerClient, baseClient }) {
 }
 
 async function fetchCaretakerProfile({ caretakerClient, baseClient }, caretakerId) {
-  if (!caretakerId) {
+  const cacheKey = getProfileCacheKey(caretakerId);
+  if (!cacheKey) {
     return null;
   }
-  const clients = buildClientPriorityList({ caretakerClient, baseClient });
-  for (const client of clients) {
-    try {
-      const { data, error } = await client
-        .from('caretakers')
-        .select(PROFILE_COLUMNS)
-        .eq('id', caretakerId)
-        .maybeSingle();
-      if (error) {
-        console.warn('Nie udało się pobrać profilu opiekuna:', error);
-        continue;
-      }
-      if (data) {
-        return data;
-      }
-    } catch (error) {
-      console.warn('Nie udało się pobrać profilu opiekuna:', error);
-    }
+
+  if (profileCache.has(cacheKey)) {
+    return profileCache.get(cacheKey);
   }
-  return null;
+
+  if (profilePromiseCache.has(cacheKey)) {
+    return profilePromiseCache.get(cacheKey);
+  }
+
+  const clients = buildClientPriorityList({ caretakerClient, baseClient });
+
+  const loadingPromise = (async () => {
+    for (const client of clients) {
+      try {
+        const { data, error } = await client
+          .from('caretakers')
+          .select(PROFILE_COLUMNS)
+          .eq('id', caretakerId)
+          .maybeSingle();
+        if (error) {
+          console.warn('Nie udało się pobrać profilu opiekuna:', error);
+          continue;
+        }
+        if (data) {
+          return data;
+        }
+      } catch (error) {
+        console.warn('Nie udało się pobrać profilu opiekuna:', error);
+      }
+    }
+    return null;
+  })()
+    .then((profile) => {
+      setProfileCacheEntry(caretakerId, profile);
+      return profile;
+    })
+    .finally(() => {
+      profilePromiseCache.delete(cacheKey);
+    });
+
+  profilePromiseCache.set(cacheKey, loadingPromise);
+  return loadingPromise;
 }
 
 async function ensureCaretakerProfile({ baseClient, caretakerClient, user }) {
@@ -106,6 +161,7 @@ async function ensureCaretakerProfile({ baseClient, caretakerClient, user }) {
 
   const existingProfile = await fetchCaretakerProfile({ caretakerClient, baseClient }, caretakerId);
   if (existingProfile) {
+    setProfileCacheEntry(caretakerId, existingProfile);
     return existingProfile;
   }
 
@@ -143,11 +199,14 @@ async function ensureCaretakerProfile({ baseClient, caretakerClient, user }) {
         console.warn('Nie udało się zapisać profilu opiekuna:', error);
         continue;
       }
-      return data || payload;
+      const storedProfile = data || payload;
+      setProfileCacheEntry(caretakerId, storedProfile);
+      return storedProfile;
     } catch (error) {
       console.warn('Nie udało się zapisać profilu opiekuna:', error);
     }
   }
+  setProfileCacheEntry(caretakerId, payload);
   return payload;
 }
 
@@ -246,6 +305,7 @@ export async function getCaretakerSession({ forceRefresh = false } = {}) {
   if (forceRefresh) {
     cachedSession = undefined;
     loadingPromise = null;
+    clearProfileCache();
   }
 
   if (cachedSession !== undefined && !forceRefresh) {
@@ -278,6 +338,7 @@ export async function clearCaretakerSession() {
   if (!client) {
     cachedSession = undefined;
     loadingPromise = null;
+    clearProfileCache();
     return;
   }
   try {
@@ -290,6 +351,7 @@ export async function clearCaretakerSession() {
   } finally {
     cachedSession = null;
     loadingPromise = null;
+    clearProfileCache();
   }
 }
 
