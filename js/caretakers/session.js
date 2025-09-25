@@ -7,27 +7,33 @@ let baseSupabase = null;
 let cachedSession = undefined;
 let loadingPromise = null;
 let authSubscription = null;
+
 let lastCachedCaretakerId = null;
 const profileCache = new Map();
 const profilePromiseCache = new Map();
 
 function normalizeCaretakerIdValue(caretakerId, { warn = false } = {}) {
+
   if (!caretakerId) {
     return null;
   }
   try {
     return String(caretakerId);
   } catch (error) {
+
     if (warn) {
       console.warn('Nie udało się znormalizować identyfikatora opiekuna:', error);
     }
+
     return null;
   }
 }
 
+
 function getProfileCacheKey(caretakerId) {
   return normalizeCaretakerIdValue(caretakerId, { warn: true });
 }
+
 
 function setProfileCacheEntry(caretakerId, profile) {
   const cacheKey = getProfileCacheKey(caretakerId);
@@ -98,6 +104,7 @@ function ensureSupabaseClient() {
         cachedSession = null;
         return null;
       });
+      clearProfileCache();
       loadingPromise.then((value) => {
         cachedSession = value ?? null;
         updateLastCachedCaretakerId(
@@ -348,6 +355,7 @@ export async function getCaretakerSession({ forceRefresh = false } = {}) {
     cachedSession = undefined;
     loadingPromise = null;
     clearProfileCache({ keepPendingCaretakerId: expectedCaretakerId });
+
   }
 
   if (cachedSession !== undefined && !forceRefresh) {
