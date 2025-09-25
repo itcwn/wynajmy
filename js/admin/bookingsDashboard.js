@@ -1,4 +1,5 @@
 import { requireCaretakerSession } from '../caretakers/session.js';
+import { getMyFacilitiesClient, loadMyFacilityIds } from '../caretakers/myFacilities.js';
 import { escapeHtml, formatDate, formatTime } from '../utils/format.js';
 
 const sectionEl = document.getElementById('caretakerBookingsSection');
@@ -265,48 +266,6 @@ function disableForm(form, disabled) {
   });
 }
 
-async function fetchAssignedFacilityIds() {
-  if (!state.session?.caretakerId) {
-    throw new Error('Brak identyfikatora opiekuna w sesji.');
-  }
-  const clients = getSupabaseClients();
-  if (!clients.length) {
-    throw new Error('Brak połączenia z bazą danych.');
-  }
-  let lastPermissionError = null;
-  for (const client of clients) {
-    try {
-      const { data, error } = await client
-        .from('facility_caretakers')
-        .select('facility_id')
-        .eq('caretaker_id', state.session.caretakerId);
-      if (error) {
-        throw error;
-      }
-      const ids = new Set();
-      (data || []).forEach((row) => {
-        if (row.facility_id) {
-          ids.add(String(row.facility_id));
-        }
-      });
-      if (client !== state.supabase) {
-        state.supabase = client;
-      }
-      return Array.from(ids);
-    } catch (error) {
-      if (isPermissionError(error)) {
-        lastPermissionError = error;
-        continue;
-      }
-      throw error;
-    }
-  }
-  if (lastPermissionError) {
-    throw lastPermissionError;
-  }
-  return [];
-}
-
 async function loadFacilitiesDetails(facilityIds) {
   const unique = Array.from(new Set(facilityIds)).filter(Boolean);
   if (!unique.length) {
@@ -399,17 +358,6 @@ function isPermissionError(error) {
   return false;
 }
 
-function getSupabaseClients() {
-  const clients = [];
-  if (state.supabase) {
-    clients.push(state.supabase);
-  }
-  if (state.baseSupabase && state.baseSupabase !== state.supabase) {
-    clients.push(state.baseSupabase);
-  }
-  return clients;
-}
-
 async function attemptDecisionUpdate(bookingId, status, column, commentValue) {
   const payload = { status };
   if (column) {
@@ -484,7 +432,7 @@ async function persistDecision({ bookingId, statuses, comment }) {
   throw new Error('Nie udało się zapisać decyzji dla wskazanej rezerwacji.');
 }
 
-async function refreshBookings({ showLoading = false } = {}) {
+async function refreshBookings({ showLoading = false, forceFacilitiesRefresh = false } = {}) {
   if (!state.supabase || !state.session) {
     return;
   }
@@ -499,7 +447,11 @@ async function refreshBookings({ showLoading = false } = {}) {
     setMessage('Ładowanie listy rezerwacji...', 'info');
   }
   try {
-    const facilityIds = await fetchAssignedFacilityIds();
+    const facilityIds = await loadMyFacilityIds({ forceRefresh: forceFacilitiesRefresh });
+    const facilitiesClient = getMyFacilitiesClient();
+    if (facilitiesClient && facilitiesClient !== state.supabase) {
+      state.supabase = facilitiesClient;
+    }
     if (seq !== state.loadSeq) {
       return;
     }
@@ -620,10 +572,10 @@ async function bootstrap() {
         setMessage('Trwa odświeżanie listy rezerwacji...', 'info');
         return;
       }
-      void refreshBookings({ showLoading: true });
+      void refreshBookings({ showLoading: true, forceFacilitiesRefresh: true });
     });
   }
-  await refreshBookings({ showLoading: true });
+  await refreshBookings({ showLoading: true, forceFacilitiesRefresh: true });
 }
 
 void bootstrap();
