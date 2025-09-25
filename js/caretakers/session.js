@@ -1,7 +1,7 @@
 import { createSupabaseClient } from '../config/supabaseClient.js';
 import { createCaretakerSupabaseClient } from './supabaseClient.js';
 
-const PROFILE_COLUMNS = 'id, first_name, last_name_or_company, phone, email';
+const PROFILE_COLUMNS = 'id, first_name, last_name_or_company, phone, email, login';
 
 let baseSupabase = null;
 let cachedSession = undefined;
@@ -53,6 +53,7 @@ function extractMetadata(user) {
     lastNameOrCompany: metadata.last_name_or_company || metadata.lastNameOrCompany || null,
     phone: metadata.phone || metadata.telephone || null,
     email: metadata.email || null,
+    login: metadata.login || metadata.email || null,
   };
 }
 
@@ -95,6 +96,7 @@ async function ensureCaretakerProfile(client, user) {
     last_name_or_company: metadata.lastNameOrCompany || '',
     phone: metadata.phone || '',
     email: user.email || metadata.email || '',
+    login: (metadata.login || user.email || metadata.email || '').toLowerCase(),
   };
 
   if (!payload.first_name || !payload.last_name_or_company || !payload.phone || !payload.email) {
@@ -105,6 +107,7 @@ async function ensureCaretakerProfile(client, user) {
       last_name_or_company: payload.last_name_or_company || null,
       phone: payload.phone || null,
       email: payload.email || null,
+      login: payload.login || null,
     };
   }
 
@@ -135,6 +138,7 @@ function normalizeProfile(profile, fallbackMetadata, userEmail, caretakerId) {
     last_name_or_company: profile?.last_name_or_company ?? fallbackMetadata?.lastNameOrCompany ?? null,
     phone: profile?.phone ?? fallbackMetadata?.phone ?? null,
     email: profile?.email ?? fallbackMetadata?.email ?? userEmail ?? null,
+    login: profile?.login ?? fallbackMetadata?.login ?? fallbackMetadata?.email ?? userEmail ?? null,
   };
   if (!normalized.id) {
     normalized.id = null;
@@ -153,7 +157,8 @@ function buildSessionPayload({
   const firstName = normalizedProfile?.first_name || null;
   const lastNameOrCompany = normalizedProfile?.last_name_or_company || null;
   const email = normalizedProfile?.email || user?.email || '';
-  const login = email ? String(email).trim().toLowerCase() : '';
+  const loginSource = normalizedProfile?.login || email;
+  const login = loginSource ? String(loginSource).trim().toLowerCase() : '';
   const displayName = computeDisplayName(firstName, lastNameOrCompany, login);
   const caretakerSupabase = caretakerId ? createCaretakerSupabaseClient({ caretakerId }) : null;
 

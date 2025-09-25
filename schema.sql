@@ -147,12 +147,16 @@ create table if not exists public.caretakers (
   last_name_or_company text not null,
   phone text not null,
   email text not null,
+  login text not null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
 
 create unique index if not exists caretakers_email_unique
   on public.caretakers (lower(email));
+
+create unique index if not exists caretakers_login_unique
+  on public.caretakers (lower(login));
 
 drop trigger if exists caretakers_set_updated_at on public.caretakers;
 create trigger caretakers_set_updated_at
