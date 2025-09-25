@@ -1,4 +1,5 @@
 import { clearCaretakerSession, requireCaretakerSession } from '../caretakers/session.js';
+import { loadMyFacilities } from '../caretakers/myFacilities.js';
 import { INSTRUCTION_FIELDS, findInstructionInfo } from '../utils/instructions.js';
 import { initFacilityForm } from './facilityForm.js';
 
@@ -181,18 +182,6 @@ async function bootstrap() {
       lastFocusedBeforeModal.focus();
     }
     lastFocusedBeforeModal = null;
-  }
-
-  function buildSupabaseClientList() {
-    const clients = [];
-    if (supa) {
-      clients.push(supa);
-    }
-    const baseClient = session?.baseSupabase || null;
-    if (baseClient && baseClient !== supa) {
-      clients.push(baseClient);
-    }
-    return clients;
   }
 
   function isPermissionError(error) {
@@ -836,49 +825,15 @@ async function bootstrap() {
     return false;
   }
 
-  async function fetchAssignedFacilityIds() {
-    if (!caretakerId) {
-      return null;
-    }
-    const clients = buildSupabaseClientList();
-    let lastPermissionError = null;
-    for (const client of clients) {
-      try {
-        const { data, error } = await client
-          .from('facility_caretakers')
-          .select('facility_id')
-          .eq('caretaker_id', caretakerId);
-        if (error) {
-          throw error;
-        }
-        const ids = (data || [])
-          .map((row) => row?.facility_id)
-          .filter((value) => value !== null && value !== undefined)
-          .map((value) => String(value));
-        return Array.from(new Set(ids));
-      } catch (error) {
-        if (isPermissionError(error)) {
-          lastPermissionError = error;
-          continue;
-        }
-        throw error;
-      }
-    }
-    if (lastPermissionError) {
-      throw lastPermissionError;
-    }
-    return [];
-  }
-
-  async function loadFacilities({ selectId = null, silent = false } = {}) {
+  async function loadFacilities({ selectId = null, silent = false, forceRefresh = false } = {}) {
     if (!silent) {
       showMessage('Ładowanie listy świetlic...', 'info');
     }
     try {
-      let assignedFacilityIds = null;
+      let fetchedFacilities = [];
       if (caretakerId) {
-        assignedFacilityIds = await fetchAssignedFacilityIds();
-        if (Array.isArray(assignedFacilityIds) && assignedFacilityIds.length === 0) {
+        fetchedFacilities = await loadMyFacilities({ forceRefresh });
+        if (!fetchedFacilities.length) {
           facilities = [];
           selectedFacility = null;
           renderFacilities();
@@ -891,17 +846,17 @@ async function bootstrap() {
           }
           return;
         }
+      } else {
+        const { data, error } = await supa.from('facilities').select('*').order('name');
+        if (error) {
+          throw error;
+        }
+        fetchedFacilities = data || [];
       }
 
-      let query = supa.from('facilities').select('*').order('name');
-      if (caretakerId && Array.isArray(assignedFacilityIds) && assignedFacilityIds.length) {
-        query = query.in('id', assignedFacilityIds);
-      }
-      const { data, error } = await query;
-      if (error) {
-        throw error;
-      }
-      facilities = data || [];
+      facilities = Array.isArray(fetchedFacilities)
+        ? fetchedFacilities.map((facility) => ({ ...(facility || {}) }))
+        : [];
       const previousSelectionId = selectedFacility ? String(selectedFacility.id) : null;
       if (previousSelectionId) {
         const refreshed = facilities.find((item) => String(item.id) === previousSelectionId);
@@ -949,7 +904,7 @@ async function bootstrap() {
     session,
     onFacilityCreated: async (createdFacility) => {
       const facilityId = createdFacility?.id ? String(createdFacility.id) : null;
-      await loadFacilities({ selectId: facilityId, silent: true });
+      await loadFacilities({ selectId: facilityId, silent: true, forceRefresh: true });
       if (facilityId && selectEl) {
         selectEl.focus();
       }
