@@ -22,6 +22,7 @@ const DECISION_STATUS_MAP = {
 
 const state = {
   supabase: null,
+  baseSupabase: null,
   session: null,
   bookings: [],
   facilitiesById: new Map(),
@@ -265,26 +266,45 @@ function disableForm(form, disabled) {
 }
 
 async function fetchAssignedFacilityIds() {
-  if (!state.supabase) {
-    throw new Error('Brak połączenia z bazą danych.');
-  }
   if (!state.session?.caretakerId) {
     throw new Error('Brak identyfikatora opiekuna w sesji.');
   }
-  const { data, error } = await state.supabase
-    .from('facility_caretakers')
-    .select('facility_id')
-    .eq('caretaker_id', state.session.caretakerId);
-  if (error) {
-    throw error;
+  const clients = getSupabaseClients();
+  if (!clients.length) {
+    throw new Error('Brak połączenia z bazą danych.');
   }
-  const ids = new Set();
-  (data || []).forEach((row) => {
-    if (row.facility_id) {
-      ids.add(String(row.facility_id));
+  let lastPermissionError = null;
+  for (const client of clients) {
+    try {
+      const { data, error } = await client
+        .from('facility_caretakers')
+        .select('facility_id')
+        .eq('caretaker_id', state.session.caretakerId);
+      if (error) {
+        throw error;
+      }
+      const ids = new Set();
+      (data || []).forEach((row) => {
+        if (row.facility_id) {
+          ids.add(String(row.facility_id));
+        }
+      });
+      if (client !== state.supabase) {
+        state.supabase = client;
+      }
+      return Array.from(ids);
+    } catch (error) {
+      if (isPermissionError(error)) {
+        lastPermissionError = error;
+        continue;
+      }
+      throw error;
     }
-  });
-  return Array.from(ids);
+  }
+  if (lastPermissionError) {
+    throw lastPermissionError;
+  }
+  return [];
 }
 
 async function loadFacilitiesDetails(facilityIds) {
@@ -363,6 +383,31 @@ function isStatusConstraintError(error) {
     return true;
   }
   return false;
+}
+
+function isPermissionError(error) {
+  if (!error) {
+    return false;
+  }
+  const code = String(error.code || '').toUpperCase();
+  if (code === '42501' || code === 'PGRST301') {
+    return true;
+  }
+  if (typeof error.message === 'string' && /permission denied/i.test(error.message)) {
+    return true;
+  }
+  return false;
+}
+
+function getSupabaseClients() {
+  const clients = [];
+  if (state.supabase) {
+    clients.push(state.supabase);
+  }
+  if (state.baseSupabase && state.baseSupabase !== state.supabase) {
+    clients.push(state.baseSupabase);
+  }
+  return clients;
 }
 
 async function attemptDecisionUpdate(bookingId, status, column, commentValue) {
@@ -483,8 +528,19 @@ async function refreshBookings({ showLoading = false } = {}) {
   } catch (error) {
     console.error('Błąd ładowania rezerwacji:', error);
     state.bookings = [];
-    renderBookings({ emptyMessage: 'Wystąpił błąd podczas pobierania rezerwacji.' });
-    setMessage(error?.message || 'Nie udało się pobrać rezerwacji.', 'error');
+    const permissionIssue = isPermissionError(error);
+    const emptyMessage = permissionIssue
+      ? 'Brak uprawnień do pobrania rezerwacji przypisanych do Twoich świetlic.'
+      : 'Wystąpił błąd podczas pobierania rezerwacji.';
+    renderBookings({ emptyMessage });
+    if (permissionIssue) {
+      setMessage(
+        'Nie masz uprawnień do odczytu przypisań świetlic. Skontaktuj się z administratorem systemu, aby potwierdzić dostęp.',
+        'error',
+      );
+    } else {
+      setMessage(error?.message || 'Nie udało się pobrać rezerwacji.', 'error');
+    }
   } finally {
     if (seq === state.loadSeq) {
       if (refreshBtn) {
@@ -549,12 +605,13 @@ async function bootstrap() {
   if (!session) {
     return;
   }
-  const supabase = session?.supabase || null;
+  const supabase = session?.supabase || session?.baseSupabase || null;
   if (!supabase) {
     setMessage('Brak konfiguracji Supabase lub identyfikatora opiekuna. Uzupełnij dane połączenia.', 'error');
     return;
   }
   state.supabase = supabase;
+  state.baseSupabase = session?.baseSupabase || null;
   state.session = session;
   setMessage('Inicjalizacja modułu rezerwacji...', 'info');
   if (refreshBtn) {

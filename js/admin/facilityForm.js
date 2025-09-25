@@ -178,13 +178,23 @@ export function initFacilityForm({
   const caretakerId =
     suppliedCaretakerId !== undefined ? suppliedCaretakerId : session?.caretakerId ?? null;
   if (!form) {
-    return { destroy() {}, reset() {} };
+    return {
+      destroy() {},
+      reset() {},
+      focusFirstField() {},
+      clearMessage() {},
+    };
   }
 
   if (!supabase) {
     setMessage(messageElement, 'Brak konfiguracji Supabase. Uzupełnij dane połączenia.', 'error');
     toggleFormDisabled(form, true);
-    return { destroy() {}, reset() {} };
+    return {
+      destroy() {},
+      reset() {},
+      focusFirstField() {},
+      clearMessage() {},
+    };
   }
 
   const state = { isSaving: false };
@@ -192,6 +202,18 @@ export function initFacilityForm({
   function focusFirstField() {
     const firstInput = form.querySelector('input[name="name"]');
     firstInput?.focus();
+  }
+
+  function clearStatusMessage() {
+    setMessage(messageElement, '', 'info');
+  }
+
+  function resetForm({ focus = true } = {}) {
+    form.reset();
+    if (focus) {
+      focusFirstField();
+    }
+    clearStatusMessage();
   }
 
   async function handleSubmit(event) {
@@ -217,8 +239,7 @@ export function initFacilityForm({
         throw error;
       }
       const insertedFacility = Array.isArray(data) ? data[0] : data || null;
-      form.reset();
-      focusFirstField();
+      resetForm({ focus: true });
 
       let assignmentMessage = '';
       if (caretakerId && insertedFacility?.id) {
@@ -275,14 +296,14 @@ export function initFacilityForm({
   form.addEventListener('submit', handleSubmit);
 
   return {
-    reset() {
-      form.reset();
-      focusFirstField();
-      setMessage(messageElement, '', 'info');
+    reset(options = {}) {
+      resetForm(options);
     },
     destroy() {
       form.removeEventListener('submit', handleSubmit);
     },
+    focusFirstField,
+    clearMessage: clearStatusMessage,
   };
 }
 

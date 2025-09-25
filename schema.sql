@@ -300,7 +300,7 @@ create policy "Caretaker can see assigned facilities"
   for select
   to authenticated
   using (
-    auth.uid() = caretaker_id
+    public.current_caretaker_id() = caretaker_id
   );
 
 drop policy if exists "Caretaker can assign self" on public.facility_caretakers;
@@ -309,7 +309,7 @@ create policy "Caretaker can assign self"
   for insert
   to authenticated
   with check (
-    auth.uid() = caretaker_id
+    public.current_caretaker_id() = caretaker_id
   );
 
 drop policy if exists "Caretaker can unassign self" on public.facility_caretakers;
@@ -318,7 +318,7 @@ create policy "Caretaker can unassign self"
   for delete
   to authenticated
   using (
-    auth.uid() = caretaker_id
+    public.current_caretaker_id() = caretaker_id
   );
 
 -- Polityki RLS dla tabeli świetlic.
@@ -337,7 +337,7 @@ create policy "Caretaker insert facilities"
   for insert
   to authenticated
   with check (
-    public.caretaker_exists(auth.uid())
+    public.caretaker_exists(public.current_caretaker_id())
   );
 
 drop policy if exists "Caretaker update facilities" on public.facilities;
@@ -350,7 +350,7 @@ create policy "Caretaker update facilities"
       select 1
       from public.facility_caretakers fc
       where fc.facility_id = id
-        and fc.caretaker_id = auth.uid()
+        and fc.caretaker_id = public.current_caretaker_id()
     )
   )
   with check (
@@ -358,7 +358,7 @@ create policy "Caretaker update facilities"
       select 1
       from public.facility_caretakers fc
       where fc.facility_id = id
-        and fc.caretaker_id = auth.uid()
+        and fc.caretaker_id = public.current_caretaker_id()
     )
   );
 
