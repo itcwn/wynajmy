@@ -1,5 +1,4 @@
 import { clearCaretakerSession, requireCaretakerSession } from '../caretakers/session.js';
-import { createCaretakerSupabaseClient } from '../caretakers/supabaseClient.js';
 import { INSTRUCTION_FIELDS, findInstructionInfo } from '../utils/instructions.js';
 import { initFacilityForm } from './facilityForm.js';
 
@@ -75,13 +74,15 @@ async function bootstrap() {
 
   if (logoutBtn) {
     logoutBtn.addEventListener('click', () => {
-      clearCaretakerSession();
-      window.location.replace('./caretakerLogin.html');
+      void (async () => {
+        await clearCaretakerSession();
+        window.location.replace('./caretakerLogin.html');
+      })();
     });
   }
 
-  const caretakerId = session?.caretakerId || session?.id || null;
-  const supa = createCaretakerSupabaseClient({ caretakerId });
+  const caretakerId = session?.caretakerId || null;
+  const supa = session?.supabase || null;
   if (!supa) {
     setStatus(messageEl, 'Brak konfiguracji Supabase lub identyfikatora opiekuna.', 'error');
     return;
@@ -812,8 +813,7 @@ async function bootstrap() {
   }
 
   initFacilityForm({
-    supabase: supa,
-    caretakerId,
+    session,
     onFacilityCreated: async (createdFacility) => {
       const facilityId = createdFacility?.id ? String(createdFacility.id) : null;
       await loadFacilities({ selectId: facilityId, silent: true });

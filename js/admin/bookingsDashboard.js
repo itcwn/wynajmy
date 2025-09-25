@@ -1,4 +1,3 @@
-import { createCaretakerSupabaseClient } from '../caretakers/supabaseClient.js';
 import { requireCaretakerSession } from '../caretakers/session.js';
 import { escapeHtml, formatDate, formatTime } from '../utils/format.js';
 
@@ -550,8 +549,7 @@ async function bootstrap() {
   if (!session) {
     return;
   }
-  const caretakerId = session?.caretakerId || session?.id || null;
-  const supabase = createCaretakerSupabaseClient({ caretakerId });
+  const supabase = session?.supabase || null;
   if (!supabase) {
     setMessage('Brak konfiguracji Supabase lub identyfikatora opiekuna. Uzupełnij dane połączenia.', 'error');
     return;

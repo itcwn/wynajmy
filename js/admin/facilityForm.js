@@ -166,13 +166,17 @@ function collectPayload(form) {
 }
 
 export function initFacilityForm({
-  supabase,
+  session = null,
+  supabase: suppliedSupabase,
   form = document.getElementById('addFacilityForm'),
   submitButton = document.getElementById('addFacilitySubmit'),
   messageElement = document.getElementById('addFacilityMessage'),
   onFacilityCreated,
-  caretakerId = null,
+  caretakerId: suppliedCaretakerId,
 } = {}) {
+  const supabase = suppliedSupabase || session?.supabase || null;
+  const caretakerId =
+    suppliedCaretakerId !== undefined ? suppliedCaretakerId : session?.caretakerId ?? null;
   if (!form) {
     return { destroy() {}, reset() {} };
   }
@@ -282,4 +286,3 @@ export function initFacilityForm({
   };
 }
 
-export default initFacilityForm;

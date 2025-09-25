@@ -1,70 +1,14 @@
-import { SUPABASE_ANON_KEY } from '../config/supabaseClient.js';
+import { createSupabaseClient } from '../config/supabaseClient.js';
+import { createCaretakerSupabaseClient } from './supabaseClient.js';
 
-const CARETAKER_SESSION_STORAGE_KEY = 'caretaker.session.v1';
+const PROFILE_COLUMNS = 'id, first_name, last_name_or_company, phone, email';
 
-function getBrowserStorage() {
-  if (typeof window === 'undefined') {
-    return null;
-  }
-  try {
-    if (window.localStorage) {
-      return window.localStorage;
-    }
-  } catch (error) {
-    console.warn('Nie można uzyskać dostępu do localStorage:', error);
-  }
-  try {
-    if (window.sessionStorage) {
-      return window.sessionStorage;
-    }
-  } catch (error) {
-    console.warn('Nie można uzyskać dostępu do sessionStorage:', error);
-  }
-  return null;
-}
+let baseSupabase = null;
+let cachedSession = undefined;
+let loadingPromise = null;
+let authSubscription = null;
 
-function encodeBase64(text) {
-  const encoder = new TextEncoder();
-  const bytes = encoder.encode(text);
-  let binary = '';
-  bytes.forEach((byte) => {
-    binary += String.fromCharCode(byte);
-  });
-  return window.btoa(binary);
-}
-
-function decodeBase64(base64) {
-  const binary = window.atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i += 1) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-  const decoder = new TextDecoder();
-  return decoder.decode(bytes);
-}
-
-function bufferToBase64(buffer) {
-  const bytes = new Uint8Array(buffer);
-  let binary = '';
-  bytes.forEach((byte) => {
-    binary += String.fromCharCode(byte);
-  });
-  return window.btoa(binary);
-}
-
-function safeStringEquals(a, b) {
-  if (typeof a !== 'string' || typeof b !== 'string') {
-    return false;
-  }
-  let mismatch = a.length === b.length ? 0 : 1;
-  const length = Math.min(a.length, b.length);
-  for (let i = 0; i < length; i += 1) {
-    mismatch |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  }
-  return mismatch === 0 && a.length === b.length;
-}
-
-function computeDisplayName(firstName, lastNameOrCompany, login) {
+function computeDisplayName(firstName, lastNameOrCompany, fallback = '') {
   const parts = [];
   if (firstName) {
     parts.push(firstName);
@@ -75,169 +19,242 @@ function computeDisplayName(firstName, lastNameOrCompany, login) {
   if (parts.length) {
     return parts.join(' ');
   }
-  return login || '';
+  return fallback || '';
 }
 
-function buildPayload(caretaker, issuedAt = Date.now()) {
-  const caretakerId = caretaker?.caretakerId || caretaker?.id || null;
-  const login = caretaker?.login || '';
-  const firstName = caretaker?.first_name ?? caretaker?.firstName ?? null;
-  const lastNameOrCompany = caretaker?.last_name_or_company ?? caretaker?.lastNameOrCompany ?? null;
-  const displayName = caretaker?.displayName || computeDisplayName(firstName, lastNameOrCompany, login);
+function ensureSupabaseClient() {
+  if (!baseSupabase) {
+    baseSupabase = createSupabaseClient();
+    if (!baseSupabase) {
+      return null;
+    }
+  }
+  if (!authSubscription && baseSupabase?.auth?.onAuthStateChange) {
+    const { data } = baseSupabase.auth.onAuthStateChange((_event, session) => {
+      cachedSession = undefined;
+      loadingPromise = buildCaretakerSession({ existingSession: session }).catch((error) => {
+        console.warn('Nie udało się odświeżyć sesji opiekuna po zmianie stanu uwierzytelnienia.', error);
+        cachedSession = null;
+        return null;
+      });
+      loadingPromise.then((value) => {
+        cachedSession = value ?? null;
+      });
+    });
+    authSubscription = data?.subscription || null;
+  }
+  return baseSupabase;
+}
+
+function extractMetadata(user) {
+  const metadata = user?.user_metadata || {};
   return {
-    version: 1,
-    caretakerId,
-    login,
-    firstName,
-    lastNameOrCompany,
-    displayName,
-    issuedAt,
+    firstName: metadata.first_name || metadata.firstName || null,
+    lastNameOrCompany: metadata.last_name_or_company || metadata.lastNameOrCompany || null,
+    phone: metadata.phone || metadata.telephone || null,
+    email: metadata.email || null,
   };
 }
 
-function normalizePayload(payload) {
-  if (!payload) {
+async function fetchCaretakerProfile(client, caretakerId) {
+  if (!client || !caretakerId) {
     return null;
   }
-  const caretakerId = payload.caretakerId ?? payload.id ?? null;
-  const login = payload.login || '';
-  const firstName = payload.firstName ?? payload.first_name ?? null;
-  const lastNameOrCompany = payload.lastNameOrCompany ?? payload.last_name_or_company ?? null;
-  const displayName = payload.displayName || computeDisplayName(firstName, lastNameOrCompany, login);
-  const issuedAt = payload.issuedAt ?? payload.iat ?? null;
+  try {
+    const { data, error } = await client
+      .from('caretakers')
+      .select(PROFILE_COLUMNS)
+      .eq('id', caretakerId)
+      .maybeSingle();
+    if (error) {
+      console.warn('Nie udało się pobrać profilu opiekuna:', error);
+      return null;
+    }
+    return data || null;
+  } catch (error) {
+    console.warn('Nie udało się pobrać profilu opiekuna:', error);
+    return null;
+  }
+}
+
+async function ensureCaretakerProfile(client, user) {
+  const caretakerId = user?.id || null;
+  if (!client || !caretakerId) {
+    return null;
+  }
+
+  const existingProfile = await fetchCaretakerProfile(client, caretakerId);
+  if (existingProfile) {
+    return existingProfile;
+  }
+
+  const metadata = extractMetadata(user);
+  const payload = {
+    id: caretakerId,
+    first_name: metadata.firstName || '',
+    last_name_or_company: metadata.lastNameOrCompany || '',
+    phone: metadata.phone || '',
+    email: user.email || metadata.email || '',
+  };
+
+  if (!payload.first_name || !payload.last_name_or_company || !payload.phone || !payload.email) {
+    console.warn('Brak pełnych danych do utworzenia profilu opiekuna.');
+    return {
+      id: caretakerId,
+      first_name: payload.first_name || null,
+      last_name_or_company: payload.last_name_or_company || null,
+      phone: payload.phone || null,
+      email: payload.email || null,
+    };
+  }
+
+  try {
+    const { data, error } = await client
+      .from('caretakers')
+      .upsert(payload, { onConflict: 'id' })
+      .select(PROFILE_COLUMNS)
+      .maybeSingle();
+    if (error) {
+      console.warn('Nie udało się zapisać profilu opiekuna:', error);
+      return payload;
+    }
+    return data || payload;
+  } catch (error) {
+    console.warn('Nie udało się zapisać profilu opiekuna:', error);
+    return payload;
+  }
+}
+
+function normalizeProfile(profile, fallbackMetadata, userEmail, caretakerId) {
+  if (!profile && !fallbackMetadata) {
+    return null;
+  }
+  const normalized = {
+    id: profile?.id || caretakerId || null,
+    first_name: profile?.first_name ?? fallbackMetadata?.firstName ?? null,
+    last_name_or_company: profile?.last_name_or_company ?? fallbackMetadata?.lastNameOrCompany ?? null,
+    phone: profile?.phone ?? fallbackMetadata?.phone ?? null,
+    email: profile?.email ?? fallbackMetadata?.email ?? userEmail ?? null,
+  };
+  if (!normalized.id) {
+    normalized.id = null;
+  }
+  return normalized;
+}
+
+function buildSessionPayload({
+  caretakerId,
+  user,
+  profile,
+  baseClient,
+}) {
+  const metadata = extractMetadata(user);
+  const normalizedProfile = normalizeProfile(profile, metadata, user?.email || null, caretakerId);
+  const firstName = normalizedProfile?.first_name || null;
+  const lastNameOrCompany = normalizedProfile?.last_name_or_company || null;
+  const email = normalizedProfile?.email || user?.email || '';
+  const login = email ? String(email).trim().toLowerCase() : '';
+  const displayName = computeDisplayName(firstName, lastNameOrCompany, login);
+  const caretakerSupabase = caretakerId ? createCaretakerSupabaseClient({ caretakerId }) : null;
+
   return {
-    version: payload.version ?? 1,
     caretakerId,
-    login,
+    supabase: caretakerSupabase,
+    baseSupabase: baseClient || null,
+    authSession: null,
+    user: user || null,
+    profile: normalizedProfile,
     firstName,
     lastNameOrCompany,
+    email,
+    login,
     displayName,
-    issuedAt,
+    accessToken: null,
   };
 }
 
-function encodeToken(tokenObject) {
-  return encodeBase64(JSON.stringify(tokenObject));
-}
-
-function decodeToken(tokenString) {
-  const json = decodeBase64(tokenString);
-  return JSON.parse(json);
-}
-
-async function importSigningKey(secretOverride) {
-  if (!window.crypto?.subtle) {
-    throw new Error('WebCrypto API jest wymagane do podpisywania tokenów.');
-  }
-  const secretSource = secretOverride || SUPABASE_ANON_KEY || 'caretaker-session-fallback-secret';
-  const encoder = new TextEncoder();
-  const keyData = encoder.encode(secretSource);
-  return window.crypto.subtle.importKey('raw', keyData, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign', 'verify']);
-}
-
-async function signPayload(payload, secretOverride) {
-  const key = await importSigningKey(secretOverride);
-  const encoder = new TextEncoder();
-  const data = encoder.encode(JSON.stringify(payload));
-  const signature = await window.crypto.subtle.sign('HMAC', key, data);
-  return bufferToBase64(signature);
-}
-
-async function verifySignature(payload, signature, secretOverride) {
-  const expected = await signPayload(payload, secretOverride);
-  return safeStringEquals(expected, signature);
-}
-
-function buildTokenObject(payload, signature) {
-  return { payload, signature };
-}
-
-function extractSessionFromTokenObject(tokenObject) {
-  if (!tokenObject || typeof tokenObject !== 'object') {
+async function buildCaretakerSession({ existingSession } = {}) {
+  const client = ensureSupabaseClient();
+  if (!client) {
     return null;
   }
-  return normalizePayload(tokenObject.payload);
-}
 
-export async function saveCaretakerSession(caretaker, { storage = getBrowserStorage(), secret } = {}) {
-  if (!storage) {
-    throw new Error('Brak dostępu do przeglądarkowego storage.');
-  }
-  const payload = buildPayload(caretaker);
-  const signature = await signPayload(payload, secret);
-  const tokenObject = buildTokenObject(payload, signature);
-  const token = encodeToken(tokenObject);
-  storage.setItem(CARETAKER_SESSION_STORAGE_KEY, token);
-  return { session: payload, token };
-}
-
-export function clearCaretakerSession({ storage = getBrowserStorage() } = {}) {
-  if (!storage) {
-    return;
-  }
-  storage.removeItem(CARETAKER_SESSION_STORAGE_KEY);
-}
-
-export async function getCaretakerSession({ storage = getBrowserStorage(), secret } = {}) {
-  if (!storage) {
-    return null;
-  }
-  const token = storage.getItem(CARETAKER_SESSION_STORAGE_KEY);
-  if (!token) {
-    return null;
-  }
-  try {
-    const decoded = decodeToken(token);
-    const payload = decoded?.payload;
-    const signature = decoded?.signature;
-    if (!payload || !signature) {
-      storage.removeItem(CARETAKER_SESSION_STORAGE_KEY);
+  let authSession = existingSession || null;
+  if (!authSession) {
+    const { data, error } = await client.auth.getSession();
+    if (error) {
+      console.warn('Nie udało się pobrać sesji Supabase:', error);
       return null;
     }
-    const isValid = await verifySignature(payload, signature, secret);
-    if (!isValid) {
-      storage.removeItem(CARETAKER_SESSION_STORAGE_KEY);
-      return null;
-    }
-    return normalizePayload(payload);
-  } catch (error) {
-    console.warn('Nie udało się odczytać sesji opiekuna:', error);
-    storage.removeItem(CARETAKER_SESSION_STORAGE_KEY);
+    authSession = data?.session || null;
+  }
+
+  if (!authSession) {
     return null;
   }
+
+  const caretakerId = authSession.user?.id || null;
+  const profile = await ensureCaretakerProfile(client, authSession.user);
+  const session = buildSessionPayload({ caretakerId, user: authSession.user, profile, baseClient: client });
+  session.authSession = authSession;
+  session.accessToken = authSession.access_token || null;
+  return session;
 }
 
-export function getCaretakerSessionToken({ storage = getBrowserStorage() } = {}) {
-  if (!storage) {
+export async function getCaretakerSession({ forceRefresh = false } = {}) {
+  const client = ensureSupabaseClient();
+  if (!client) {
     return null;
   }
+
+  if (forceRefresh) {
+    cachedSession = undefined;
+    loadingPromise = null;
+  }
+
+  if (cachedSession !== undefined && !forceRefresh) {
+    return cachedSession;
+  }
+
+  if (!loadingPromise) {
+    loadingPromise = buildCaretakerSession();
+  }
+
   try {
-    return storage.getItem(CARETAKER_SESSION_STORAGE_KEY);
-  } catch (error) {
-    console.warn('Nie udało się pobrać tokenu sesji opiekuna:', error);
-    return null;
+    const session = await loadingPromise;
+    cachedSession = session ?? null;
+    return cachedSession;
+  } finally {
+    loadingPromise = null;
   }
 }
 
-export function decodeCaretakerSessionToken(token) {
-  if (!token) {
-    return null;
-  }
-  try {
-    const decoded = decodeToken(token);
-    return extractSessionFromTokenObject(decoded);
-  } catch (error) {
-    console.warn('Nie udało się zdekodować tokenu sesji opiekuna:', error);
-    return null;
-  }
-}
-
-export async function requireCaretakerSession({ redirectTo, storage, secret } = {}) {
-  const session = await getCaretakerSession({ storage, secret });
+export async function requireCaretakerSession({ redirectTo, forceRefresh } = {}) {
+  const session = await getCaretakerSession({ forceRefresh });
   if (!session && redirectTo) {
     window.location.replace(redirectTo);
   }
   return session;
+}
+
+export async function clearCaretakerSession() {
+  const client = ensureSupabaseClient();
+  if (!client) {
+    cachedSession = undefined;
+    loadingPromise = null;
+    return;
+  }
+  try {
+    const { error } = await client.auth.signOut();
+    if (error) {
+      console.warn('Nie udało się wylogować opiekuna:', error);
+    }
+  } catch (error) {
+    console.warn('Nie udało się wylogować opiekuna:', error);
+  } finally {
+    cachedSession = null;
+    loadingPromise = null;
+  }
 }
 
 export function getCaretakerDisplayName(sessionLike) {
@@ -247,7 +264,26 @@ export function getCaretakerDisplayName(sessionLike) {
   if (sessionLike.displayName) {
     return sessionLike.displayName;
   }
-  return computeDisplayName(sessionLike.firstName, sessionLike.lastNameOrCompany, sessionLike.login);
+  const firstName =
+    sessionLike.firstName ??
+    sessionLike.first_name ??
+    sessionLike.profile?.first_name ??
+    sessionLike.user?.user_metadata?.first_name ??
+    sessionLike.user?.user_metadata?.firstName ??
+    null;
+  const lastNameOrCompany =
+    sessionLike.lastNameOrCompany ??
+    sessionLike.last_name_or_company ??
+    sessionLike.profile?.last_name_or_company ??
+    sessionLike.user?.user_metadata?.last_name_or_company ??
+    sessionLike.user?.user_metadata?.lastNameOrCompany ??
+    null;
+  const login =
+    sessionLike.login ||
+    sessionLike.email ||
+    sessionLike.profile?.email ||
+    sessionLike.user?.email ||
+    '';
+  return computeDisplayName(firstName, lastNameOrCompany, login);
 }
 
-export { CARETAKER_SESSION_STORAGE_KEY };
