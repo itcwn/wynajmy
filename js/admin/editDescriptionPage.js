@@ -17,6 +17,9 @@ const checklistMessage = document.getElementById('checklistMessage');
 const addChecklistItemBtn = document.getElementById('addChecklistItem');
 const saveChecklistBtn = document.getElementById('saveChecklist');
 const logoutBtn = document.getElementById('caretakerLogout');
+const addFacilityModal = document.getElementById('addFacilityModal');
+const openAddFacilityBtn = document.getElementById('openAddFacilityModal');
+const addFacilityModalCloseButtons = document.querySelectorAll('[data-add-facility-modal-close]');
 
 const PHASE_OPTIONS = [
   { value: 'handover', label: 'Odbiór obiektu' },
@@ -82,7 +85,7 @@ async function bootstrap() {
   }
 
   const caretakerId = session?.caretakerId || null;
-  const supa = session?.supabase || null;
+  const supa = session?.supabase || session?.baseSupabase || null;
   if (!supa) {
     setStatus(messageEl, 'Brak konfiguracji Supabase lub identyfikatora opiekuna.', 'error');
     return;
@@ -101,6 +104,110 @@ async function bootstrap() {
   let nextChecklistTempId = 1;
   let lastChecklistFocusKey = null;
   let isSavingChecklist = false;
+
+  let facilityFormControls = null;
+  const bodyClassList = document.body?.classList || null;
+  const modalClassList = addFacilityModal?.classList || null;
+  let lastFocusedBeforeModal = null;
+  let escapeListenerAttached = false;
+
+  function isModalOpen() {
+    return Boolean(modalClassList) && !modalClassList.contains('hidden');
+  }
+
+  function trapBodyScroll(shouldTrap) {
+    if (!bodyClassList) {
+      return;
+    }
+    if (shouldTrap) {
+      bodyClassList.add('overflow-hidden');
+    } else {
+      bodyClassList.remove('overflow-hidden');
+    }
+  }
+
+  function handleModalEscape(event) {
+    if (event.key !== 'Escape' || !isModalOpen()) {
+      return;
+    }
+    event.preventDefault();
+    closeAddFacilityModalDialog({ restoreFocus: true, resetForm: true });
+  }
+
+  function attachModalEscapeListener() {
+    if (escapeListenerAttached) {
+      return;
+    }
+    document.addEventListener('keydown', handleModalEscape);
+    escapeListenerAttached = true;
+  }
+
+  function detachModalEscapeListener() {
+    if (!escapeListenerAttached) {
+      return;
+    }
+    document.removeEventListener('keydown', handleModalEscape);
+    escapeListenerAttached = false;
+  }
+
+  function openAddFacilityModalDialog() {
+    if (!addFacilityModal || !modalClassList || isModalOpen()) {
+      return;
+    }
+    lastFocusedBeforeModal = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    modalClassList.remove('hidden');
+    modalClassList.add('flex');
+    trapBodyScroll(true);
+    facilityFormControls?.reset?.({ focus: false });
+    window.setTimeout(() => {
+      facilityFormControls?.focusFirstField?.();
+    }, 50);
+    attachModalEscapeListener();
+  }
+
+  function closeAddFacilityModalDialog({ restoreFocus = true, resetForm = false } = {}) {
+    if (!addFacilityModal || !modalClassList || !isModalOpen()) {
+      return;
+    }
+    modalClassList.add('hidden');
+    modalClassList.remove('flex');
+    trapBodyScroll(false);
+    detachModalEscapeListener();
+    if (resetForm) {
+      facilityFormControls?.reset?.({ focus: false });
+      facilityFormControls?.clearMessage?.();
+    }
+    if (restoreFocus && lastFocusedBeforeModal && typeof lastFocusedBeforeModal.focus === 'function') {
+      lastFocusedBeforeModal.focus();
+    }
+    lastFocusedBeforeModal = null;
+  }
+
+  function buildSupabaseClientList() {
+    const clients = [];
+    if (supa) {
+      clients.push(supa);
+    }
+    const baseClient = session?.baseSupabase || null;
+    if (baseClient && baseClient !== supa) {
+      clients.push(baseClient);
+    }
+    return clients;
+  }
+
+  function isPermissionError(error) {
+    if (!error) {
+      return false;
+    }
+    const code = String(error.code || '').toUpperCase();
+    if (code === '42501' || code === 'PGRST301') {
+      return true;
+    }
+    if (typeof error.message === 'string' && /permission denied/i.test(error.message)) {
+      return true;
+    }
+    return false;
+  }
 
   function showMessage(text, tone = 'info') {
     setStatus(messageEl, text, tone);
@@ -733,18 +840,34 @@ async function bootstrap() {
     if (!caretakerId) {
       return null;
     }
-    const { data, error } = await supa
-      .from('facility_caretakers')
-      .select('facility_id')
-      .eq('caretaker_id', caretakerId);
-    if (error) {
-      throw error;
+    const clients = buildSupabaseClientList();
+    let lastPermissionError = null;
+    for (const client of clients) {
+      try {
+        const { data, error } = await client
+          .from('facility_caretakers')
+          .select('facility_id')
+          .eq('caretaker_id', caretakerId);
+        if (error) {
+          throw error;
+        }
+        const ids = (data || [])
+          .map((row) => row?.facility_id)
+          .filter((value) => value !== null && value !== undefined)
+          .map((value) => String(value));
+        return Array.from(new Set(ids));
+      } catch (error) {
+        if (isPermissionError(error)) {
+          lastPermissionError = error;
+          continue;
+        }
+        throw error;
+      }
     }
-    const ids = (data || [])
-      .map((row) => row?.facility_id)
-      .filter((value) => value !== null && value !== undefined)
-      .map((value) => String(value));
-    return Array.from(new Set(ids));
+    if (lastPermissionError) {
+      throw lastPermissionError;
+    }
+    return [];
   }
 
   async function loadFacilities({ selectId = null, silent = false } = {}) {
@@ -761,7 +884,10 @@ async function bootstrap() {
           renderFacilities();
           updateForm();
           if (!silent) {
-            showMessage('Nie masz jeszcze żadnych świetlic. Skorzystaj z formularza powyżej, aby dodać pierwszą.', 'info');
+            showMessage(
+              'Nie masz jeszcze żadnych świetlic. Użyj przycisku „Dodaj świetlicę” powyżej, aby dodać pierwszą.',
+              'info',
+            );
           }
           return;
         }
@@ -808,11 +934,18 @@ async function bootstrap() {
       }
     } catch (error) {
       console.error(error);
-      showMessage('Nie udało się pobrać listy świetlic.', 'error');
+      if (isPermissionError(error)) {
+        showMessage(
+          'Nie masz uprawnień do odczytu przypisań świetlic. Skontaktuj się z administratorem systemu.',
+          'error',
+        );
+      } else {
+        showMessage('Nie udało się pobrać listy świetlic.', 'error');
+      }
     }
   }
 
-  initFacilityForm({
+  facilityFormControls = initFacilityForm({
     session,
     onFacilityCreated: async (createdFacility) => {
       const facilityId = createdFacility?.id ? String(createdFacility.id) : null;
@@ -820,8 +953,30 @@ async function bootstrap() {
       if (facilityId && selectEl) {
         selectEl.focus();
       }
+      closeAddFacilityModalDialog({ restoreFocus: false, resetForm: true });
+      showMessage('Dodano nową świetlicę. Wybierz ją z listy, aby uzupełnić jej informacje.', 'success');
     },
   });
+
+  if (openAddFacilityBtn) {
+    openAddFacilityBtn.addEventListener('click', () => {
+      openAddFacilityModalDialog();
+    });
+  }
+
+  addFacilityModalCloseButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      closeAddFacilityModalDialog({ restoreFocus: true, resetForm: true });
+    });
+  });
+
+  if (addFacilityModal) {
+    addFacilityModal.addEventListener('click', (event) => {
+      if (event.target === addFacilityModal) {
+        closeAddFacilityModalDialog({ restoreFocus: true, resetForm: true });
+      }
+    });
+  }
 
   function updateForm() {
     const info = findInstructionInfo(selectedFacility);
@@ -837,7 +992,10 @@ async function bootstrap() {
       if (facilities.length) {
         showMessage('Wybierz świetlicę, aby edytować instrukcję.', 'info');
       } else {
-        showMessage('Nie masz jeszcze żadnych świetlic. Skorzystaj z formularza powyżej, aby dodać pierwszą.', 'info');
+        showMessage(
+          'Nie masz jeszcze żadnych świetlic. Użyj przycisku „Dodaj świetlicę” powyżej, aby dodać pierwszą.',
+          'info',
+        );
       }
       selectedAmenityIds = new Set();
       renderAmenitiesList();
