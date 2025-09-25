@@ -163,6 +163,73 @@ create trigger caretakers_set_updated_at
 before update on public.caretakers
 for each row execute function public.set_updated_at();
 
+-- Funkcja umożliwiająca bezpieczne tworzenie profilu opiekuna
+-- bez konieczności posiadania aktywnej sesji użytkownika.
+create or replace function public.create_caretaker_profile(
+  p_id uuid,
+  p_first_name text,
+  p_last_name_or_company text,
+  p_phone text,
+  p_email text,
+  p_login text
+)
+returns public.caretakers
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_user auth.users%rowtype;
+  v_result public.caretakers%rowtype;
+begin
+  if p_id is null then
+    raise exception using message = 'USER_ID_REQUIRED';
+  end if;
+
+  select *
+  into v_user
+  from auth.users
+  where id = p_id;
+
+  if not found then
+    raise exception using message = 'USER_NOT_FOUND';
+  end if;
+
+  if coalesce(lower(v_user.email), '') <> coalesce(lower(p_email), '') then
+    raise exception using message = 'EMAIL_MISMATCH';
+  end if;
+
+  insert into public.caretakers as c (id, first_name, last_name_or_company, phone, email, login)
+  values (
+    p_id,
+    trim(both from coalesce(p_first_name, '')),
+    trim(both from coalesce(p_last_name_or_company, '')),
+    trim(both from coalesce(p_phone, '')),
+    trim(both from coalesce(p_email, '')),
+    trim(both from coalesce(p_login, ''))
+  )
+  on conflict (id) do update
+    set first_name = excluded.first_name,
+        last_name_or_company = excluded.last_name_or_company,
+        phone = excluded.phone,
+        email = excluded.email,
+        login = excluded.login,
+        updated_at = now()
+  returning c.* into v_result;
+
+  return v_result;
+end;
+$$;
+
+grant execute on function public.create_caretaker_profile(
+  uuid,
+  text,
+  text,
+  text,
+  text,
+  text
+) to anon, authenticated;
+
 -- Powiązania świetlic z opiekunami.
 create table if not exists public.facility_caretakers (
   caretaker_id uuid not null references public.caretakers(id) on delete cascade,

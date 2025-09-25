@@ -109,21 +109,23 @@ async function handleSubmit(event) {
       return;
     }
 
-    const profilePayload = {
-      id: user.id,
-      first_name: firstName,
-      last_name_or_company: lastNameOrCompany,
-      phone,
-      email,
-      login,
-    };
-
-    const { error: profileError } = await supabase
-      .from('caretakers')
-      .upsert(profilePayload, { onConflict: 'id' });
+    const { error: profileError } = await supabase.rpc('create_caretaker_profile', {
+      p_id: user.id,
+      p_first_name: firstName,
+      p_last_name_or_company: lastNameOrCompany,
+      p_phone: phone,
+      p_email: email,
+      p_login: login,
+    });
 
     if (profileError) {
-      setMessage(profileError.message || 'Nie udało się zapisać profilu opiekuna.', 'error');
+      let profileMessage = profileError.message || 'Nie udało się zapisać profilu opiekuna.';
+      if (profileError.message === 'USER_NOT_FOUND') {
+        profileMessage = 'Nie znaleziono konta opiekuna w systemie uwierzytelniania.';
+      } else if (profileError.message === 'EMAIL_MISMATCH') {
+        profileMessage = 'Adres e-mail profilu musi odpowiadać adresowi z konta logowania.';
+      }
+      setMessage(profileMessage, 'error');
       return;
     }
 
