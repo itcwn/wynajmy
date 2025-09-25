@@ -337,11 +337,7 @@ create policy "Caretaker insert facilities"
   for insert
   to authenticated
   with check (
-    exists (
-      select 1
-      from public.caretakers c
-      where c.id = auth.uid()
-    )
+    public.caretaker_exists(auth.uid())
   );
 
 drop policy if exists "Caretaker update facilities" on public.facilities;
