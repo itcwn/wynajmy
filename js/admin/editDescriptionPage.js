@@ -608,6 +608,50 @@ async function bootstrap() {
     return list;
   }
 
+  async function logInstructionDebug({
+    facilityId,
+    facilityName,
+    selectedColumn,
+    attemptedColumns,
+    instructions,
+    errorMessage,
+    attemptDetails,
+  }) {
+    if (!caretakerId) {
+      return;
+    }
+    const normalizedColumns = Array.isArray(attemptedColumns)
+      ? attemptedColumns.map((value) => {
+          if (value === null || value === undefined) {
+            return null;
+          }
+          try {
+            return String(value);
+          } catch (error) {
+            return null;
+          }
+        })
+      : null;
+    const payload = {
+      caretaker_id: caretakerId,
+      facility_id: facilityId || null,
+      facility_name: facilityName || null,
+      selected_column: selectedColumn || null,
+      attempted_columns: normalizedColumns && normalizedColumns.length ? normalizedColumns : null,
+      instructions: typeof instructions === 'string' ? instructions : instructions ?? null,
+      error_message: errorMessage ?? null,
+      attempt_details: attemptDetails ?? null,
+    };
+    try {
+      const { error } = await supa.from('facility_instruction_debug_logs').insert([payload]);
+      if (error) {
+        console.warn('Nie udało się zapisać logu testowego instrukcji:', error);
+      }
+    } catch (logError) {
+      console.error('Błąd podczas zapisywania logu testowego instrukcji:', logError);
+    }
+  }
+
   async function persistInstructions(newValue) {
     if (!selectedFacility) {
       return;
@@ -616,9 +660,16 @@ async function bootstrap() {
     const candidates = getCandidateColumns(selectedFacility);
     let savedColumn = null;
     let blockingError = null;
+    const attemptSummaries = [];
     for (const column of candidates) {
       const payload = { [column]: newValue };
       const { error } = await supa.from('facilities').update(payload).eq('id', facilityId);
+      attemptSummaries.push({
+        column,
+        success: !error,
+        error_code: error?.code || null,
+        error_message: error?.message || null,
+      });
       if (!error) {
         savedColumn = column;
         break;
@@ -632,6 +683,23 @@ async function bootstrap() {
         break;
       }
     }
+    const aggregatedErrorMessage = savedColumn
+      ? null
+      : blockingError?.message
+        || attemptSummaries.find((item) => item.error_message)?.error_message
+        || null;
+    await logInstructionDebug({
+      facilityId,
+      facilityName: selectedFacility?.name || null,
+      selectedColumn: savedColumn || null,
+      attemptedColumns: candidates,
+      instructions: newValue,
+      errorMessage: aggregatedErrorMessage,
+      attemptDetails: {
+        attempts: attemptSummaries,
+        previousColumn: selectedFacility?.__instructionsColumn || null,
+      },
+    });
     if (!savedColumn) {
       throw blockingError || new Error('Nie udało się zapisać instrukcji dla tej świetlicy.');
     }
