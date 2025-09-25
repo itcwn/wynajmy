@@ -121,17 +121,39 @@ async function handleSubmit(event) {
       return;
     }
 
-    const session = await getCaretakerSession({ forceRefresh: true });
-    updateUiForSession(session);
+    const backendSessionTokens = {
+      accessToken: authSession.access_token || null,
+      refreshToken: authSession.refresh_token || null,
+      userId: authSession.user?.id || null,
+    };
 
-    const token = session?.accessToken || authSession.access_token || null;
-    if (token) {
+    if (!backendSessionTokens.accessToken) {
       try {
-        await syncCaretakerBackendSession(token);
+        const { data: refreshedData, error: refreshedError } = await supabase.auth.getSession();
+        if (refreshedError) {
+          console.warn('Nie udało się odświeżyć sesji Supabase po logowaniu:', refreshedError);
+        }
+        const refreshedSession = refreshedData?.session || null;
+        backendSessionTokens.accessToken = backendSessionTokens.accessToken || refreshedSession?.access_token || null;
+        backendSessionTokens.refreshToken = backendSessionTokens.refreshToken || refreshedSession?.refresh_token || null;
+        backendSessionTokens.userId = backendSessionTokens.userId || refreshedSession?.user?.id || null;
+      } catch (refreshError) {
+        console.warn('Nie udało się pobrać aktualnej sesji Supabase po logowaniu:', refreshError);
+      }
+    }
+
+    if (backendSessionTokens.accessToken) {
+      try {
+        await syncCaretakerBackendSession(backendSessionTokens);
       } catch (syncError) {
         console.warn('Nie udało się przekazać sesji do backendu:', syncError);
       }
+    } else {
+      console.warn('Brak access tokenu Supabase – pomijam synchronizację z backendem.');
     }
+
+    const session = await getCaretakerSession({ forceRefresh: true });
+    updateUiForSession(session);
 
     const displayName = getCaretakerDisplayName(session) || session?.login || login;
     setMessage(`Zalogowano jako ${displayName}. Przekierowanie...`, 'success');
