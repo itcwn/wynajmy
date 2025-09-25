@@ -1,9 +1,8 @@
-import { createSupabaseClient } from '../config/supabaseClient.js';
-import { clearCaretakerSession, getCaretakerDisplayName, getCaretakerSession } from './session.js';
+import { clearCaretakerSession, getCaretakerDisplayName, getCaretakerSession, getBaseSupabaseClient } from './session.js';
 import { syncCaretakerBackendSession } from './backendSession.js';
 import { $ } from '../utils/dom.js';
 
-const supabase = createSupabaseClient();
+const supabase = getBaseSupabaseClient();
 
 const form = $('#caretakerLoginForm');
 const messageEl = $('#caretakerLoginMessage');

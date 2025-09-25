@@ -46,6 +46,10 @@ function ensureSupabaseClient() {
   return baseSupabase;
 }
 
+export function getBaseSupabaseClient() {
+  return ensureSupabaseClient();
+}
+
 function extractMetadata(user) {
   const metadata = user?.user_metadata || {};
   return {
