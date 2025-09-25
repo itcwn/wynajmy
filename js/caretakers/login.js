@@ -1,10 +1,5 @@
 import { createSupabaseClient } from '../config/supabaseClient.js';
-import {
-  clearCaretakerSession,
-  getCaretakerDisplayName,
-  getCaretakerSession,
-  saveCaretakerSession,
-} from './session.js';
+import { clearCaretakerSession, getCaretakerDisplayName, getCaretakerSession } from './session.js';
 import { syncCaretakerBackendSession } from './backendSession.js';
 import { $ } from '../utils/dom.js';
 
@@ -51,45 +46,6 @@ function toggleFormDisabled(disabled) {
 
 function sanitizeLogin(value) {
   return value.trim().toLowerCase();
-}
-
-async function hashPassword(password) {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(password);
-  const buffer = await window.crypto.subtle.digest('SHA-256', data);
-  const bytes = new Uint8Array(buffer);
-  let binary = '';
-  bytes.forEach((byte) => {
-    binary += String.fromCharCode(byte);
-  });
-  return window.btoa(binary);
-}
-
-async function fetchCaretakerByLogin(login) {
-  if (!supabase) {
-    return { data: null, error: new Error('Brak klienta Supabase.') };
-  }
-  try {
-    const { data, error } = await supabase.rpc('caretaker_login_get', { p_login: login });
-    if (error) {
-      // Jeżeli funkcja RPC nie istnieje, spróbuj bezpośredniego zapytania (przydatne w środowisku developerskim).
-      if (error?.message?.toLowerCase().includes('function') || error?.code === 'PGRST301') {
-        const fallback = await supabase
-          .from('caretakers')
-          .select('id, login, password_hash, first_name, last_name_or_company')
-          .ilike('login', login)
-          .maybeSingle();
-        return { data: fallback.data, error: fallback.error };
-      }
-      return { data: null, error };
-    }
-    if (Array.isArray(data)) {
-      return { data: data[0] || null, error: null };
-    }
-    return { data, error: null };
-  } catch (error) {
-    return { data: null, error };
-  }
 }
 
 function updateUiForSession(session) {
@@ -140,34 +96,35 @@ async function handleSubmit(event) {
     setMessage('Podaj login i hasło.', 'error');
     return;
   }
-  if (!window.crypto?.subtle) {
-    setMessage('Ta przeglądarka nie obsługuje bezpiecznego logowania (WebCrypto).', 'error');
-    return;
-  }
 
   state.isSubmitting = true;
   toggleFormDisabled(true);
-  setMessage('Sprawdzanie danych logowania...', 'info');
+  setMessage('Trwa logowanie...', 'info');
 
   try {
     const login = sanitizeLogin(loginRaw);
-    const { data: caretaker, error } = await fetchCaretakerByLogin(login);
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: login,
+      password,
+    });
+
     if (error) {
-      console.error('Błąd RPC logowania opiekuna:', error);
-      setMessage('Nie udało się zweryfikować danych logowania. Spróbuj ponownie później.', 'error');
+      console.error('Nie udało się zalogować opiekuna:', error);
+      const message = error?.message || 'Nie udało się zalogować. Sprawdź dane logowania i spróbuj ponownie.';
+      setMessage(message, 'error');
       return;
     }
-    if (!caretaker || !caretaker.password_hash) {
-      setMessage('Nieprawidłowy login lub hasło.', 'error');
+
+    const authSession = data?.session || null;
+    if (!authSession) {
+      setMessage('Logowanie wymaga potwierdzenia adresu e-mail. Sprawdź swoją skrzynkę pocztową.', 'info');
       return;
     }
-    const passwordHash = await hashPassword(password);
-    if (passwordHash !== caretaker.password_hash) {
-      setMessage('Nieprawidłowy login lub hasło.', 'error');
-      return;
-    }
-    const { session, token } = await saveCaretakerSession(caretaker);
+
+    const session = await getCaretakerSession({ forceRefresh: true });
     updateUiForSession(session);
+
+    const token = session?.accessToken || authSession.access_token || null;
     if (token) {
       try {
         await syncCaretakerBackendSession(token);
@@ -175,7 +132,8 @@ async function handleSubmit(event) {
         console.warn('Nie udało się przekazać sesji do backendu:', syncError);
       }
     }
-    const displayName = getCaretakerDisplayName(session) || session.login;
+
+    const displayName = getCaretakerDisplayName(session) || session?.login || login;
     setMessage(`Zalogowano jako ${displayName}. Przekierowanie...`, 'success');
     const redirectTarget = resolveRedirectTarget();
     window.setTimeout(() => {
@@ -190,8 +148,8 @@ async function handleSubmit(event) {
   }
 }
 
-function handleLogout() {
-  clearCaretakerSession();
+async function handleLogout() {
+  await clearCaretakerSession();
   updateUiForSession(null);
   if (form) {
     form.reset();
@@ -211,15 +169,10 @@ async function init() {
     toggleFormDisabled(true);
     return;
   }
-  if (!window.crypto?.subtle) {
-    setMessage('Ta przeglądarka nie obsługuje bezpiecznego logowania (WebCrypto).', 'error');
-    toggleFormDisabled(true);
-    return;
-  }
   const session = await getCaretakerSession();
   if (session) {
     updateUiForSession(session);
-    const displayName = getCaretakerDisplayName(session) || session.login;
+    const displayName = getCaretakerDisplayName(session) || session?.login;
     setMessage(`Jesteś już zalogowany jako ${displayName}.`, 'info');
   }
 }
@@ -231,7 +184,7 @@ if (form) {
 }
 
 logoutBtn?.addEventListener('click', () => {
-  handleLogout();
+  void handleLogout();
 });
 
 if (!submitBtn) {
