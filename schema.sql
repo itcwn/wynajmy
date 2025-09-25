@@ -25,24 +25,17 @@ stable
 as $$
 declare
   header text;
-  claims jsonb;
-  caretaker uuid;
+  uid uuid;
 begin
+  uid := auth.uid();
+  if uid is not null then
+    return uid;
+  end if;
+
   header := nullif(current_setting('request.header.x-caretaker-id', true), '');
   if header is not null then
     begin
-      caretaker := header::uuid;
-      return caretaker;
-    exception when others then
-      null;
-    end;
-  end if;
-
-  claims := current_setting('request.jwt.claims', true)::jsonb;
-  if claims is not null then
-    begin
-      caretaker := (claims ->> 'caretaker_id')::uuid;
-      return caretaker;
+      return header::uuid;
     exception when others then
       return null;
     end;
@@ -149,19 +142,14 @@ before update on public.facility_checklist_items
 for each row execute function public.set_facility_checklist_items_updated_at();
 -- Dane opiekunów świetlic.
 create table if not exists public.caretakers (
-  id uuid primary key default gen_random_uuid(),
+  id uuid primary key references auth.users (id) on delete cascade,
   first_name text not null,
   last_name_or_company text not null,
   phone text not null,
   email text not null,
-  login text not null,
-  password_hash text not null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
-
-create unique index if not exists caretakers_login_unique
-  on public.caretakers (lower(login));
 
 create unique index if not exists caretakers_email_unique
   on public.caretakers (lower(email));
@@ -209,137 +197,59 @@ drop policy if exists "Allow anonymous caretakers insert" on public.caretakers;
 create policy "Allow anonymous caretakers insert"
   on public.caretakers
   for insert
-  to anon
-  with check (true);
+  to authenticated
+  with check (
+    auth.uid() = id
+  );
 
 drop policy if exists "Caretaker can read self" on public.caretakers;
 create policy "Caretaker can read self"
   on public.caretakers
   for select
-  to anon
+  to authenticated
   using (
-    public.current_caretaker_id() = id
+    auth.uid() = id
   );
 
 drop policy if exists "Caretaker can update self" on public.caretakers;
 create policy "Caretaker can update self"
   on public.caretakers
   for update
-  to anon
+  to authenticated
   using (
-    public.current_caretaker_id() = id
+    auth.uid() = id
   )
   with check (
-    public.current_caretaker_id() = id
+    auth.uid() = id
   );
 
 drop policy if exists "Caretaker can see assigned facilities" on public.facility_caretakers;
 create policy "Caretaker can see assigned facilities"
   on public.facility_caretakers
   for select
-  to anon
+  to authenticated
   using (
-    public.current_caretaker_id() = caretaker_id
+    auth.uid() = caretaker_id
   );
 
 drop policy if exists "Caretaker can assign self" on public.facility_caretakers;
 create policy "Caretaker can assign self"
   on public.facility_caretakers
   for insert
-  to anon
+  to authenticated
   with check (
-    public.current_caretaker_id() = caretaker_id
+    auth.uid() = caretaker_id
   );
 
 drop policy if exists "Caretaker can unassign self" on public.facility_caretakers;
 create policy "Caretaker can unassign self"
   on public.facility_caretakers
   for delete
-  to anon
+  to authenticated
   using (
-    public.current_caretaker_id() = caretaker_id
+    auth.uid() = caretaker_id
   );
 
--- Funkcje pomocnicze do logowania oraz pobierania rezerwacji opiekuna.
-drop function if exists public.caretaker_login_get(text);
-create or replace function public.caretaker_login_get(p_login text)
-returns table (
-  id uuid,
-  login text,
-  password_hash text,
-  first_name text,
-  last_name_or_company text
-)
-language sql
-security definer
-set search_path = public
-as $$
-  select
-    c.id,
-    c.login,
-    c.password_hash,
-    c.first_name,
-    c.last_name_or_company
-  from public.caretakers c
-  where lower(c.login) = lower(p_login)
-  limit 1;
-$$;
-
-grant execute on function public.caretaker_login_get(text) to anon, authenticated;
-
-drop function if exists public.caretaker_reservations_secure(text, text);
-create or replace function public.caretaker_reservations_secure(p_login text, p_password_hash text)
-returns table (
-  caretaker_id uuid,
-  caretaker_login text,
-  facility_id uuid,
-  facility_name text,
-  booking_id uuid,
-  booking_start timestamptz,
-  booking_end timestamptz,
-  booking_status text,
-  booking_title text
-)
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare
-  auth_caretaker public.caretakers%rowtype;
-begin
-  select *
-  into auth_caretaker
-  from public.caretakers
-  where lower(login) = lower(p_login)
-  limit 1;
-
-  if auth_caretaker.id is null then
-    return;
-  end if;
-
-  if auth_caretaker.password_hash <> p_password_hash then
-    return;
-  end if;
-
-  return query
-  select
-    auth_caretaker.id as caretaker_id,
-    auth_caretaker.login as caretaker_login,
-    fc.facility_id,
-    f.name as facility_name,
-    b.id as booking_id,
-    b.start_time as booking_start,
-    b.end_time as booking_end,
-    b.status as booking_status,
-    b.title as booking_title
-  from public.facility_caretakers fc
-  join public.facilities f on f.id = fc.facility_id
-  left join public.bookings b on b.facility_id = fc.facility_id
-  where fc.caretaker_id = auth_caretaker.id;
-end;
-$$;
-
-grant execute on function public.caretaker_reservations_secure(text, text) to anon, authenticated;
 -- Polityki RLS dla tabeli świetlic.
 alter table public.facilities enable row level security;
 
@@ -354,12 +264,12 @@ drop policy if exists "Caretaker insert facilities" on public.facilities;
 create policy "Caretaker insert facilities"
   on public.facilities
   for insert
-  to anon, authenticated
+  to authenticated
   with check (
     exists (
       select 1
       from public.caretakers c
-      where c.id = public.current_caretaker_id()
+      where c.id = auth.uid()
     )
   );
 
@@ -367,13 +277,13 @@ drop policy if exists "Caretaker update facilities" on public.facilities;
 create policy "Caretaker update facilities"
   on public.facilities
   for update
-  to anon, authenticated
+  to authenticated
   using (
     exists (
       select 1
       from public.facility_caretakers fc
       where fc.facility_id = id
-        and fc.caretaker_id = public.current_caretaker_id()
+        and fc.caretaker_id = auth.uid()
     )
   )
   with check (
@@ -381,7 +291,7 @@ create policy "Caretaker update facilities"
       select 1
       from public.facility_caretakers fc
       where fc.facility_id = id
-        and fc.caretaker_id = public.current_caretaker_id()
+        and fc.caretaker_id = auth.uid()
     )
   );
 
