@@ -57,34 +57,50 @@ function extractMetadata(user) {
   };
 }
 
-async function fetchCaretakerProfile(client, caretakerId) {
-  if (!client || !caretakerId) {
-    return null;
+function buildClientPriorityList({ caretakerClient, baseClient }) {
+  const clients = [];
+  if (caretakerClient) {
+    clients.push(caretakerClient);
   }
-  try {
-    const { data, error } = await client
-      .from('caretakers')
-      .select(PROFILE_COLUMNS)
-      .eq('id', caretakerId)
-      .maybeSingle();
-    if (error) {
-      console.warn('Nie udało się pobrać profilu opiekuna:', error);
-      return null;
-    }
-    return data || null;
-  } catch (error) {
-    console.warn('Nie udało się pobrać profilu opiekuna:', error);
-    return null;
+  if (baseClient) {
+    clients.push(baseClient);
   }
+  return clients;
 }
 
-async function ensureCaretakerProfile(client, user) {
+async function fetchCaretakerProfile({ caretakerClient, baseClient }, caretakerId) {
+  if (!caretakerId) {
+    return null;
+  }
+  const clients = buildClientPriorityList({ caretakerClient, baseClient });
+  for (const client of clients) {
+    try {
+      const { data, error } = await client
+        .from('caretakers')
+        .select(PROFILE_COLUMNS)
+        .eq('id', caretakerId)
+        .maybeSingle();
+      if (error) {
+        console.warn('Nie udało się pobrać profilu opiekuna:', error);
+        continue;
+      }
+      if (data) {
+        return data;
+      }
+    } catch (error) {
+      console.warn('Nie udało się pobrać profilu opiekuna:', error);
+    }
+  }
+  return null;
+}
+
+async function ensureCaretakerProfile({ baseClient, caretakerClient, user }) {
   const caretakerId = user?.id || null;
-  if (!client || !caretakerId) {
+  if (!caretakerId) {
     return null;
   }
 
-  const existingProfile = await fetchCaretakerProfile(client, caretakerId);
+  const existingProfile = await fetchCaretakerProfile({ caretakerClient, baseClient }, caretakerId);
   if (existingProfile) {
     return existingProfile;
   }
@@ -111,21 +127,24 @@ async function ensureCaretakerProfile(client, user) {
     };
   }
 
-  try {
-    const { data, error } = await client
-      .from('caretakers')
-      .upsert(payload, { onConflict: 'id' })
-      .select(PROFILE_COLUMNS)
-      .maybeSingle();
-    if (error) {
+  const clients = buildClientPriorityList({ caretakerClient, baseClient });
+  for (const client of clients) {
+    try {
+      const { data, error } = await client
+        .from('caretakers')
+        .upsert(payload, { onConflict: 'id' })
+        .select(PROFILE_COLUMNS)
+        .maybeSingle();
+      if (error) {
+        console.warn('Nie udało się zapisać profilu opiekuna:', error);
+        continue;
+      }
+      return data || payload;
+    } catch (error) {
       console.warn('Nie udało się zapisać profilu opiekuna:', error);
-      return payload;
     }
-    return data || payload;
-  } catch (error) {
-    console.warn('Nie udało się zapisać profilu opiekuna:', error);
-    return payload;
   }
+  return payload;
 }
 
 function normalizeProfile(profile, fallbackMetadata, userEmail, caretakerId) {
@@ -151,6 +170,7 @@ function buildSessionPayload({
   user,
   profile,
   baseClient,
+  caretakerClient,
 }) {
   const metadata = extractMetadata(user);
   const normalizedProfile = normalizeProfile(profile, metadata, user?.email || null, caretakerId);
@@ -160,7 +180,7 @@ function buildSessionPayload({
   const loginSource = normalizedProfile?.login || email;
   const login = loginSource ? String(loginSource).trim().toLowerCase() : '';
   const displayName = computeDisplayName(firstName, lastNameOrCompany, login);
-  const caretakerSupabase = caretakerId ? createCaretakerSupabaseClient({ caretakerId }) : null;
+  const caretakerSupabase = caretakerClient || (caretakerId ? createCaretakerSupabaseClient({ caretakerId }) : null);
 
   return {
     caretakerId,
@@ -199,8 +219,15 @@ async function buildCaretakerSession({ existingSession } = {}) {
   }
 
   const caretakerId = authSession.user?.id || null;
-  const profile = await ensureCaretakerProfile(client, authSession.user);
-  const session = buildSessionPayload({ caretakerId, user: authSession.user, profile, baseClient: client });
+  const caretakerClient = caretakerId ? createCaretakerSupabaseClient({ caretakerId }) : null;
+  const profile = await ensureCaretakerProfile({ baseClient: client, caretakerClient, user: authSession.user });
+  const session = buildSessionPayload({
+    caretakerId,
+    user: authSession.user,
+    profile,
+    baseClient: client,
+    caretakerClient,
+  });
   session.authSession = authSession;
   session.accessToken = authSession.access_token || null;
   return session;
