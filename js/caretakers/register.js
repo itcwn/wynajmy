@@ -41,18 +41,6 @@ function toggleFormDisabled(disabled) {
   });
 }
 
-async function hashPassword(password) {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(password);
-  const buffer = await crypto.subtle.digest('SHA-256', data);
-  const bytes = new Uint8Array(buffer);
-  let binary = '';
-  bytes.forEach((byte) => {
-    binary += String.fromCharCode(byte);
-  });
-  return btoa(binary);
-}
-
 function sanitizePhone(value) {
   return value.replace(/\s+/g, ' ').trim();
 }
@@ -95,41 +83,57 @@ async function handleSubmit(event) {
   toggleFormDisabled(true);
   setMessage('Trwa rejestrowanie opiekuna...', 'info');
 
-  if (!window.crypto?.subtle) {
-    setMessage('Ta przeglądarka nie obsługuje bezpiecznego haszowania haseł.', 'error');
-    state.isSubmitting = false;
-    toggleFormDisabled(false);
-    return;
-  }
-
   try {
-    const passwordHash = await hashPassword(password);
     const login = email;
-    const payload = {
+    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          first_name: firstName,
+          last_name_or_company: lastNameOrCompany,
+          phone,
+        },
+      },
+    });
+
+    if (signUpError) {
+      setMessage(signUpError.message || 'Nie udało się utworzyć konta opiekuna.', 'error');
+      return;
+    }
+
+    const user = signUpData?.user;
+
+    if (!user) {
+      setMessage('Konto zostało utworzone, ale nie otrzymaliśmy danych użytkownika.', 'error');
+      return;
+    }
+
+    const profilePayload = {
+      id: user.id,
       first_name: firstName,
       last_name_or_company: lastNameOrCompany,
       phone,
       email,
       login,
-      password_hash: passwordHash,
     };
 
-    const { error: insertError } = await supabase
+    const { error: profileError } = await supabase
       .from('caretakers')
-      .insert(payload, { defaultToNull: false });
+      .upsert(profilePayload, { onConflict: 'id' });
 
-    if (insertError) {
-      if (insertError.code === '23505') {
-        setMessage('Podany login lub e-mail są już zajęte.', 'error');
-      } else {
-        setMessage(insertError.message || 'Nie udało się utworzyć konta opiekuna.', 'error');
-      }
+    if (profileError) {
+      setMessage(profileError.message || 'Nie udało się zapisać profilu opiekuna.', 'error');
       return;
     }
 
     form.reset();
     updateLoginFromEmail();
-    setMessage('Opiekun został zarejestrowany. Przypisz go do świetlic w panelu opiekuna.', 'success');
+    const confirmationPending = !signUpData.session;
+    const successMessage = confirmationPending
+      ? 'Opiekun został zarejestrowany. Sprawdź skrzynkę e-mail, aby potwierdzić konto.'
+      : 'Opiekun został zarejestrowany i może zalogować się do panelu.';
+    setMessage(successMessage, 'success');
   } catch (error) {
     console.error('Błąd rejestracji opiekuna:', error);
     setMessage('Wystąpił nieoczekiwany błąd podczas rejestracji.', 'error');
