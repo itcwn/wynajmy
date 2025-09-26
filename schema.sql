@@ -79,6 +79,29 @@ create trigger facilities_set_updated_at
 before update on public.facilities
 for each row execute function public.set_updated_at();
 
+-- Widok z danymi świetlic udostępniany publicznie.
+create or replace view public.public_facilities as
+select
+  f.id,
+  f.name,
+  f.postal_code,
+  f.city,
+  f.address_line1,
+  f.address_line2,
+  f.capacity,
+  f.price_per_hour,
+  f.price_per_day,
+  f.lat,
+  f.lng,
+  f.description,
+  f.image_urls,
+  f.caretaker_instructions,
+  f.created_at,
+  f.updated_at
+from public.facilities f;
+
+grant select on table public.public_facilities to anon, authenticated;
+
 -- Słownik udogodnień.
 create table if not exists public.amenities (
   id uuid primary key default gen_random_uuid(),
@@ -98,6 +121,18 @@ create trigger amenities_set_updated_at
 before update on public.amenities
 for each row execute function public.set_updated_at();
 
+-- Widok słownika udogodnień dostępny publicznie.
+create or replace view public.public_amenities as
+select
+  a.id,
+  a.name,
+  a.description,
+  a.order_index
+from public.amenities a
+where a.is_active;
+
+grant select on table public.public_amenities to anon, authenticated;
+
 -- Przypisanie udogodnień do świetlic.
 create table if not exists public.facility_amenities (
   facility_id uuid not null references public.facilities(id) on delete cascade,
@@ -108,6 +143,17 @@ create table if not exists public.facility_amenities (
 
 create index if not exists facility_amenities_amenity_idx
   on public.facility_amenities (amenity_id);
+
+-- Widok powiązań świetlic z udogodnieniami dla użytkowników publicznych.
+create or replace view public.public_facility_amenities as
+select
+  fa.facility_id,
+  fa.amenity_id
+from public.facility_amenities fa
+  join public.amenities a on a.id = fa.amenity_id
+where coalesce(a.is_active, true);
+
+grant select on table public.public_facility_amenities to anon, authenticated;
 
 -- Lista kontrolna przekazania świetlicy.
 create table if not exists public.facility_checklist_items (
@@ -417,6 +463,18 @@ drop trigger if exists event_types_set_updated_at on public.event_types;
 create trigger event_types_set_updated_at
 before update on public.event_types
 for each row execute function public.set_updated_at();
+
+-- Widok publiczny typów wydarzeń.
+create or replace view public.public_event_types as
+select
+  e.id,
+  e.name,
+  e.description,
+  e.order_index
+from public.event_types e
+where e.is_active;
+
+grant select on table public.public_event_types to anon, authenticated;
 
 -- Szablony dokumentów (wnioski, protokoły, itp.).
 create table if not exists public.document_templates (
