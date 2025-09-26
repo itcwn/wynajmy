@@ -57,13 +57,22 @@
             Przeglądaj listę świetlic i przechodź do szczegółowej edycji każdej z nich.
           </p>
         </div>
-        <button
-          id="openAddFacilityModal"
-          type="button"
-          class="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 focus:outline-none focus-visible:ring focus-visible:ring-emerald-500/70"
-        >
-          ➕ Dodaj świetlicę
-        </button>
+        <div class="flex items-center gap-2">
+          <button
+            id="openBlockDatesModal"
+            type="button"
+            class="inline-flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-800 shadow-sm hover:bg-amber-100 focus:outline-none focus-visible:ring focus-visible:ring-amber-500/70"
+          >
+            ⛔ Zablokuj terminy
+          </button>
+          <button
+            id="openAddFacilityModal"
+            type="button"
+            class="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 focus:outline-none focus-visible:ring focus-visible:ring-emerald-500/70"
+          >
+            ➕ Dodaj świetlicę
+          </button>
+        </div>
       </div>
       <p class="text-xs text-gray-400">Nowo dodana świetlica zostanie przypisana do Twojego konta i pojawi się na liście poniżej.</p>
       <div class="flex items-start justify-between gap-3 flex-wrap text-sm">
@@ -81,6 +90,94 @@
       </div>
     </section>
   </main>
+
+  <div
+    id="blockDatesModal"
+    class="fixed inset-0 z-50 hidden items-center justify-center bg-gray-900/50 px-4 py-6"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="blockDatesModalTitle"
+  >
+    <div class="w-full max-w-3xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+      <header class="flex items-start justify-between gap-3 border-b border-gray-100 px-6 py-5">
+        <div class="space-y-1">
+          <h2 id="blockDatesModalTitle" class="text-lg font-semibold">Zablokuj terminy</h2>
+          <p class="text-sm text-gray-500">
+            Wybierz świetlicę oraz dni, w których rezerwacje mają zostać wyłączone z kalendarza.
+          </p>
+        </div>
+        <button
+          type="button"
+          class="rounded-full p-2 text-gray-500 transition hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus-visible:ring focus-visible:ring-amber-500/70"
+          data-block-dates-modal-close
+          aria-label="Zamknij okno blokowania terminów"
+        >
+          ✕
+        </button>
+      </header>
+      <form id="blockDatesForm" class="max-h-[80vh] overflow-y-auto px-6 py-6 space-y-6">
+        <div class="space-y-2">
+          <label for="blockDatesFacility" class="block text-sm font-medium text-gray-700">Świetlica</label>
+          <select
+            id="blockDatesFacility"
+            name="facility"
+            class="w-full rounded-xl border px-3 py-2 text-sm focus:outline-none focus:ring focus:ring-amber-500/40"
+            required
+          >
+            <option value="" disabled selected>Wybierz świetlicę...</option>
+          </select>
+        </div>
+        <div class="space-y-4">
+          <div class="flex items-center justify-between gap-3">
+            <h3 class="text-base font-semibold text-gray-800">Terminy do zablokowania</h3>
+            <button
+              id="blockDatesAddRow"
+              type="button"
+              class="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-100 focus:outline-none focus-visible:ring focus-visible:ring-amber-500/70"
+            >
+              ➕ Dodaj termin
+            </button>
+          </div>
+          <div id="blockDatesRows" class="space-y-3"></div>
+        </div>
+        <div class="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] md:items-end">
+          <label class="flex items-center gap-3 rounded-xl border border-gray-200 px-4 py-3 text-sm font-medium text-gray-700">
+            <input id="blockDatesRecurring" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500" />
+            <span>Cyklicznie (powtórz w kolejnych latach)</span>
+          </label>
+          <div>
+            <label for="blockDatesRecurringYears" class="block text-sm font-medium text-gray-700">Liczba lat do przodu</label>
+            <input
+              id="blockDatesRecurringYears"
+              name="recurring_years"
+              type="number"
+              min="0"
+              value="0"
+              disabled
+              class="mt-1 w-full rounded-xl border px-3 py-2 text-sm focus:outline-none focus:ring focus:ring-amber-500/40 disabled:cursor-not-allowed disabled:bg-gray-100"
+            />
+          </div>
+        </div>
+        <p id="blockDatesStatus" class="text-sm text-gray-500"></p>
+        <div class="flex flex-wrap items-center justify-end gap-3 border-t border-gray-100 pt-4">
+          <button
+            type="button"
+            class="rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-100 focus:outline-none focus-visible:ring focus-visible:ring-gray-400/60"
+            data-block-dates-modal-close
+          >
+            Anuluj
+          </button>
+          <button
+            id="blockDatesSaveButton"
+            type="submit"
+            class="inline-flex items-center gap-2 rounded-xl bg-amber-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-amber-700 focus:outline-none focus-visible:ring focus-visible:ring-amber-500/70 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            💾 Zapisz blokadę
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <div
     id="addFacilityModal"
@@ -274,6 +371,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="./supabase-config.js"></script>
   <script type="module" src="./js/admin/caretakerPanelPage.js"></script>
+  <script type="module" src="./js/admin/caretakerBlockDates.js"></script>
   <script type="module" src="./js/admin/bookingsDashboard.js"></script>
 </body>
 </html>
