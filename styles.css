@@ -3,12 +3,12 @@
 .main-shell {
   position: relative;
   isolation: isolate;
-  border-radius: 40px;
-  background-color: #f2efe8;
+  border-radius: 16px;
+  background-color: #f1f3ef;
   background-image:
-    radial-gradient(120% 120% at 0% 0%, rgba(223, 220, 214, 0.55), rgba(242, 240, 233, 0.95)),
-    radial-gradient(140% 140% at 100% 100%, rgba(199, 209, 219, 0.35), rgba(242, 240, 233, 0.98));
-  box-shadow: 0 45px 120px rgba(170, 174, 184, 0.25);
+    radial-gradient(120% 120% at 0% 0%, rgba(206, 214, 223, 0.55), rgba(240, 242, 239, 0.95)),
+    radial-gradient(140% 140% at 100% 100%, rgba(188, 200, 212, 0.35), rgba(240, 242, 239, 0.98));
+  box-shadow: 0 45px 120px rgba(160, 170, 184, 0.22);
   overflow: hidden;
 }
 
@@ -28,7 +28,7 @@
   left: -140px;
   width: 420px;
   height: 420px;
-  background: radial-gradient(circle, rgba(202, 207, 214, 0.35), rgba(202, 207, 214, 0) 70%);
+  background: radial-gradient(circle, rgba(192, 202, 214, 0.3), rgba(192, 202, 214, 0) 70%);
 }
 
 .main-shell::after {
@@ -36,7 +36,7 @@
   right: -180px;
   width: 520px;
   height: 520px;
-  background: radial-gradient(circle, rgba(196, 189, 180, 0.3), rgba(196, 189, 180, 0) 70%);
+  background: radial-gradient(circle, rgba(176, 190, 204, 0.3), rgba(176, 190, 204, 0) 70%);
 }
 
 .main-shell > * {
@@ -46,7 +46,7 @@
 
 @media (max-width: 768px) {
   .main-shell {
-    border-radius: 28px;
+    border-radius: 12px;
   }
 
   .main-shell::before {
@@ -62,6 +62,13 @@
     bottom: -280px;
     right: -200px;
   }
+}
+
+.main-shell .rounded-3xl,
+.main-shell .rounded-2xl,
+.main-shell .rounded-xl,
+.main-shell .rounded-lg {
+  border-radius: 0.5rem !important;
 }
 
 .flow-space > .hidden + * {
