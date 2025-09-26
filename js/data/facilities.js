@@ -14,11 +14,53 @@ export function createFacilitiesModule({
   const PLACEHOLDER_IMAGE = 'https://picsum.photos/800/400';
   let galleryListenersAttached = false;
 
+  function logQueryError(scope, error) {
+    if (!error) {
+      return;
+    }
+    const message = error?.message || error?.hint || String(error);
+    console.warn(`${scope}: ${message}`);
+  }
+
+  async function runFirstSuccessfulQuery(builders, { allowEmpty = true } = {}) {
+    for (const build of builders) {
+      if (typeof build !== 'function') {
+        continue;
+      }
+      try {
+        const { data, error } = await build();
+        if (error) {
+          logQueryError('Supabase query warning', error);
+          continue;
+        }
+        if (Array.isArray(data)) {
+          if (data.length > 0) {
+            return data;
+          }
+          if (allowEmpty) {
+            return data;
+          }
+        } else if (data) {
+          return data;
+        }
+      } catch (error) {
+        logQueryError('Supabase query exception', error);
+      }
+    }
+    return [];
+  }
+
   async function loadDictionaries() {
     state.amenities = {};
-    const [{ data: amenitiesData }, { data: eventTypes }] = await Promise.all([
-      supabase.from('amenities').select('*').order('name'),
-      supabase.from('event_types').select('*').order('name'),
+    const [amenitiesData, eventTypes] = await Promise.all([
+      runFirstSuccessfulQuery([
+        () => supabase.from('public_amenities').select('*').order('order_index'),
+        () => supabase.from('amenities').select('*').order('order_index'),
+      ], { allowEmpty: false }),
+      runFirstSuccessfulQuery([
+        () => supabase.from('public_event_types').select('*').order('order_index'),
+        () => supabase.from('event_types').select('*').eq('is_active', true).order('order_index'),
+      ], { allowEmpty: false }),
     ]);
     (amenitiesData || []).forEach((amenity) => {
       state.amenities[amenity.id] = amenity.name;
@@ -33,8 +75,12 @@ export function createFacilitiesModule({
   }
 
   async function loadFacilities() {
-    const { data } = await supabase.from('facilities').select('*').order('name');
-    state.facilities = data || [];
+    const facilitiesData = await runFirstSuccessfulQuery([
+      () => supabase.from('public_facilities').select('*').order('name'),
+      () => supabase.from('facilities_public').select('*').order('name'),
+      () => supabase.from('facilities').select('*').order('name'),
+    ], { allowEmpty: false });
+    state.facilities = facilitiesData || [];
     renderFacilityList();
   }
 
@@ -388,10 +434,16 @@ export function createFacilitiesModule({
     }
     const amenitiesList = $('#facilityAmenities');
     if (amenitiesList) {
-      const { data: joins } = await supabase
-        .from('facility_amenities')
-        .select('amenity_id')
-        .eq('facility_id', facility.id);
+      const joins = await runFirstSuccessfulQuery([
+        () => supabase
+          .from('public_facility_amenities')
+          .select('amenity_id')
+          .eq('facility_id', facility.id),
+        () => supabase
+          .from('facility_amenities')
+          .select('amenity_id')
+          .eq('facility_id', facility.id),
+      ]);
       amenitiesList.innerHTML = (joins || [])
         .map((join) => `<span class="text-xs bg-emerald-50 border border-emerald-200 rounded-lg px-2 py-1">${escapeHtml(state.amenities[join.amenity_id] || '—')}</span>`)
         .join('');

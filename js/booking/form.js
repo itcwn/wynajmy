@@ -13,6 +13,10 @@ export function createBookingForm({
   let titleInput;
   let typeSelect;
   let renterNameInput;
+  let mathAnswerInput;
+  let mathPuzzleQuestionEl;
+  let mathPuzzleRefreshBtn;
+  let mathPuzzle = null;
   const facilitiesModule = facilities || state.facilitiesModule || null;
   if (facilitiesModule && state.facilitiesModule !== facilitiesModule) {
     state.facilitiesModule = facilitiesModule;
@@ -23,6 +27,79 @@ export function createBookingForm({
     if (msg) {
       msg.textContent = text || '';
     }
+  }
+
+  async function fetchFacilityById(facilityId) {
+    const builders = [
+      () => supabase.from('public_facilities').select('*').eq('id', facilityId).maybeSingle(),
+      () => supabase.from('facilities_public').select('*').eq('id', facilityId).maybeSingle(),
+      () => supabase.from('facilities').select('*').eq('id', facilityId).maybeSingle(),
+    ];
+    for (const build of builders) {
+      try {
+        const { data, error } = await build();
+        if (error) {
+          console.warn('Błąd wczytywania świetlicy (źródło publiczne):', error);
+          continue;
+        }
+        if (data) {
+          return data;
+        }
+      } catch (error) {
+        console.warn('Wyjątek wczytywania świetlicy:', error);
+      }
+    }
+    return null;
+  }
+
+  function generateMathPuzzle() {
+    const operations = [
+      { symbol: '+', label: 'plus', compute: (a, b) => a + b },
+      { symbol: '−', label: 'minus', compute: (a, b) => a - b },
+    ];
+    const first = Math.floor(Math.random() * 8) + 3;
+    const second = Math.floor(Math.random() * 8) + 2;
+    const op = operations[Math.floor(Math.random() * operations.length)];
+    const [a, b] = op.symbol === '−' && second > first ? [second, first] : [first, second];
+    return {
+      question: `Ile to ${a} ${op.symbol} ${b}?`,
+      answer: op.compute(a, b),
+    };
+  }
+
+  function renderMathPuzzle() {
+    if (!mathAnswerInput || !mathPuzzleQuestionEl) {
+      return;
+    }
+    if (!mathPuzzle) {
+      mathPuzzle = generateMathPuzzle();
+    }
+    mathPuzzleQuestionEl.textContent = mathPuzzle.question;
+    mathAnswerInput.value = '';
+    mathAnswerInput.setAttribute('aria-label', mathPuzzle.question);
+  }
+
+  function refreshMathPuzzle({ focusInput = false } = {}) {
+    mathPuzzle = generateMathPuzzle();
+    renderMathPuzzle();
+    if (focusInput && mathAnswerInput) {
+      mathAnswerInput.focus();
+    }
+  }
+
+  function validateMathPuzzleAnswer() {
+    if (!mathAnswerInput) {
+      return true;
+    }
+    const raw = mathAnswerInput.value.trim();
+    if (!raw) {
+      return false;
+    }
+    const number = Number.parseInt(raw, 10);
+    if (!Number.isFinite(number)) {
+      return false;
+    }
+    return number === mathPuzzle?.answer;
   }
 
   function getSelectedEventTypeName() {
@@ -95,6 +172,12 @@ export function createBookingForm({
       return;
     }
     const form = event.target;
+    setFormMessage('');
+    if (!validateMathPuzzleAnswer()) {
+      setFormMessage('Niepoprawna odpowiedź na zagadkę. Spróbuj ponownie.');
+      refreshMathPuzzle({ focusInput: true });
+      return;
+    }
     setFormMessage('Trwa zapisywanie...');
     let startIso;
     let endIso;
@@ -151,6 +234,7 @@ export function createBookingForm({
     state.bookingsCache.clear();
     await dayView.renderDay();
     await showPostBookingActions(bookingRow, { logCancelUrl: true });
+    refreshMathPuzzle();
   }
 
   async function handleCancelClick() {
@@ -226,15 +310,7 @@ export function createBookingForm({
       && String(state.selectedFacility.id) === stringId;
     let facility = state.facilities.find((f) => String(f.id) === stringId);
     if (!facility) {
-      const { data: facilityRow, error } = await supabase
-        .from('facilities')
-        .select('*')
-        .eq('id', facilityId)
-        .maybeSingle();
-      if (error) {
-        console.error('Błąd wczytywania świetlicy:', error);
-        return false;
-      }
+      const facilityRow = await fetchFacilityById(facilityId);
       if (!facilityRow) {
         return false;
       }
@@ -388,6 +464,9 @@ export function createBookingForm({
     titleInput = form?.querySelector('input[name="title"]') || null;
     typeSelect = form?.querySelector('select[name="event_type_id"]') || null;
     renterNameInput = form?.querySelector('input[name="renter_name"]') || null;
+    mathAnswerInput = form?.querySelector('input[name="math_answer"]') || null;
+    mathPuzzleQuestionEl = $('#mathPuzzleQuestion');
+    mathPuzzleRefreshBtn = $('#mathPuzzleRefresh');
 
     if (titleInput) {
       titleInput.readOnly = true;
@@ -400,11 +479,20 @@ export function createBookingForm({
       renterNameInput.addEventListener('input', updateTitleField);
       renterNameInput.addEventListener('change', updateTitleField);
     }
+    if (mathPuzzleRefreshBtn) {
+      mathPuzzleRefreshBtn.addEventListener('click', () => {
+        refreshMathPuzzle({ focusInput: true });
+      });
+    }
     form?.addEventListener('reset', () => {
-      window.setTimeout(updateTitleField, 0);
+      window.setTimeout(() => {
+        updateTitleField();
+        refreshMathPuzzle();
+      }, 0);
     });
 
     updateTitleField();
+    renderMathPuzzle();
     const cancelBtn = $('#cancelThisBooking');
     if (cancelBtn) {
       cancelBtn.addEventListener('click', () => {

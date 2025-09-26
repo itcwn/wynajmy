@@ -232,6 +232,31 @@ export function renderMain() {
             </div>
 
             <div class="md:col-span-2">
+              <label class="text-sm font-medium text-slate-600">Krótka zagadka matematyczna</label>
+              <div class="mt-2 flex flex-wrap items-center gap-3">
+                <span id="mathPuzzleQuestion" class="rounded-2xl bg-white/70 px-3 py-2 text-sm font-medium text-slate-700 shadow-sm shadow-amber-500/15"></span>
+                <input
+                  name="math_answer"
+                  type="number"
+                  inputmode="numeric"
+                  min="0"
+                  step="1"
+                  required
+                  class="w-32 rounded-2xl border border-white/60 bg-white/60 px-3 py-2 text-sm text-slate-900 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-300/60"
+                  placeholder="Wynik"
+                />
+                <button
+                  id="mathPuzzleRefresh"
+                  type="button"
+                  class="rounded-2xl border border-white/60 bg-white/70 px-3 py-2 text-xs font-medium uppercase tracking-wide text-slate-600 shadow-sm shadow-amber-500/15 transition hover:border-amber-300/80 hover:text-amber-700"
+                >
+                  Inna zagadka
+                </button>
+              </div>
+              <p class="mt-1 text-xs text-slate-500">Aby wysłać formularz, podaj poprawny wynik działania.</p>
+            </div>
+
+            <div class="md:col-span-2">
               <label class="text-sm font-medium text-slate-600">Uwagi (opcjonalnie)</label>
               <textarea name="notes" class="mt-1 w-full rounded-2xl border border-white/60 bg-white/60 px-3 py-2 text-sm text-slate-900 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-300/60" rows="2"></textarea>
             </div>
