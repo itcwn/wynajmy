@@ -1,6 +1,5 @@
 export const INSTRUCTION_FIELDS = [
   'caretaker_instructions',
-  'caretaker_instruction',
   'caretaker_notes',
   'instructions',
   'instructions_text',
