@@ -37,6 +37,164 @@
     </section>
 
     <section class="bg-white rounded-2xl shadow-md p-5 space-y-4">
+      <div class="space-y-1">
+        <h2 class="text-lg font-semibold">Edytuj dane świetlicy</h2>
+        <p class="text-sm text-gray-500">Aktualizuj podstawowe informacje prezentowane mieszkańcom.</p>
+      </div>
+      <form id="facilityDetailsForm" class="space-y-4">
+        <div class="grid gap-4 sm:grid-cols-2">
+          <div class="sm:col-span-2">
+            <label for="facilityIdDisplay" class="block text-sm font-medium text-gray-700">Identyfikator świetlicy</label>
+            <input
+              id="facilityIdDisplay"
+              type="text"
+              class="mt-1 w-full border rounded-xl px-3 py-2 bg-gray-100 text-gray-600"
+              value=""
+              readonly
+              disabled
+            />
+          </div>
+          <div class="sm:col-span-2">
+            <label for="facilityNameInput" class="block text-sm font-medium text-gray-700">Nazwa świetlicy</label>
+            <input
+              id="facilityNameInput"
+              name="name"
+              type="text"
+              class="mt-1 w-full border rounded-xl px-3 py-2"
+              placeholder="np. Świetlica osiedlowa przy ul. Kwiatowej"
+              required
+            />
+          </div>
+          <div>
+            <label for="facilityPostalCodeInput" class="block text-sm font-medium text-gray-700">Kod pocztowy</label>
+            <input
+              id="facilityPostalCodeInput"
+              name="postal_code"
+              type="text"
+              class="mt-1 w-full border rounded-xl px-3 py-2"
+              placeholder="np. 12-345"
+            />
+          </div>
+          <div>
+            <label for="facilityCityInput" class="block text-sm font-medium text-gray-700">Miejscowość</label>
+            <input
+              id="facilityCityInput"
+              name="city"
+              type="text"
+              class="mt-1 w-full border rounded-xl px-3 py-2"
+              placeholder="np. Warszawa"
+            />
+          </div>
+          <div>
+            <label for="facilityAddressLine1Input" class="block text-sm font-medium text-gray-700">Adres — linia 1</label>
+            <input
+              id="facilityAddressLine1Input"
+              name="address_line1"
+              type="text"
+              class="mt-1 w-full border rounded-xl px-3 py-2"
+              placeholder="np. ul. Kwiatowa 5"
+            />
+          </div>
+          <div>
+            <label for="facilityAddressLine2Input" class="block text-sm font-medium text-gray-700">Adres — linia 2</label>
+            <input
+              id="facilityAddressLine2Input"
+              name="address_line2"
+              type="text"
+              class="mt-1 w-full border rounded-xl px-3 py-2"
+              placeholder="np. wejście od podwórza"
+            />
+          </div>
+          <div>
+            <label for="facilityCapacityInput" class="block text-sm font-medium text-gray-700">Pojemność</label>
+            <input
+              id="facilityCapacityInput"
+              name="capacity"
+              type="number"
+              inputmode="numeric"
+              class="mt-1 w-full border rounded-xl px-3 py-2"
+              placeholder="np. 80"
+              min="0"
+            />
+          </div>
+          <div>
+            <label for="facilityPriceHourInput" class="block text-sm font-medium text-gray-700">Cena za godzinę</label>
+            <input
+              id="facilityPriceHourInput"
+              name="price_per_hour"
+              type="text"
+              inputmode="decimal"
+              class="mt-1 w-full border rounded-xl px-3 py-2"
+              placeholder="np. 50"
+            />
+          </div>
+          <div>
+            <label for="facilityPriceDayInput" class="block text-sm font-medium text-gray-700">Cena za dobę</label>
+            <input
+              id="facilityPriceDayInput"
+              name="price_per_day"
+              type="text"
+              inputmode="decimal"
+              class="mt-1 w-full border rounded-xl px-3 py-2"
+              placeholder="np. 300"
+            />
+          </div>
+          <div>
+            <label for="facilityLatInput" class="block text-sm font-medium text-gray-700">Szerokość geograficzna</label>
+            <input
+              id="facilityLatInput"
+              name="lat"
+              type="text"
+              inputmode="decimal"
+              class="mt-1 w-full border rounded-xl px-3 py-2"
+              placeholder="np. 52.2297"
+            />
+          </div>
+          <div>
+            <label for="facilityLngInput" class="block text-sm font-medium text-gray-700">Długość geograficzna</label>
+            <input
+              id="facilityLngInput"
+              name="lng"
+              type="text"
+              inputmode="decimal"
+              class="mt-1 w-full border rounded-xl px-3 py-2"
+              placeholder="np. 21.0122"
+            />
+          </div>
+        </div>
+        <div>
+          <label for="facilityDescriptionInput" class="block text-sm font-medium text-gray-700">Opis</label>
+          <textarea
+            id="facilityDescriptionInput"
+            name="description"
+            class="mt-1 w-full border rounded-xl px-3 py-2 h-32 resize-y"
+            placeholder="Opisz świetlicę, jej przeznaczenie oraz dodatkowe informacje dla mieszkańców."
+          ></textarea>
+        </div>
+        <div>
+          <label for="facilityImagesInput" class="block text-sm font-medium text-gray-700">Adresy URL zdjęć</label>
+          <textarea
+            id="facilityImagesInput"
+            name="image_urls"
+            class="mt-1 w-full border rounded-xl px-3 py-2 h-24 resize-y"
+            placeholder="Wprowadź każdy adres URL w osobnej linii lub oddziel średnikiem."
+          ></textarea>
+          <p class="mt-1 text-xs text-gray-500">Adresy zostaną zapisane w formie listy rozdzielonej średnikami.</p>
+        </div>
+        <div class="flex items-center gap-3 flex-wrap">
+          <button
+            id="facilityDetailsSubmit"
+            type="submit"
+            class="px-4 py-2 rounded-xl bg-blue-600 text-white disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            💾 Zapisz dane świetlicy
+          </button>
+          <span id="facilityDetailsMessage" class="text-sm text-gray-500"></span>
+        </div>
+      </form>
+    </section>
+
+    <section class="bg-white rounded-2xl shadow-md p-5 space-y-4">
       <div>
         <label for="instructionsInput" class="block text-sm font-medium text-gray-700">Instrukcja od opiekuna</label>
         <textarea

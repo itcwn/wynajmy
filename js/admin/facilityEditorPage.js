@@ -1,5 +1,5 @@
 import { clearCaretakerSession, requireCaretakerSession } from '../caretakers/session.js';
-import { loadMyFacilities } from '../caretakers/myFacilities.js';
+import { clearMyFacilitiesCache, loadMyFacilities } from '../caretakers/myFacilities.js';
 import { INSTRUCTION_FIELDS, findInstructionInfo } from '../utils/instructions.js';
 
 const titleEl = document.getElementById('facilityTitle');
@@ -8,6 +8,11 @@ const metaEl = document.getElementById('facilityMeta');
 const textarea = document.getElementById('instructionsInput');
 const saveBtn = document.getElementById('saveInstructions');
 const messageEl = document.getElementById('saveMessage');
+
+const facilityForm = document.getElementById('facilityDetailsForm');
+const facilityFormSubmit = document.getElementById('facilityDetailsSubmit');
+const facilityFormMessage = document.getElementById('facilityDetailsMessage');
+const facilityIdInput = document.getElementById('facilityIdDisplay');
 
 const amenitiesContainer = document.getElementById('amenitiesContainer');
 const saveAmenitiesBtn = document.getElementById('saveAmenities');
@@ -24,6 +29,13 @@ const PHASE_OPTIONS = [
   { value: 'handover', label: 'Odbiór obiektu' },
   { value: 'return', label: 'Zdanie obiektu' },
 ];
+
+if (facilityFormSubmit) {
+  facilityFormSubmit.dataset.originalLabel = facilityFormSubmit.textContent || '';
+}
+
+let selectedFacility = null;
+let isSavingFacilityDetails = false;
 
 function setStatus(element, text, tone = 'info') {
   if (!element) {
@@ -62,6 +74,197 @@ function escapeSelector(value) {
   return String(value).replace(/[^a-zA-Z0-9_-]/g, '\\$&');
 }
 
+function parseInteger(value, { label, allowNegative = false } = {}) {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  const normalized = String(value).replace(/\s+/g, '');
+  if (!normalized) {
+    return null;
+  }
+  const parsed = Number(normalized);
+  if (!Number.isInteger(parsed)) {
+    throw new Error(`Pole „${label || 'wartość liczbowa'}” wymaga liczby całkowitej.`);
+  }
+  if (!allowNegative && parsed < 0) {
+    throw new Error(`Pole „${label || 'wartość liczbowa'}” nie może być liczbą ujemną.`);
+  }
+  return parsed;
+}
+
+function parseDecimal(value, { label, precision = null, allowNegative = true } = {}) {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  const normalized = String(value).replace(/\s+/g, '').replace(',', '.');
+  if (!normalized) {
+    return null;
+  }
+  const parsed = Number(normalized);
+  if (!Number.isFinite(parsed)) {
+    throw new Error(`Pole „${label || 'wartość liczbowa'}” wymaga liczby.`);
+  }
+  if (!allowNegative && parsed < 0) {
+    throw new Error(`Pole „${label || 'wartość liczbowa'}” nie może być liczbą ujemną.`);
+  }
+  if (precision !== null && Number.isFinite(precision)) {
+    const factor = 10 ** precision;
+    return Math.round(parsed * factor) / factor;
+  }
+  return parsed;
+}
+
+function normalizeTextarea(value) {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const normalized = value.replace(/\r\n/g, '\n');
+  const trimmed = normalized.trim();
+  return trimmed ? trimmed : null;
+}
+
+function normalizeImageList(value) {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const parts = value
+    .split(/[\n;,]+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  if (!parts.length) {
+    return null;
+  }
+  return parts.join(';');
+}
+
+const FACILITY_FIELD_CONFIG = [
+  { name: 'name', label: 'Nazwa świetlicy', type: 'text', required: true },
+  { name: 'postal_code', label: 'Kod pocztowy', type: 'text' },
+  { name: 'city', label: 'Miejscowość', type: 'text' },
+  { name: 'address_line1', label: 'Adres — linia 1', type: 'text' },
+  { name: 'address_line2', label: 'Adres — linia 2', type: 'text' },
+  { name: 'capacity', label: 'Pojemność', type: 'integer', allowNegative: false },
+  { name: 'price_per_hour', label: 'Cena za godzinę', type: 'decimal', precision: 2, allowNegative: false },
+  { name: 'price_per_day', label: 'Cena za dobę', type: 'decimal', precision: 2, allowNegative: false },
+  { name: 'lat', label: 'Szerokość geograficzna', type: 'decimal', precision: 6 },
+  { name: 'lng', label: 'Długość geograficzna', type: 'decimal', precision: 6 },
+  { name: 'description', label: 'Opis', type: 'textarea' },
+  { name: 'image_urls', label: 'Adresy URL zdjęć', type: 'imageList' },
+];
+
+function setFacilityFormMessage(text, tone = 'info') {
+  setStatus(facilityFormMessage, text, tone);
+}
+
+function refreshFacilityFormState() {
+  if (!facilityForm) {
+    return;
+  }
+  const hasFacility = Boolean(selectedFacility);
+  const disableInputs = !hasFacility || isSavingFacilityDetails;
+  facilityForm.querySelectorAll('input, textarea, select').forEach((element) => {
+    if (element === facilityIdInput) {
+      element.disabled = true;
+      return;
+    }
+    element.disabled = disableInputs;
+  });
+  if (facilityFormSubmit) {
+    facilityFormSubmit.disabled = disableInputs;
+    if (isSavingFacilityDetails) {
+      facilityFormSubmit.textContent = 'Zapisywanie...';
+    } else {
+      facilityFormSubmit.textContent = facilityFormSubmit.dataset.originalLabel || facilityFormSubmit.textContent;
+    }
+  }
+}
+
+function populateFacilityForm(facility) {
+  if (facilityIdInput) {
+    facilityIdInput.value = facility?.id ? String(facility.id) : '';
+  }
+  if (!facilityForm) {
+    return;
+  }
+  FACILITY_FIELD_CONFIG.forEach((field) => {
+    const element = facilityForm.querySelector(`[name="${escapeSelector(field.name)}"]`);
+    if (!element) {
+      return;
+    }
+    let value = facility ? facility[field.name] : null;
+    if (field.name === 'image_urls' && typeof value === 'string') {
+      value = value.split(';').join('\n');
+    }
+    if (value === null || value === undefined) {
+      element.value = '';
+    } else {
+      element.value = String(value);
+    }
+  });
+  refreshFacilityFormState();
+}
+
+function collectFacilityFormPayload() {
+  if (!facilityForm) {
+    return {};
+  }
+  const formData = new FormData(facilityForm);
+  const payload = {};
+  for (const field of FACILITY_FIELD_CONFIG) {
+    const raw = formData.get(field.name);
+    if (raw === null) {
+      continue;
+    }
+    if (field.type === 'textarea') {
+      const normalized = normalizeTextarea(String(raw));
+      if (normalized !== null) {
+        payload[field.name] = normalized;
+      } else if (field.required) {
+        throw new Error(`Pole „${field.label}” jest wymagane.`);
+      } else {
+        payload[field.name] = null;
+      }
+      continue;
+    }
+    if (field.type === 'imageList') {
+      const normalized = normalizeImageList(String(raw));
+      if (normalized !== null) {
+        payload[field.name] = normalized;
+      } else {
+        payload[field.name] = null;
+      }
+      continue;
+    }
+    const value = typeof raw === 'string' ? raw.trim() : String(raw).trim();
+    if (!value) {
+      if (field.required) {
+        throw new Error(`Pole „${field.label}” jest wymagane.`);
+      }
+      payload[field.name] = null;
+      continue;
+    }
+    if (field.type === 'integer') {
+      const parsed = parseInteger(value, { label: field.label, allowNegative: field.allowNegative === true });
+      payload[field.name] = parsed;
+      continue;
+    }
+    if (field.type === 'decimal') {
+      const parsed = parseDecimal(value, {
+        label: field.label,
+        precision: field.precision ?? null,
+        allowNegative: field.allowNegative !== undefined ? field.allowNegative : true,
+      });
+      payload[field.name] = parsed;
+      continue;
+    }
+    payload[field.name] = value;
+  }
+  if (!payload.name || !String(payload.name).trim()) {
+    throw new Error('Uzupełnij nazwę świetlicy.');
+  }
+  return payload;
+}
+
 async function bootstrap() {
   if (!window.supabase || !window.supabase.createClient) {
     // eslint-disable-next-line no-alert
@@ -87,6 +290,10 @@ async function bootstrap() {
   const caretakerId = session?.caretakerId || null;
   if (!supa || !caretakerId) {
     setStatus(facilityStateMessage, 'Brak konfiguracji Supabase lub identyfikatora opiekuna.', 'error');
+    setFacilityFormMessage('Brak konfiguracji Supabase lub identyfikatora opiekuna.', 'error');
+    selectedFacility = null;
+    populateFacilityForm(null);
+    refreshFacilityFormState();
     return;
   }
 
@@ -103,10 +310,18 @@ async function bootstrap() {
     saveAmenitiesBtn?.setAttribute('disabled', 'disabled');
     addChecklistItemBtn?.setAttribute('disabled', 'disabled');
     saveChecklistBtn?.setAttribute('disabled', 'disabled');
+    setFacilityFormMessage('Nie wskazano świetlicy do edycji.', 'error');
+    selectedFacility = null;
+    populateFacilityForm(null);
+    refreshFacilityFormState();
     return;
   }
 
-  let selectedFacility = null;
+  setFacilityFormMessage('Ładowanie danych świetlicy...', 'info');
+  selectedFacility = null;
+  populateFacilityForm(null);
+  refreshFacilityFormState();
+
   let isSavingInstructions = false;
 
   let amenitiesCatalog = [];
@@ -167,6 +382,49 @@ async function bootstrap() {
       );
     }
     metaEl.innerHTML = fragments.join('');
+  }
+
+  async function handleFacilityDetailsSave(event) {
+    event?.preventDefault();
+    if (!selectedFacility || isSavingFacilityDetails) {
+      if (!selectedFacility) {
+        setFacilityFormMessage('Brak danych świetlicy do zapisania.', 'error');
+      }
+      return;
+    }
+    let payload;
+    try {
+      payload = collectFacilityFormPayload();
+    } catch (error) {
+      setFacilityFormMessage(error?.message || 'Nie udało się przygotować danych do zapisu.', 'error');
+      return;
+    }
+    if (!payload || Object.keys(payload).length === 0) {
+      setFacilityFormMessage('Brak zmian do zapisania.', 'info');
+      return;
+    }
+    isSavingFacilityDetails = true;
+    refreshFacilityFormState();
+    setFacilityFormMessage('Zapisywanie danych świetlicy...', 'info');
+    try {
+      const facilityId = selectedFacility.id;
+      const { error } = await supa.from('facilities').update(payload).eq('id', facilityId);
+      if (error) {
+        throw error;
+      }
+      selectedFacility = { ...selectedFacility, ...payload };
+      clearMyFacilitiesCache();
+      updateHeader(selectedFacility);
+      updateMeta(selectedFacility);
+      populateFacilityForm(selectedFacility);
+      setFacilityFormMessage('Dane świetlicy zostały zapisane.', 'success');
+    } catch (error) {
+      console.error(error);
+      setFacilityFormMessage(error?.message || 'Nie udało się zapisać danych świetlicy.', 'error');
+    } finally {
+      isSavingFacilityDetails = false;
+      refreshFacilityFormState();
+    }
   }
 
   function showMessage(text, tone = 'info') {
@@ -731,6 +989,8 @@ async function bootstrap() {
 
   async function loadFacilityDetails({ forceRefresh = false } = {}) {
     setStatus(facilityStateMessage, 'Ładowanie danych świetlicy...', 'info');
+    setFacilityFormMessage('Ładowanie danych świetlicy...', 'info');
+    refreshFacilityFormState();
     try {
       const columns = [
         'id',
@@ -745,6 +1005,7 @@ async function bootstrap() {
         'lat',
         'lng',
         'description',
+        'image_urls',
         ...INSTRUCTION_FIELDS,
       ].join(',');
       const facilities = await loadMyFacilities({ columns, forceRefresh });
@@ -760,6 +1021,9 @@ async function bootstrap() {
         renderChecklist();
         textarea?.setAttribute('disabled', 'disabled');
         saveBtn?.setAttribute('disabled', 'disabled');
+        populateFacilityForm(null);
+        setFacilityFormMessage('Nie znaleziono świetlicy powiązanej z Twoim kontem.', 'error');
+        refreshFacilityFormState();
         saveAmenitiesBtn?.setAttribute('disabled', 'disabled');
         addChecklistItemBtn?.setAttribute('disabled', 'disabled');
         saveChecklistBtn?.setAttribute('disabled', 'disabled');
@@ -768,6 +1032,8 @@ async function bootstrap() {
       selectedFacility = { ...(match || {}) };
       updateHeader(selectedFacility);
       updateMeta(selectedFacility);
+      populateFacilityForm(selectedFacility);
+      setFacilityFormMessage('', 'info');
       updateInstructionsForm();
       renderAmenitiesList();
       setStatus(amenitiesMessage, 'Ładowanie udogodnień świetlicy...', 'info');
@@ -782,8 +1048,15 @@ async function bootstrap() {
       showMessage('Nie udało się pobrać danych świetlicy.', 'error');
       setStatus(amenitiesMessage, 'Nie udało się pobrać danych świetlicy.', 'error');
       setStatus(checklistMessage, 'Nie udało się pobrać danych świetlicy.', 'error');
+      populateFacilityForm(null);
+      setFacilityFormMessage('Nie udało się pobrać danych świetlicy.', 'error');
+      refreshFacilityFormState();
     }
   }
+
+  facilityForm?.addEventListener('submit', (event) => {
+    void handleFacilityDetailsSave(event);
+  });
 
   saveBtn?.addEventListener('click', () => {
     void handleSaveInstructions();
