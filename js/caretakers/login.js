@@ -65,7 +65,7 @@ function updateUiForSession(session) {
 }
 
 function resolveRedirectTarget() {
-  const defaultTarget = './editDescription.html';
+  const defaultTarget = './caretakerPanel.html';
   try {
     const params = new URLSearchParams(window.location.search);
     const redirectParam = params.get('redirect');

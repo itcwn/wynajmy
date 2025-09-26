@@ -311,7 +311,7 @@ export function renderMain() {
           <div class="flex items-center gap-2">
             <a
               id="editInstructionsLink"
-              href="./editDescription.html"
+              href="./caretakerPanel.html"
               class="px-3 py-1 rounded border text-sm text-amber-700 hover:bg-amber-50"
             >Edytuj</a>
             <button id="closeInstructionsModal" class="px-3 py-1 border rounded text-sm">Zamknij</button>
