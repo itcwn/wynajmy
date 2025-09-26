@@ -17,21 +17,29 @@ alter table public.properties enable row level security;
 create policy if not exists "Properties insert for authenticated users"
   on public.properties
   for insert
-  with check (auth.uid() is not null);
+  to authenticated
+  with check (created_by = auth.uid());
+
 
 create policy if not exists "Properties select for owners"
   on public.properties
   for select
+
+  to authenticated
   using (created_by = auth.uid());
 
 create policy if not exists "Properties update for owners"
   on public.properties
   for update
-  using (created_by = auth.uid());
+
+  to authenticated
+  using (created_by = auth.uid())
+  with check (created_by = auth.uid());
 
 create policy if not exists "Properties delete for owners"
   on public.properties
   for delete
+  to authenticated
   using (created_by = auth.uid());
 
 create or replace function public.properties_set_owner()
