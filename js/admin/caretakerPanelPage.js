@@ -1,4 +1,8 @@
-import { clearCaretakerSession, requireCaretakerSession } from '../caretakers/session.js';
+import {
+  clearCaretakerSession,
+  requireCaretakerSession,
+  getCaretakerDisplayName,
+} from '../caretakers/session.js';
 import { loadMyFacilities } from '../caretakers/myFacilities.js';
 import { initFacilityForm } from './facilityForm.js';
 
@@ -9,6 +13,8 @@ const facilitiesRefreshBtn = document.getElementById('caretakerFacilitiesRefresh
 const addFacilityModal = document.getElementById('addFacilityModal');
 const openAddFacilityBtn = document.getElementById('openAddFacilityModal');
 const addFacilityModalCloseButtons = document.querySelectorAll('[data-add-facility-modal-close]');
+const caretakerIdentity = document.getElementById('caretakerIdentity');
+const caretakerIdentityName = document.getElementById('caretakerIdentityName');
 
 function setStatus(element, text, tone = 'info') {
   if (!element) {
@@ -62,10 +68,29 @@ function renderFacilities(facilities) {
     const card = document.createElement('article');
     card.className = 'rounded-2xl border border-gray-100 shadow-sm p-4 bg-white flex flex-col gap-3';
 
+    const header = document.createElement('div');
+    header.className = 'space-y-1';
+
     const title = document.createElement('h3');
     title.className = 'text-base font-semibold text-gray-900';
     title.textContent = facility.name || 'Świetlica';
-    card.appendChild(title);
+    header.appendChild(title);
+
+    const cityLineParts = [];
+    if (facility.postal_code) {
+      cityLineParts.push(facility.postal_code);
+    }
+    if (facility.city) {
+      cityLineParts.push(facility.city);
+    }
+    if (cityLineParts.length) {
+      const subtitle = document.createElement('p');
+      subtitle.className = 'text-xs font-medium text-gray-500';
+      subtitle.textContent = cityLineParts.join(' ');
+      header.appendChild(subtitle);
+    }
+
+    card.appendChild(header);
 
     const metaList = document.createElement('dl');
     metaList.className = 'text-sm text-gray-600 space-y-1';
@@ -112,6 +137,13 @@ async function bootstrap() {
   const session = await requireCaretakerSession({ redirectTo: './caretakerLogin.html' });
   if (!session) {
     return;
+  }
+
+  if (caretakerIdentity && caretakerIdentityName) {
+    const displayName = getCaretakerDisplayName(session) || session.profile?.email || session.profile?.login || '';
+    caretakerIdentityName.textContent = displayName || 'Opiekun';
+    caretakerIdentity.classList.remove('hidden');
+    caretakerIdentity.classList.add('inline-flex');
   }
 
   if (logoutBtn) {

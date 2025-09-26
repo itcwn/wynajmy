@@ -11,6 +11,7 @@ import {
 } from './utils/format.js';
 import { renderSidebar, renderMain } from './ui/layout.js';
 import { createFacilitiesModule } from './data/facilities.js';
+import { getCaretakerSession, getCaretakerDisplayName } from './caretakers/session.js';
 import { createDayView } from './calendar/dayView.js';
 import { createMonthModal } from './calendar/monthModal.js';
 import { createBookingForm } from './booking/form.js';
@@ -61,7 +62,69 @@ if (!supabase) {
 
   window.initMapsApi = facilities.initMapsApi;
 
+  async function setupCaretakerNavigation() {
+    const panelLink = document.getElementById('caretakerPanelLink');
+    if (!panelLink) {
+      return;
+    }
+
+    const loggedInfo = document.getElementById('caretakerLoggedInfo');
+    const loggedName = document.getElementById('caretakerLoggedName');
+
+    function applySessionToDom(session) {
+      if (session) {
+        panelLink.href = './caretakerPanel.html';
+        panelLink.dataset.target = 'panel';
+        if (loggedInfo && loggedName) {
+          const displayName = getCaretakerDisplayName(session) || session.profile?.email || session.profile?.login || '';
+          loggedName.textContent = displayName || 'Opiekun';
+          loggedInfo.classList.remove('hidden');
+          loggedInfo.classList.add('inline-flex');
+        }
+      } else {
+        panelLink.href = './caretakerLogin.html';
+        panelLink.dataset.target = 'login';
+        if (loggedInfo) {
+          loggedInfo.classList.remove('inline-flex');
+          loggedInfo.classList.add('hidden');
+        }
+      }
+    }
+
+    async function refreshSession({ forceRefresh = false } = {}) {
+      try {
+        const session = await getCaretakerSession({ forceRefresh });
+        applySessionToDom(session);
+        return session;
+      } catch (error) {
+        console.warn('Nie udało się sprawdzić statusu logowania opiekuna.', error);
+        applySessionToDom(null);
+        return null;
+      }
+    }
+
+    panelLink.addEventListener('click', (event) => {
+      if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) {
+        return;
+      }
+      event.preventDefault();
+      panelLink.dataset.loading = '1';
+      void (async () => {
+        try {
+          const session = await refreshSession();
+          const targetUrl = session ? './caretakerPanel.html' : './caretakerLogin.html';
+          window.location.href = targetUrl;
+        } finally {
+          delete panelLink.dataset.loading;
+        }
+      })();
+    });
+
+    await refreshSession();
+  }
+
   async function init() {
+    void setupCaretakerNavigation();
     introVideoModal.showIfNeeded();
     renderSidebar({ onSearch: facilities.renderFacilityList });
     renderMain();

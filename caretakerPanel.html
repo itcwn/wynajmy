@@ -15,6 +15,13 @@
         <p class="text-sm text-gray-500">Zarządzaj rezerwacjami oraz świetlicami przypisanymi do Twojego konta.</p>
       </div>
       <nav class="flex items-center gap-3 text-sm">
+        <span
+          id="caretakerIdentity"
+          class="hidden items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700"
+        >
+          Zalogowany jako:
+          <span id="caretakerIdentityName" class="font-semibold"></span>
+        </span>
         <a href="./index.html" class="text-blue-700 hover:underline">Aplikacja rezerwacyjna</a>
         <button id="caretakerLogout" type="button" class="text-red-600 hover:text-red-700">Wyloguj</button>
       </nav>
