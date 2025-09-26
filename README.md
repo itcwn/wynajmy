@@ -29,3 +29,12 @@ Ten pakiet zawiera działające MVP:
 - W nagłówku aplikacji dostępny jest link „Zarejestruj opiekuna”, który prowadzi do formularza `registerCaretaker.html`.
 - Formularz zapisuje dane do tabeli `caretakers` oraz przypisania w tabeli `facility_caretakers`.
 - Wszystkie funkcje pomocnicze i polityki RLS wymagane do obsługi opiekunów są częścią `schema.sql`.
+
+## Test środowiska Supabase
+Dla szybkiego sprawdzenia konfiguracji Supabase dodano stronę `supabase-test.html`. Umożliwia ona zalogowanie się przez Supabase Auth oraz dodanie przykładowej encji nieruchomości do tabeli `properties`. Po ustawieniu w `supabase-config.js` poprawnych wartości `SUPABASE_URL` i `SUPABASE_ANON_KEY`:
+
+1. Otwórz `supabase-test.html` w przeglądarce.
+2. Zaloguj się przy użyciu konta użytkownika z Supabase Auth.
+3. Po zalogowaniu wypełnij formularz „Dodaj nieruchomość” i zapisz wpis.
+
+Aby przygotować tabelę testową wraz z podstawowymi politykami RLS, uruchom skrypt `supabase-test-properties.sql` w edytorze SQL Supabase. Tabela `properties` utworzona przez skrypt zawiera kolumny `title`, `address`, `description`, `price` (NUMERIC), a także informacje o właścicielu rekordu. Dzięki temu można łatwo zweryfikować poprawność konfiguracji bazy i uwierzytelniania.

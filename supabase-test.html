@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Test środowiska Supabase</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="min-h-screen bg-slate-100 text-slate-900">
+    <main class="mx-auto flex max-w-2xl flex-col gap-8 px-4 py-10">
+      <header class="space-y-2 text-center">
+        <h1 class="text-3xl font-semibold">Środowisko testowe Supabase</h1>
+        <p class="text-sm text-slate-600">
+          Zaloguj się przy użyciu Supabase Auth, aby uzyskać dostęp do formularza dodawania nieruchomości.
+        </p>
+      </header>
+
+      <section id="auth-section" class="rounded-xl bg-white p-6 shadow">
+        <h2 class="mb-4 text-xl font-medium">Logowanie</h2>
+        <form id="login-form" class="space-y-4">
+          <label class="block">
+            <span class="mb-1 block text-sm font-medium text-slate-700">Adres e-mail</span>
+            <input
+              type="email"
+              name="email"
+              required
+              class="w-full rounded-lg border border-slate-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring"
+              placeholder="jan.kowalski@example.com"
+            />
+          </label>
+          <label class="block">
+            <span class="mb-1 block text-sm font-medium text-slate-700">Hasło</span>
+            <input
+              type="password"
+              name="password"
+              required
+              class="w-full rounded-lg border border-slate-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring"
+              placeholder="••••••••"
+            />
+          </label>
+          <button
+            type="submit"
+            class="w-full rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-indigo-500 focus:outline-none focus:ring"
+          >
+            Zaloguj się
+          </button>
+        </form>
+        <p id="auth-message" class="mt-3 text-sm text-rose-600" role="alert"></p>
+      </section>
+
+      <section id="property-section" class="hidden rounded-xl bg-white p-6 shadow">
+        <div class="mb-4 flex items-start justify-between gap-4">
+          <div>
+            <h2 class="text-xl font-medium">Dodaj nieruchomość</h2>
+            <p class="text-sm text-slate-600">Formularz dostępny tylko dla zalogowanych użytkowników.</p>
+          </div>
+          <button
+            id="logout-button"
+            class="rounded-lg border border-slate-300 px-3 py-1 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            type="button"
+          >
+            Wyloguj się
+          </button>
+        </div>
+        <form id="property-form" class="space-y-4">
+          <label class="block">
+            <span class="mb-1 block text-sm font-medium text-slate-700">Tytuł ogłoszenia</span>
+            <input
+              type="text"
+              name="title"
+              required
+              class="w-full rounded-lg border border-slate-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring"
+              placeholder="Przestronne mieszkanie w centrum"
+            />
+          </label>
+          <label class="block">
+            <span class="mb-1 block text-sm font-medium text-slate-700">Adres</span>
+            <input
+              type="text"
+              name="address"
+              required
+              class="w-full rounded-lg border border-slate-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring"
+              placeholder="ul. Słoneczna 15, Warszawa"
+            />
+          </label>
+          <label class="block">
+            <span class="mb-1 block text-sm font-medium text-slate-700">Opis</span>
+            <textarea
+              name="description"
+              rows="4"
+              required
+              class="w-full rounded-lg border border-slate-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring"
+              placeholder="Nowoczesne, w pełni wyposażone mieszkanie..."
+            ></textarea>
+          </label>
+          <label class="block">
+            <span class="mb-1 block text-sm font-medium text-slate-700">Cena miesięczna (PLN)</span>
+            <input
+              type="number"
+              name="price"
+              min="0"
+              step="0.01"
+              required
+              class="w-full rounded-lg border border-slate-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring"
+              placeholder="3200"
+            />
+          </label>
+          <button
+            type="submit"
+            class="w-full rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-emerald-500 focus:outline-none focus:ring"
+          >
+            Zapisz nieruchomość
+          </button>
+        </form>
+        <p id="property-message" class="mt-3 text-sm" role="status"></p>
+      </section>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="./supabase-config.js"></script>
+    <script type="module" src="./js/supabaseTest.js"></script>
+  </body>
+</html>
