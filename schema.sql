@@ -518,3 +518,18 @@ $$;
 grant execute on function public.cancel_booking(uuid) to anon, authenticated;
 
 grant select on table public.public_bookings to anon, authenticated;
+
+-- Uprawnienia dla roli authenticated, wymagane do działania polityk RLS i panelu administracyjnego.
+grant usage on schema public to authenticated;
+
+grant select, insert, update on table public.caretakers to authenticated;
+grant select, insert, update on table public.facilities to authenticated;
+grant select, insert, delete on table public.facility_caretakers to authenticated;
+grant select, insert, delete on table public.facility_amenities to authenticated;
+grant select, insert, update, delete on table public.facility_checklist_items to authenticated;
+grant select on table public.amenities to authenticated;
+grant select on table public.event_types to authenticated;
+grant select, insert, update, delete on table public.document_templates to authenticated;
+grant select, insert, update on table public.bookings to authenticated;
+
+grant usage, select on all sequences in schema public to authenticated;
