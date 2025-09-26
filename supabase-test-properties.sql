@@ -20,15 +20,18 @@ create policy if not exists "Properties insert for authenticated users"
   to authenticated
   with check (created_by = auth.uid());
 
+
 create policy if not exists "Properties select for owners"
   on public.properties
   for select
+
   to authenticated
   using (created_by = auth.uid());
 
 create policy if not exists "Properties update for owners"
   on public.properties
   for update
+
   to authenticated
   using (created_by = auth.uid())
   with check (created_by = auth.uid());
