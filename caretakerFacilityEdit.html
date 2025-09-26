@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Edycja świetlicy</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body class="bg-gray-50 text-gray-900">
+  <header class="p-4 bg-white shadow">
+    <div class="max-w-4xl mx-auto flex items-center justify-between gap-3 flex-wrap">
+      <div>
+        <p class="text-xs uppercase tracking-wide text-gray-400">Edycja świetlicy</p>
+        <h1 id="facilityTitle" class="text-xl font-bold">Ładowanie danych świetlicy...</h1>
+        <p class="text-sm text-gray-500">Zarządzaj informacjami prezentowanymi mieszkańcom.</p>
+      </div>
+      <nav class="flex items-center gap-3 text-sm">
+        <a href="./caretakerPanel.html" class="text-blue-700 hover:underline">← Wróć do panelu</a>
+        <button id="caretakerLogout" type="button" class="text-red-600 hover:text-red-700">Wyloguj</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="max-w-4xl mx-auto p-4 space-y-5">
+    <section class="bg-white rounded-2xl shadow-md p-5 space-y-3">
+      <div class="flex items-start justify-between gap-3 flex-wrap">
+        <div class="space-y-1">
+          <h2 class="text-lg font-semibold">Informacje o świetlicy</h2>
+          <p class="text-sm text-gray-500">Podstawowe dane pobierane z systemu rezerwacyjnego.</p>
+        </div>
+      </div>
+      <div id="facilityMeta" class="text-sm text-gray-600 space-y-1"></div>
+      <div>
+        <span id="facilityStateMessage" class="text-sm text-gray-500"></span>
+      </div>
+    </section>
+
+    <section class="bg-white rounded-2xl shadow-md p-5 space-y-4">
+      <div>
+        <label for="instructionsInput" class="block text-sm font-medium text-gray-700">Instrukcja od opiekuna</label>
+        <textarea
+          id="instructionsInput"
+          class="mt-1 w-full border rounded-xl px-3 py-2 h-64 resize-y"
+          placeholder="Opisz zasady korzystania ze świetlicy, np. sposób odbioru kluczy, wymagane dokumenty..."
+          disabled
+        ></textarea>
+      </div>
+      <div class="flex items-center gap-3 flex-wrap">
+        <button id="saveInstructions" type="button" class="px-4 py-2 rounded-xl bg-blue-600 text-white disabled:opacity-40 disabled:cursor-not-allowed" disabled>
+          💾 Zapisz instrukcję
+        </button>
+        <span id="saveMessage" class="text-sm text-gray-500"></span>
+      </div>
+    </section>
+
+    <section class="bg-white rounded-2xl shadow-md p-5 space-y-4">
+      <div class="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <h2 class="text-lg font-semibold">Wyposażenie świetlicy</h2>
+          <p class="text-sm text-gray-500">Zaznacz, jakie udogodnienia są dostępne w wybranej świetlicy.</p>
+        </div>
+        <button
+          id="saveAmenities"
+          type="button"
+          class="px-4 py-2 rounded-xl bg-blue-600 text-white disabled:opacity-40 disabled:cursor-not-allowed"
+          disabled
+        >
+          💾 Zapisz udogodnienia
+        </button>
+      </div>
+      <div id="amenitiesContainer" class="grid gap-2 sm:grid-cols-2"></div>
+      <div class="flex items-center justify-between gap-3 flex-wrap">
+        <span id="amenitiesMessage" class="text-sm text-gray-500 min-h-[1.5rem]"></span>
+        <span class="text-xs text-gray-400">Lista pochodzi z tabeli <code>amenities</code>.</span>
+      </div>
+    </section>
+
+    <section class="bg-white rounded-2xl shadow-md p-5 space-y-4">
+      <div class="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <h2 class="text-lg font-semibold">Lista kontrolna przekazania / zdania</h2>
+          <p class="text-sm text-gray-500">Dodaj kroki, które należy potwierdzić przy odbiorze lub zdaniu świetlicy.</p>
+        </div>
+        <div class="flex items-center gap-2 flex-wrap">
+          <button
+            id="addChecklistItem"
+            type="button"
+            class="px-4 py-2 rounded-xl bg-emerald-600 text-white disabled:opacity-40 disabled:cursor-not-allowed"
+            disabled
+          >
+            ➕ Dodaj element
+          </button>
+          <button
+            id="saveChecklist"
+            type="button"
+            class="px-4 py-2 rounded-xl bg-blue-600 text-white disabled:opacity-40 disabled:cursor-not-allowed"
+            disabled
+          >
+            💾 Zapisz listę kontrolną
+          </button>
+        </div>
+      </div>
+      <div id="checklistContainer" class="space-y-3"></div>
+      <div class="flex items-center justify-between gap-3 flex-wrap">
+        <span id="checklistMessage" class="text-sm text-gray-500 min-h-[1.5rem]"></span>
+        <span class="text-xs text-gray-400">Kolejność na liście odpowiada kolejności w raporcie LIVE.</span>
+      </div>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="./supabase-config.js"></script>
+  <script type="module" src="./js/admin/facilityEditorPage.js"></script>
+</body>
+</html>
