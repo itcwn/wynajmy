@@ -165,6 +165,20 @@ export function createBookingForm({
     return (data || []).length > 0;
   }
 
+  async function hasTouchingBooking(facilityId, startIso, endIso) {
+    const { data, error } = await supabase
+      .from('bookings')
+      .select('id')
+      .eq('facility_id', facilityId)
+      .in('status', ['active', 'pending'])
+      .or(`end_time.eq.${startIso},start_time.eq.${endIso}`);
+    if (error) {
+      console.warn('Błąd sprawdzania styczności rezerwacji:', error);
+      return false;
+    }
+    return (data || []).length > 0;
+  }
+
   async function handleSubmit(event) {
     event.preventDefault();
     if (!state.selectedFacility) {
@@ -181,8 +195,9 @@ export function createBookingForm({
     setFormMessage('Trwa zapisywanie...');
     let startIso;
     let endIso;
+    let dayValue;
     if (state.mode === 'day') {
-      const dayValue = form.day_only.value;
+      dayValue = form.day_only.value;
       if (!dayValue) {
         setFormMessage('Wybierz dzień.');
         return;
@@ -190,7 +205,7 @@ export function createBookingForm({
       startIso = new Date(`${dayValue}T00:00`).toISOString();
       endIso = new Date(`${dayValue}T23:59:59`).toISOString();
     } else {
-      const dayValue = $('#dayPicker')?.value;
+      dayValue = $('#dayPicker')?.value;
       if (!dayValue) {
         setFormMessage('Wybierz dzień.');
         return;
@@ -208,6 +223,19 @@ export function createBookingForm({
     if (overlap) {
       setFormMessage('Wybrany termin koliduje z istniejącą rezerwacją (wstępna lub potwierdzona). Wybierz inny termin.');
       return;
+    }
+    const startDateForCheck = dayValue
+      ? new Date(`${dayValue}T00:00`)
+      : new Date(startIso);
+    const startDay = startDateForCheck.getDay();
+    const isWeekendStart = startDay === 0 || startDay === 6;
+    let touchesAdjacentBooking = false;
+    if (isWeekendStart) {
+      touchesAdjacentBooking = await hasTouchingBooking(
+        state.selectedFacility.id,
+        startIso,
+        endIso,
+      );
     }
     updateTitleField();
 
@@ -229,7 +257,11 @@ export function createBookingForm({
       setFormMessage(`Błąd: ${error.message || 'nie udało się utworzyć rezerwacji.'}`);
       return;
     }
-    setFormMessage('Wstępna rezerwacja złożona! Opiekun obiektu potwierdzi lub odrzuci.');
+    let successMessage = 'Wstępna rezerwacja złożona! Opiekun obiektu potwierdzi lub odrzuci.';
+    if (touchesAdjacentBooking) {
+      successMessage += ' Uwaga: rezerwacja graniczy z inną i może wymagać uzgodnień między rezerwującymi.';
+    }
+    setFormMessage(successMessage);
     const bookingRow = data && data[0] ? data[0] : null;
     state.bookingsCache.clear();
     await dayView.renderDay();
