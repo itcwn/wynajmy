@@ -1,14 +1,5 @@
 export const INSTRUCTION_FIELDS = [
-  'caretaker_instructions',
-  'caretaker_notes',
-  'instructions',
-  'instructions_text',
-  'instructions_markdown',
-  'booking_instructions',
-  'guardian_instructions',
-  'guardian_notes',
-  'manager_instructions',
-  'facility_instructions',
+  'caretaker_instructions'
 ];
 
 function toText(value) {
