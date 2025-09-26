@@ -63,10 +63,10 @@ export function createInstructionsModal({ state, domUtils }) {
       return;
     }
     if (facility && facility.id !== undefined && facility.id !== null) {
-      editLink.href = `./editDescription.html?facility=${encodeURIComponent(facility.id)}`;
+      editLink.href = `./caretakerFacilityEdit.html?facility=${encodeURIComponent(facility.id)}`;
       editLink.classList.remove('pointer-events-none', 'opacity-50');
     } else {
-      editLink.href = './editDescription.html';
+      editLink.href = './caretakerPanel.html';
       editLink.classList.add('pointer-events-none', 'opacity-50');
     }
   }

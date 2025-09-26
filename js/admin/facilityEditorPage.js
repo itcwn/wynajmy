@@ -1,13 +1,13 @@
 import { clearCaretakerSession, requireCaretakerSession } from '../caretakers/session.js';
 import { loadMyFacilities } from '../caretakers/myFacilities.js';
 import { INSTRUCTION_FIELDS, findInstructionInfo } from '../utils/instructions.js';
-import { initFacilityForm } from './facilityForm.js';
 
-const selectEl = document.getElementById('facilitySelect');
+const titleEl = document.getElementById('facilityTitle');
+const facilityStateMessage = document.getElementById('facilityStateMessage');
+const metaEl = document.getElementById('facilityMeta');
 const textarea = document.getElementById('instructionsInput');
 const saveBtn = document.getElementById('saveInstructions');
 const messageEl = document.getElementById('saveMessage');
-const metaEl = document.getElementById('facilityMeta');
 
 const amenitiesContainer = document.getElementById('amenitiesContainer');
 const saveAmenitiesBtn = document.getElementById('saveAmenities');
@@ -17,27 +17,13 @@ const checklistContainer = document.getElementById('checklistContainer');
 const checklistMessage = document.getElementById('checklistMessage');
 const addChecklistItemBtn = document.getElementById('addChecklistItem');
 const saveChecklistBtn = document.getElementById('saveChecklist');
+
 const logoutBtn = document.getElementById('caretakerLogout');
-const addFacilityModal = document.getElementById('addFacilityModal');
-const openAddFacilityBtn = document.getElementById('openAddFacilityModal');
-const addFacilityModalCloseButtons = document.querySelectorAll('[data-add-facility-modal-close]');
 
 const PHASE_OPTIONS = [
   { value: 'handover', label: 'Odbiór obiektu' },
   { value: 'return', label: 'Zdanie obiektu' },
 ];
-
-function escapeHtml(value) {
-  if (value === null || value === undefined) {
-    return '';
-  }
-  return String(value)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
 
 function setStatus(element, text, tone = 'info') {
   if (!element) {
@@ -55,6 +41,18 @@ function setStatus(element, text, tone = 'info') {
   } else {
     element.classList.add('text-gray-500');
   }
+}
+
+function escapeHtml(value) {
+  if (value === null || value === undefined) {
+    return '';
+  }
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 function escapeSelector(value) {
@@ -85,13 +83,29 @@ async function bootstrap() {
     });
   }
 
-  const caretakerId = session?.caretakerId || null;
   const supa = session?.supabase || session?.baseSupabase || null;
-  if (!supa) {
-    setStatus(messageEl, 'Brak konfiguracji Supabase lub identyfikatora opiekuna.', 'error');
+  const caretakerId = session?.caretakerId || null;
+  if (!supa || !caretakerId) {
+    setStatus(facilityStateMessage, 'Brak konfiguracji Supabase lub identyfikatora opiekuna.', 'error');
     return;
   }
-  let facilities = [];
+
+  const params = new URLSearchParams(window.location.search);
+  const facilityIdParam = params.get('facility');
+  if (!facilityIdParam) {
+    setStatus(facilityStateMessage, 'Nie wskazano świetlicy do edycji.', 'error');
+    if (textarea) {
+      textarea.disabled = true;
+    }
+    if (saveBtn) {
+      saveBtn.disabled = true;
+    }
+    saveAmenitiesBtn?.setAttribute('disabled', 'disabled');
+    addChecklistItemBtn?.setAttribute('disabled', 'disabled');
+    saveChecklistBtn?.setAttribute('disabled', 'disabled');
+    return;
+  }
+
   let selectedFacility = null;
   let isSavingInstructions = false;
 
@@ -106,122 +120,57 @@ async function bootstrap() {
   let lastChecklistFocusKey = null;
   let isSavingChecklist = false;
 
-  let facilityFormControls = null;
-  const bodyClassList = document.body?.classList || null;
-  const modalClassList = addFacilityModal?.classList || null;
-  let lastFocusedBeforeModal = null;
-  let escapeListenerAttached = false;
-
-  function isModalOpen() {
-    return Boolean(modalClassList) && !modalClassList.contains('hidden');
-  }
-
-  function trapBodyScroll(shouldTrap) {
-    if (!bodyClassList) {
-      return;
+  function updateHeader(facility) {
+    if (titleEl) {
+      titleEl.textContent = facility?.name || 'Świetlica';
     }
-    if (shouldTrap) {
-      bodyClassList.add('overflow-hidden');
-    } else {
-      bodyClassList.remove('overflow-hidden');
-    }
-  }
-
-  function handleModalEscape(event) {
-    if (event.key !== 'Escape' || !isModalOpen()) {
-      return;
-    }
-    event.preventDefault();
-    closeAddFacilityModalDialog({ restoreFocus: true, resetForm: true });
-  }
-
-  function attachModalEscapeListener() {
-    if (escapeListenerAttached) {
-      return;
-    }
-    document.addEventListener('keydown', handleModalEscape);
-    escapeListenerAttached = true;
-  }
-
-  function detachModalEscapeListener() {
-    if (!escapeListenerAttached) {
-      return;
-    }
-    document.removeEventListener('keydown', handleModalEscape);
-    escapeListenerAttached = false;
-  }
-
-  function openAddFacilityModalDialog() {
-    if (!addFacilityModal || !modalClassList || isModalOpen()) {
-      return;
-    }
-    lastFocusedBeforeModal = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    modalClassList.remove('hidden');
-    modalClassList.add('flex');
-    trapBodyScroll(true);
-    facilityFormControls?.reset?.({ focus: false });
-    window.setTimeout(() => {
-      facilityFormControls?.focusFirstField?.();
-    }, 50);
-    attachModalEscapeListener();
-  }
-
-  function closeAddFacilityModalDialog({ restoreFocus = true, resetForm = false } = {}) {
-    if (!addFacilityModal || !modalClassList || !isModalOpen()) {
-      return;
-    }
-    modalClassList.add('hidden');
-    modalClassList.remove('flex');
-    trapBodyScroll(false);
-    detachModalEscapeListener();
-    if (resetForm) {
-      facilityFormControls?.reset?.({ focus: false });
-      facilityFormControls?.clearMessage?.();
-    }
-    if (restoreFocus && lastFocusedBeforeModal && typeof lastFocusedBeforeModal.focus === 'function') {
-      lastFocusedBeforeModal.focus();
-    }
-    lastFocusedBeforeModal = null;
-  }
-
-  function isPermissionError(error) {
-    if (!error) {
-      return false;
-    }
-    const code = String(error.code || '').toUpperCase();
-    if (code === '42501' || code === 'PGRST301') {
-      return true;
-    }
-    if (typeof error.message === 'string' && /permission denied/i.test(error.message)) {
-      return true;
-    }
-    return false;
-  }
-
-  function showMessage(text, tone = 'info') {
-    setStatus(messageEl, text, tone);
-  }
-
-  function describeFacility(facility) {
-    if (!facility) {
-      return '';
-    }
-    const parts = [];
-    if (facility.postal_code || facility.city) {
-      parts.push([facility.postal_code, facility.city].filter(Boolean).join(' '));
-    }
-    if (facility.address_line1 || facility.address_line2) {
-      parts.push([facility.address_line1, facility.address_line2].filter(Boolean).join(', '));
-    }
-    return parts.filter(Boolean).join(' · ');
+    setStatus(facilityStateMessage, facility ? '' : 'Nie znaleziono świetlicy.', facility ? 'info' : 'error');
   }
 
   function updateMeta(facility) {
     if (!metaEl) {
       return;
     }
-    const description = describeFacility(facility);
-    metaEl.textContent = description || '';
+    if (!facility) {
+      metaEl.innerHTML = '';
+      return;
+    }
+    const fragments = [];
+    const addressParts = [];
+    if (facility.postal_code || facility.city) {
+      addressParts.push([facility.postal_code, facility.city].filter(Boolean).join(' '));
+    }
+    if (facility.address_line1 || facility.address_line2) {
+      addressParts.push([facility.address_line1, facility.address_line2].filter(Boolean).join(', '));
+    }
+    if (addressParts.length) {
+      fragments.push(`<p><span class="font-medium text-gray-700">Adres:</span> ${escapeHtml(addressParts.join(' · '))}</p>`);
+    }
+    if (facility.capacity !== null && facility.capacity !== undefined) {
+      fragments.push(
+        `<p><span class="font-medium text-gray-700">Pojemność:</span> ${escapeHtml(String(facility.capacity))} osób</p>`,
+      );
+    }
+    if (facility.price_per_hour !== null && facility.price_per_hour !== undefined) {
+      fragments.push(
+        `<p><span class="font-medium text-gray-700">Cena za godzinę:</span> ${escapeHtml(String(facility.price_per_hour))} zł</p>`,
+      );
+    }
+    if (facility.price_per_day !== null && facility.price_per_day !== undefined) {
+      fragments.push(
+        `<p><span class="font-medium text-gray-700">Cena za dobę:</span> ${escapeHtml(String(facility.price_per_day))} zł</p>`,
+      );
+    }
+    if (facility.description) {
+      fragments.push(
+        `<p><span class="font-medium text-gray-700">Opis:</span> ${escapeHtml(facility.description)}</p>`,
+      );
+    }
+    metaEl.innerHTML = fragments.join('');
+  }
+
+  function showMessage(text, tone = 'info') {
+    setStatus(messageEl, text, tone);
   }
 
   function renderAmenitiesList() {
@@ -229,10 +178,8 @@ async function bootstrap() {
       return;
     }
     if (!selectedFacility) {
-      amenitiesContainer.innerHTML = '<p class="text-sm text-gray-500">Wybierz świetlicę, aby przypisać udogodnienia.</p>';
-      if (saveAmenitiesBtn) {
-        saveAmenitiesBtn.disabled = true;
-      }
+      amenitiesContainer.innerHTML = '<p class="text-sm text-gray-500">Brak danych świetlicy.</p>';
+      saveAmenitiesBtn?.setAttribute('disabled', 'disabled');
       return;
     }
     if (!amenitiesLoaded) {
@@ -241,9 +188,7 @@ async function bootstrap() {
     }
     if (!amenitiesCatalog.length) {
       amenitiesContainer.innerHTML = '<p class="text-sm text-gray-500">Brak udogodnień w słowniku.</p>';
-      if (saveAmenitiesBtn) {
-        saveAmenitiesBtn.disabled = true;
-      }
+      saveAmenitiesBtn?.setAttribute('disabled', 'disabled');
       return;
     }
     const fragments = amenitiesCatalog.map((amenity) => {
@@ -308,14 +253,13 @@ async function bootstrap() {
     if (!facilityId) {
       selectedAmenityIds = new Set();
       renderAmenitiesList();
-      setStatus(amenitiesMessage, 'Wybierz świetlicę, aby zarządzać udogodnieniami.', 'info');
+      setStatus(amenitiesMessage, 'Brak danych świetlicy.', 'info');
       return;
     }
     if (amenitiesContainer) {
       amenitiesContainer.innerHTML = '<p class="text-sm text-gray-500">Ładowanie przypisań...</p>';
     }
     setStatus(amenitiesMessage, 'Ładowanie udogodnień świetlicy...', 'info');
-    const expected = String(facilityId);
     selectedAmenityIds = new Set();
     try {
       const { data, error } = await supa
@@ -325,7 +269,7 @@ async function bootstrap() {
       if (error) {
         throw error;
       }
-      if (!selectedFacility || String(selectedFacility.id) !== expected) {
+      if (!selectedFacility || String(selectedFacility.id) !== String(facilityId)) {
         return;
       }
       selectedAmenityIds = new Set((data || []).map((row) => String(row.amenity_id)));
@@ -333,7 +277,7 @@ async function bootstrap() {
       setStatus(amenitiesMessage, '', 'info');
     } catch (error) {
       console.error(error);
-      if (!selectedFacility || String(selectedFacility.id) !== expected) {
+      if (!selectedFacility || String(selectedFacility.id) !== String(facilityId)) {
         return;
       }
       renderAmenitiesList();
@@ -409,13 +353,9 @@ async function bootstrap() {
       return;
     }
     if (!selectedFacility) {
-      checklistContainer.innerHTML = '<p class="text-sm text-gray-500">Wybierz świetlicę, aby edytować listę kontrolną.</p>';
-      if (addChecklistItemBtn) {
-        addChecklistItemBtn.disabled = true;
-      }
-      if (saveChecklistBtn) {
-        saveChecklistBtn.disabled = true;
-      }
+      checklistContainer.innerHTML = '<p class="text-sm text-gray-500">Brak danych świetlicy.</p>';
+      addChecklistItemBtn?.setAttribute('disabled', 'disabled');
+      saveChecklistBtn?.setAttribute('disabled', 'disabled');
       setStatus(checklistMessage, '', 'info');
       return;
     }
@@ -446,8 +386,12 @@ async function bootstrap() {
                   </label>
                 </div>
                 <div class="flex items-center gap-2 text-xs">
-                  <button type="button" class="text-blue-600 hover:underline disabled:opacity-40" data-action="move-up" ${index === 0 ? 'disabled' : ''}>↑ do góry</button>
-                  <button type="button" class="text-blue-600 hover:underline disabled:opacity-40" data-action="move-down" ${index === checklistItems.length - 1 ? 'disabled' : ''}>↓ w dół</button>
+                  <button type="button" class="text-blue-600 hover:underline disabled:opacity-40" data-action="move-up" ${
+                    index === 0 ? 'disabled' : ''
+                  }>↑ do góry</button>
+                  <button type="button" class="text-blue-600 hover:underline disabled:opacity-40" data-action="move-down" ${
+                    index === checklistItems.length - 1 ? 'disabled' : ''
+                  }>↓ w dół</button>
                   <button type="button" class="text-red-600 hover:underline" data-action="delete">Usuń</button>
                 </div>
               </div>
@@ -648,7 +592,6 @@ async function bootstrap() {
     if (checklistContainer) {
       checklistContainer.innerHTML = '<p class="text-sm text-gray-500">Ładowanie listy kontrolnej...</p>';
     }
-    const expected = String(facilityId);
     try {
       const { data, error } = await supa
         .from('facility_checklist_items')
@@ -659,7 +602,7 @@ async function bootstrap() {
       if (error) {
         throw error;
       }
-      if (!selectedFacility || String(selectedFacility.id) !== expected) {
+      if (!selectedFacility || String(selectedFacility.id) !== String(facilityId)) {
         return;
       }
       checklistItems = (data || []).map((row) => ({
@@ -680,7 +623,7 @@ async function bootstrap() {
       );
     } catch (error) {
       console.error(error);
-      if (!selectedFacility || String(selectedFacility.id) !== expected) {
+      if (!selectedFacility || String(selectedFacility.id) !== String(facilityId)) {
         return;
       }
       resetChecklistState();
@@ -736,7 +679,7 @@ async function bootstrap() {
     selectedFacility[savedColumn] = newValue;
   }
 
-  async function handleSave() {
+  async function handleSaveInstructions() {
     if (!selectedFacility || isSavingInstructions) {
       return;
     }
@@ -745,9 +688,6 @@ async function bootstrap() {
     if (saveBtn) {
       saveBtn.disabled = true;
       saveBtn.textContent = 'Zapisywanie...';
-    }
-    if (selectEl) {
-      selectEl.disabled = true;
     }
     showMessage('Trwa zapisywanie...', 'info');
     const normalized = textarea.value.replace(/\r\n/g, '\n');
@@ -763,177 +703,10 @@ async function bootstrap() {
         saveBtn.disabled = false;
         saveBtn.textContent = originalLabel;
       }
-      if (selectEl) {
-        selectEl.disabled = false;
-      }
     }
   }
 
-  function renderFacilities() {
-    if (!selectEl) {
-      return;
-    }
-    const previousValue = selectEl.value;
-    selectEl.innerHTML = '';
-
-    const placeholder = document.createElement('option');
-    placeholder.value = '';
-    placeholder.textContent = facilities.length
-      ? '— wybierz świetlicę —'
-      : '— brak przypisanych świetlic —';
-    selectEl.appendChild(placeholder);
-
-    const sorted = [...facilities].sort((a, b) => {
-      const left = (a.name || '').toLocaleLowerCase('pl');
-      const right = (b.name || '').toLocaleLowerCase('pl');
-      if (left < right) return -1;
-      if (left > right) return 1;
-      return 0;
-    });
-
-    for (const facility of sorted) {
-      const option = document.createElement('option');
-      option.value = String(facility.id);
-      option.textContent = facility.name || `ID ${facility.id}`;
-      selectEl.appendChild(option);
-    }
-
-    if (previousValue) {
-      const hasPrevious = sorted.some((facility) => String(facility.id) === String(previousValue));
-      selectEl.value = hasPrevious ? previousValue : '';
-    } else {
-      selectEl.value = '';
-    }
-
-    selectEl.disabled = facilities.length === 0;
-  }
-
-  function applySelectionFromQuery() {
-    const params = new URLSearchParams(window.location.search);
-    const fromQuery = params.get('facility');
-    if (!fromQuery) {
-      return false;
-    }
-    const match = facilities.find((item) => String(item.id) === String(fromQuery));
-    if (match) {
-      selectedFacility = match;
-      if (selectEl) {
-        selectEl.value = String(match.id);
-      }
-      return true;
-    }
-    return false;
-  }
-
-  async function loadFacilities({ selectId = null, silent = false, forceRefresh = false } = {}) {
-    if (!silent) {
-      showMessage('Ładowanie listy świetlic...', 'info');
-    }
-    try {
-      let fetchedFacilities = [];
-      if (caretakerId) {
-        fetchedFacilities = await loadMyFacilities({ forceRefresh });
-        if (!fetchedFacilities.length) {
-          facilities = [];
-          selectedFacility = null;
-          renderFacilities();
-          updateForm();
-          if (!silent) {
-            showMessage(
-              'Nie masz jeszcze żadnych świetlic. Użyj przycisku „Dodaj świetlicę” powyżej, aby dodać pierwszą.',
-              'info',
-            );
-          }
-          return;
-        }
-      } else {
-        const { data, error } = await supa.from('facilities').select('*').order('name');
-        if (error) {
-          throw error;
-        }
-        fetchedFacilities = data || [];
-      }
-
-      facilities = Array.isArray(fetchedFacilities)
-        ? fetchedFacilities.map((facility) => ({ ...(facility || {}) }))
-        : [];
-      const previousSelectionId = selectedFacility ? String(selectedFacility.id) : null;
-      if (previousSelectionId) {
-        const refreshed = facilities.find((item) => String(item.id) === previousSelectionId);
-        selectedFacility = refreshed || null;
-      }
-      renderFacilities();
-      const queryApplied = applySelectionFromQuery();
-      if (selectId) {
-        const match = facilities.find((item) => String(item.id) === String(selectId));
-        if (match) {
-          selectedFacility = match;
-          if (selectEl) {
-            selectEl.value = String(match.id);
-          }
-        }
-      } else if (!queryApplied && selectedFacility) {
-        if (selectEl) {
-          selectEl.value = String(selectedFacility.id);
-        }
-      }
-      if (!selectedFacility && facilities.length) {
-        selectedFacility = facilities[0];
-        if (selectEl) {
-          selectEl.value = String(selectedFacility.id);
-        }
-      }
-      updateForm();
-      if (!silent) {
-        showMessage('', 'info');
-      }
-    } catch (error) {
-      console.error(error);
-      if (isPermissionError(error)) {
-        showMessage(
-          'Nie masz uprawnień do odczytu przypisań świetlic. Skontaktuj się z administratorem systemu.',
-          'error',
-        );
-      } else {
-        showMessage('Nie udało się pobrać listy świetlic.', 'error');
-      }
-    }
-  }
-
-  facilityFormControls = initFacilityForm({
-    session,
-    onFacilityCreated: async (createdFacility) => {
-      const facilityId = createdFacility?.id ? String(createdFacility.id) : null;
-      await loadFacilities({ selectId: facilityId, silent: true, forceRefresh: true });
-      if (facilityId && selectEl) {
-        selectEl.focus();
-      }
-      closeAddFacilityModalDialog({ restoreFocus: false, resetForm: true });
-      showMessage('Dodano nową świetlicę. Wybierz ją z listy, aby uzupełnić jej informacje.', 'success');
-    },
-  });
-
-  if (openAddFacilityBtn) {
-    openAddFacilityBtn.addEventListener('click', () => {
-      openAddFacilityModalDialog();
-    });
-  }
-
-  addFacilityModalCloseButtons.forEach((button) => {
-    button.addEventListener('click', () => {
-      closeAddFacilityModalDialog({ restoreFocus: true, resetForm: true });
-    });
-  });
-
-  if (addFacilityModal) {
-    addFacilityModal.addEventListener('click', (event) => {
-      if (event.target === addFacilityModal) {
-        closeAddFacilityModalDialog({ restoreFocus: true, resetForm: true });
-      }
-    });
-  }
-
-  function updateForm() {
+  function updateInstructionsForm() {
     const info = findInstructionInfo(selectedFacility);
     if (!selectedFacility) {
       if (textarea) {
@@ -943,21 +716,7 @@ async function bootstrap() {
       if (saveBtn) {
         saveBtn.disabled = true;
       }
-      updateMeta(null);
-      if (facilities.length) {
-        showMessage('Wybierz świetlicę, aby edytować instrukcję.', 'info');
-      } else {
-        showMessage(
-          'Nie masz jeszcze żadnych świetlic. Użyj przycisku „Dodaj świetlicę” powyżej, aby dodać pierwszą.',
-          'info',
-        );
-      }
-      selectedAmenityIds = new Set();
-      renderAmenitiesList();
-      setStatus(amenitiesMessage, 'Wybierz świetlicę, aby zarządzać udogodnieniami.', 'info');
-      resetChecklistState();
-      renderChecklist();
-      setStatus(checklistMessage, '', 'info');
+      showMessage('Brak danych świetlicy do edycji.', 'info');
       return;
     }
     if (textarea) {
@@ -967,33 +726,73 @@ async function bootstrap() {
     if (saveBtn) {
       saveBtn.disabled = false;
     }
-    updateMeta(selectedFacility);
     showMessage('', 'info');
-
-    renderAmenitiesList();
-    setStatus(amenitiesMessage, 'Ładowanie udogodnień świetlicy...', 'info');
-    void loadFacilityAmenities(selectedFacility.id);
-
-    resetChecklistState();
-    renderChecklist();
-    setStatus(checklistMessage, 'Ładowanie listy kontrolnej...', 'info');
-    void loadChecklistForFacility(selectedFacility.id);
   }
 
-  selectEl?.addEventListener('change', () => {
-    const value = selectEl.value;
-    selectedFacility = facilities.find((facility) => String(facility.id) === String(value)) || null;
-    updateForm();
-  });
+  async function loadFacilityDetails({ forceRefresh = false } = {}) {
+    setStatus(facilityStateMessage, 'Ładowanie danych świetlicy...', 'info');
+    try {
+      const columns = [
+        'id',
+        'name',
+        'postal_code',
+        'city',
+        'address_line1',
+        'address_line2',
+        'capacity',
+        'price_per_hour',
+        'price_per_day',
+        'lat',
+        'lng',
+        'description',
+        ...INSTRUCTION_FIELDS,
+      ].join(',');
+      const facilities = await loadMyFacilities({ columns, forceRefresh });
+      const match = facilities.find((item) => String(item.id) === String(facilityIdParam));
+      if (!match) {
+        selectedFacility = null;
+        updateHeader(null);
+        updateMeta(null);
+        showMessage('Nie znaleziono świetlicy powiązanej z Twoim kontem.', 'error');
+        setStatus(amenitiesMessage, 'Nie znaleziono świetlicy.', 'error');
+        setStatus(checklistMessage, 'Nie znaleziono świetlicy.', 'error');
+        renderAmenitiesList();
+        renderChecklist();
+        textarea?.setAttribute('disabled', 'disabled');
+        saveBtn?.setAttribute('disabled', 'disabled');
+        saveAmenitiesBtn?.setAttribute('disabled', 'disabled');
+        addChecklistItemBtn?.setAttribute('disabled', 'disabled');
+        saveChecklistBtn?.setAttribute('disabled', 'disabled');
+        return;
+      }
+      selectedFacility = { ...(match || {}) };
+      updateHeader(selectedFacility);
+      updateMeta(selectedFacility);
+      updateInstructionsForm();
+      renderAmenitiesList();
+      setStatus(amenitiesMessage, 'Ładowanie udogodnień świetlicy...', 'info');
+      void loadFacilityAmenities(selectedFacility.id);
+      resetChecklistState();
+      renderChecklist();
+      setStatus(checklistMessage, 'Ładowanie listy kontrolnej...', 'info');
+      void loadChecklistForFacility(selectedFacility.id);
+    } catch (error) {
+      console.error(error);
+      setStatus(facilityStateMessage, 'Nie udało się pobrać danych świetlicy.', 'error');
+      showMessage('Nie udało się pobrać danych świetlicy.', 'error');
+      setStatus(amenitiesMessage, 'Nie udało się pobrać danych świetlicy.', 'error');
+      setStatus(checklistMessage, 'Nie udało się pobrać danych świetlicy.', 'error');
+    }
+  }
 
   saveBtn?.addEventListener('click', () => {
-    void handleSave();
+    void handleSaveInstructions();
   });
 
   textarea?.addEventListener('keydown', (event) => {
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
       event.preventDefault();
-      void handleSave();
+      void handleSaveInstructions();
     }
   });
 
@@ -1011,11 +810,11 @@ async function bootstrap() {
 
   renderAmenitiesList();
   renderChecklist();
-  setStatus(amenitiesMessage, 'Wybierz świetlicę, aby zarządzać udogodnieniami.', 'info');
+  setStatus(amenitiesMessage, 'Ładowanie listy udogodnień...', 'info');
   setStatus(checklistMessage, '', 'info');
 
   void loadAmenitiesDictionary();
-  void loadFacilities();
+  void loadFacilityDetails({ forceRefresh: false });
 }
 
 void bootstrap();
