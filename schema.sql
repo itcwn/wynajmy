@@ -577,6 +577,8 @@ grant execute on function public.cancel_booking(uuid) to anon, authenticated;
 
 grant select on table public.public_bookings to anon, authenticated;
 
+grant insert on table public.bookings to anon;
+
 -- Uprawnienia dla roli authenticated, wymagane do działania polityk RLS i panelu administracyjnego.
 grant usage on schema public to authenticated;
 
