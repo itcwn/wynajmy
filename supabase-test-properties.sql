@@ -12,6 +12,9 @@ create table if not exists public.properties (
   created_by uuid references auth.users(id)
 );
 
+grant select, insert, update, delete on table public.properties to authenticated;
+grant select, insert, update, delete on table public.properties to anon;
+
 alter table public.properties enable row level security;
 
 create policy if not exists "Properties insert for authenticated users"
