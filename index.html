@@ -21,7 +21,15 @@
       </div>
       <div class="flex items-center gap-3 flex-wrap text-sm">
         <div class="text-gray-500">🦉 SOWA System Online do Wsparcia Automatycznej rezerwacji świetlic</div>
+        <span
+          id="caretakerLoggedInfo"
+          class="hidden items-center gap-1 rounded-md bg-emerald-50 px-3 py-1 text-sm text-emerald-700"
+        >
+          Zalogowany jako:
+          <span id="caretakerLoggedName" class="font-semibold"></span>
+        </span>
         <a
+          id="caretakerPanelLink"
           href="./caretakerLogin.html"
           class="inline-flex items-center gap-1 rounded-md border border-indigo-200 px-3 py-1 font-medium text-indigo-700 hover:bg-indigo-50"
         >
@@ -50,8 +58,38 @@
     </section>
   </main>
 
-  <footer class="max-w-6xl mx-auto p-6 text-xs text-gray-500">
-    🦉 SOWA System Online do Wsparcia Automatycznej rezerwacji świetlic
+  <footer class="border-t border-gray-200 bg-white/70">
+    <div class="mx-auto flex max-w-6xl flex-col gap-6 px-6 py-8 text-sm text-gray-600 sm:px-8">
+      <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div class="space-y-1">
+          <p class="text-base font-semibold text-gray-800">
+            🦉 SOWA System Online do Wsparcia Automatycznej rezerwacji świetlic
+          </p>
+          <p class="text-xs text-gray-500">Platforma demonstracyjna — wersja testowa</p>
+        </div>
+        <div class="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-3">
+          <a
+            href="./registerCaretaker.html"
+            class="inline-flex items-center gap-2 rounded-full bg-amber-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-amber-500/30 transition hover:bg-amber-600"
+          >
+            ✨ Zarejestruj opiekuna
+          </a>
+          <a
+            href="./caretakerLogin.html"
+            class="inline-flex items-center gap-2 text-sm font-medium text-indigo-700 hover:text-indigo-900"
+          >
+            Przejdź do logowania opiekuna
+          </a>
+        </div>
+      </div>
+      <div class="flex flex-wrap items-center gap-4 text-xs text-gray-500">
+        <span>&copy; 2024 Gmina Demo</span>
+        <span class="hidden h-3 w-px bg-gray-300 sm:inline-block" aria-hidden="true"></span>
+        <a href="./privacy.html" class="hover:text-gray-700 hover:underline">Polityka prywatności</a>
+        <a href="./terms.html" class="hover:text-gray-700 hover:underline">Regulamin serwisu</a>
+        <a href="mailto:kontakt@gmina.pl" class="hover:text-gray-700 hover:underline">Kontakt</a>
+      </div>
+    </div>
   </footer>
 
   <!-- Supabase SDK -->
