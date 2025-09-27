@@ -219,16 +219,13 @@ export function createBookingForm({
         return;
       }
     }
+    const startDay = new Date(startIso).getDay();
+    const isWeekendStart = startDay === 0 || startDay === 6;
     const overlap = await hasOverlap(state.selectedFacility.id, startIso, endIso);
     if (overlap) {
       setFormMessage('Wybrany termin koliduje z istniejącą rezerwacją (wstępna lub potwierdzona). Wybierz inny termin.');
       return;
     }
-    const startDateForCheck = dayValue
-      ? new Date(`${dayValue}T00:00`)
-      : new Date(startIso);
-    const startDay = startDateForCheck.getDay();
-    const isWeekendStart = startDay === 0 || startDay === 6;
     let touchesAdjacentBooking = false;
     if (isWeekendStart) {
       touchesAdjacentBooking = await hasTouchingBooking(
@@ -236,6 +233,9 @@ export function createBookingForm({
         startIso,
         endIso,
       );
+      if (touchesAdjacentBooking) {
+        setFormMessage('Trwa zapisywanie... Uwaga: rezerwacja graniczy z inną i może wymagać uzgodnień między rezerwującymi.');
+      }
     }
     updateTitleField();
 
