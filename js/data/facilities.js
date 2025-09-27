@@ -105,8 +105,8 @@ export function createFacilitiesModule({
         (facility) => `
       <li>
         <button data-id="${facility.id}" class="w-full text-left border rounded-xl p-3 hover:bg-gray-50">
-          <div class="font-semibold">${escapeHtml(facility.name || '')}${facility.postal_code ? ` (${escapeHtml(facility.postal_code)})` : ''}</div>
-          <div class="text-sm text-gray-600">${escapeHtml(facility.city || '')}</div>
+          <div class="font-semibold">${escapeHtml(facility.name || '')}</div>
+          <div class="text-sm text-gray-600">${formatFacilityLocation(facility)}</div>
         </button>
       </li>`
       )
@@ -119,6 +119,14 @@ export function createFacilitiesModule({
         }
       });
     });
+  }
+
+  function formatFacilityLocation(facility) {
+    const parts = [facility.postal_code, facility.city]
+      .map((value) => String(value ?? '').trim())
+      .filter(Boolean)
+      .map((value) => escapeHtml(value));
+    return parts.join(' ');
   }
 
   function loadMapsIfKey() {
