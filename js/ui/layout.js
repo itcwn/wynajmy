@@ -192,6 +192,10 @@ export function renderMain() {
           <p class="text-xs text-slate-500">
             🔴 Zajęte (potwierdzone) · 🟡 Wstępne (czeka na akceptację) · brak koloru = dostępne
           </p>
+          <p class="text-xs text-slate-500">
+            Doba rozliczeniowa liczona jest zgodnie z umową i zależy od rodzaju wynajmu. Przekroczenie doby może wiązać się z dodatkową opłatą.
+            Szczegóły w cenniku danego obiektu.
+          </p>
         </div>
       </div>
 

@@ -2,6 +2,22 @@ export function createMonthModal({ state, supabase, renderDay, setDayPickerFromC
   let fcInstance = null;
   let listenersAttached = false;
 
+  function isAllDayRange(startDate, endDate) {
+    if (!(startDate instanceof Date) || Number.isNaN(startDate.getTime())) {
+      return false;
+    }
+    if (!(endDate instanceof Date) || Number.isNaN(endDate.getTime())) {
+      return false;
+    }
+    const startIsMidnight = startDate.getHours() === 0 && startDate.getMinutes() === 0;
+    const endIsBeforeMidnight = endDate.getHours() === 23 && endDate.getMinutes() >= 59;
+    const endIsMidnightNextDay = endDate.getHours() === 0 && endDate.getMinutes() === 0 && endDate > startDate;
+    const msInDay = 24 * 60 * 60 * 1000;
+    const duration = endDate.getTime() - startDate.getTime();
+    const almostDay = Math.abs(duration - msInDay) <= 60 * 1000 || Math.abs(duration - (msInDay - 1000)) <= 60 * 1000;
+    return startIsMidnight && (endIsBeforeMidnight || (endIsMidnightNextDay && almostDay));
+  }
+
   function closeFcModal() {
     const modal = document.getElementById('fcModal');
     if (modal) {
@@ -65,19 +81,34 @@ export function createMonthModal({ state, supabase, renderDay, setDayPickerFromC
       },
       eventClick: (info) => {
         const ev = info.event;
-        const s = ev.start
-          ? new Date(ev.start).toLocaleString('pl-PL', { dateStyle: 'medium', timeStyle: 'short' })
+        const startDate = ev.start ? new Date(ev.start) : null;
+        const endDate = ev.end ? new Date(ev.end) : null;
+        const isAllDay = startDate && endDate ? isAllDayRange(startDate, endDate) : false;
+        const startLabel = startDate
+          ? (isAllDay
+            ? startDate.toLocaleDateString('pl-PL', { dateStyle: 'medium' })
+            : startDate.toLocaleString('pl-PL', { dateStyle: 'medium', timeStyle: 'short' }))
           : '';
-        const e = ev.end
-          ? new Date(ev.end).toLocaleString('pl-PL', { dateStyle: 'medium', timeStyle: 'short' })
+        const endLabel = endDate
+          ? (isAllDay
+            ? endDate.toLocaleDateString('pl-PL', { dateStyle: 'medium' })
+            : endDate.toLocaleString('pl-PL', { dateStyle: 'medium', timeStyle: 'short' }))
           : '';
+        const sameDayRange = isAllDay && startLabel && endLabel && startLabel === endLabel;
         alert(
-          `${ev.title}\n` +
-            (s ? `Od: ${s}\n` : '') +
-            (e ? `Do: ${e}\n` : '') +
-            (ev.extendedProps?.renter ? `Najemca: ${ev.extendedProps.renter}\n` : '') +
-            (ev.extendedProps?.status ? `Status: ${ev.extendedProps.status}\n` : '') +
-            (ev.extendedProps?.notes ? `Uwagi: ${ev.extendedProps.notes}` : '')
+          `${ev.title}\n`
+          + (startLabel
+            ? (isAllDay
+              ? (sameDayRange ? `Dzień: ${startLabel}\n` : `Od: ${startLabel}\n`)
+              : `Od: ${startLabel}\n`)
+            : '')
+          + (endLabel && (!isAllDay || !sameDayRange)
+            ? `Do: ${endLabel}\n`
+            : '')
+          + (isAllDay ? 'Rodzaj: rezerwacja dobowa\n' : '')
+          + (ev.extendedProps?.renter ? `Najemca: ${ev.extendedProps.renter}\n` : '')
+          + (ev.extendedProps?.status ? `Status: ${ev.extendedProps.status}\n` : '')
+          + (ev.extendedProps?.notes ? `Uwagi: ${ev.extendedProps.notes}` : '')
         );
       },
     });

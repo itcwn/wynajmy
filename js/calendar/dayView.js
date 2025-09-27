@@ -41,6 +41,22 @@ export function createDayView({ state, supabase, domUtils, formatUtils }) {
     return { start, end };
   }
 
+  function isAllDayRange(startDate, endDate) {
+    if (!(startDate instanceof Date) || Number.isNaN(startDate.getTime())) {
+      return false;
+    }
+    if (!(endDate instanceof Date) || Number.isNaN(endDate.getTime())) {
+      return false;
+    }
+    const startIsMidnight = startDate.getHours() === 0 && startDate.getMinutes() === 0;
+    const endIsBeforeMidnight = endDate.getHours() === 23 && endDate.getMinutes() >= 59;
+    const endIsMidnightNextDay = endDate.getHours() === 0 && endDate.getMinutes() === 0 && endDate > startDate;
+    const msInDay = 24 * 60 * 60 * 1000;
+    const duration = endDate.getTime() - startDate.getTime();
+    const almostDay = Math.abs(duration - msInDay) <= 60 * 1000 || Math.abs(duration - (msInDay - 1000)) <= 60 * 1000;
+    return startIsMidnight && (endIsBeforeMidnight || (endIsMidnightNextDay && almostDay));
+  }
+
   function updateHourLabels(triggerRender = true) {
     const startEl = $('#hourStart');
     const endEl = $('#hourEnd');
@@ -185,8 +201,10 @@ export function createDayView({ state, supabase, domUtils, formatUtils }) {
         item.className = `rounded-xl border ${C.border} ${C.bg} ${C.text} shadow-sm p-3`;
         const s = new Date(b.start_time);
         const e = new Date(b.end_time);
-        const timeLabel = `${s.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' })}` +
-          `–${e.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' })}`;
+        const timeLabel = isAllDayRange(s, e)
+          ? 'Cały dzień'
+          : `${s.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' })}`
+            + `–${e.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' })}`;
         item.innerHTML = `
           <div class="flex items-start justify-between">
             <div>
