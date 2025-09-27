@@ -89,6 +89,11 @@ export function renderMain() {
                     Otwórz galerię
                   </button>
                 </div>
+                <div
+                  id="facilityThumbs"
+                  class="hidden -mx-1 flex gap-3 overflow-x-auto px-1 pb-1 snap-x snap-mandatory"
+                  aria-label="Miniatury galerii"
+                ></div>
                 <div id="galleryColumnInfo" class="text-xs leading-snug text-slate-500">
                   Wybierz świetlicę, aby zobaczyć zdjęcia.
                 </div>
