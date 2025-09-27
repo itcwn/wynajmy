@@ -152,7 +152,7 @@ export function createBookingForm({
 
   async function hasOverlap(facilityId, startIso, endIso) {
     const { data, error } = await supabase
-      .from('bookings')
+      .from('public_bookings')
       .select('id,status,start_time,end_time')
       .eq('facility_id', facilityId)
       .in('status', ['active', 'pending'])
@@ -167,7 +167,7 @@ export function createBookingForm({
 
   async function hasTouchingBooking(facilityId, startIso, endIso) {
     const { data, error } = await supabase
-      .from('bookings')
+      .from('public_bookings')
       .select('id')
       .eq('facility_id', facilityId)
       .in('status', ['active', 'pending'])
