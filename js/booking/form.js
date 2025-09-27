@@ -251,7 +251,11 @@ export function createBookingForm({
       is_public: true,
       status: 'pending',
     };
-    const { data, error } = await supabase.from('bookings').insert(payload).select();
+    const { data, error } = await supabase
+      .from('bookings')
+      .insert(payload)
+      .select('id, facility_id, title, start_time, end_time, status, renter_name, notes, renter_email, cancel_token')
+      .maybeSingle();
     if (error) {
       console.error(error);
       setFormMessage(`Błąd: ${error.message || 'nie udało się utworzyć rezerwacji.'}`);
@@ -262,7 +266,27 @@ export function createBookingForm({
       successMessage += ' Uwaga: rezerwacja graniczy z inną i może wymagać uzgodnień między rezerwującymi.';
     }
     setFormMessage(successMessage);
-    const bookingRow = data && data[0] ? data[0] : null;
+    let bookingRow = data || null;
+    if (bookingRow?.id) {
+      try {
+        const { data: publicRow, error: publicError } = await supabase
+          .from('public_bookings')
+          .select('*')
+          .eq('id', bookingRow.id)
+          .maybeSingle();
+        if (publicError) {
+          console.warn('Błąd pobierania widoku publicznego rezerwacji:', publicError);
+        } else if (publicRow) {
+          bookingRow = {
+            ...publicRow,
+            renter_email: bookingRow.renter_email,
+            cancel_token: bookingRow.cancel_token,
+          };
+        }
+      } catch (fetchError) {
+        console.warn('Wyjątek pobierania widoku publicznego rezerwacji:', fetchError);
+      }
+    }
     state.bookingsCache.clear();
     await dayView.renderDay();
     await showPostBookingActions(bookingRow, { logCancelUrl: true });
