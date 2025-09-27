@@ -66,7 +66,6 @@ export function createBookingForm({
   async function fetchFacilityById(facilityId) {
     const builders = [
       () => supabase.from('public_facilities').select('*').eq('id', facilityId).maybeSingle(),
-      () => supabase.from('facilities_public').select('*').eq('id', facilityId).maybeSingle(),
       () => supabase.from('facilities').select('*').eq('id', facilityId).maybeSingle(),
     ];
     for (const build of builders) {

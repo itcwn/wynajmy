@@ -77,7 +77,6 @@ export function createFacilitiesModule({
   async function loadFacilities() {
     const facilitiesData = await runFirstSuccessfulQuery([
       () => supabase.from('public_facilities').select('*').order('name'),
-      () => supabase.from('facilities_public').select('*').order('name'),
       () => supabase.from('facilities').select('*').order('name'),
     ], { allowEmpty: false });
     state.facilities = facilitiesData || [];
