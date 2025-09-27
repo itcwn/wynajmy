@@ -356,8 +356,7 @@ export function createFacilitiesModule({
           `)
           .join('');
         thumbs.querySelectorAll('button[data-index]').forEach((btn) => {
-          btn.classList.remove('flex-shrink-0');
-          btn.classList.add('md:w-full', 'md:h-auto', 'md:flex-shrink', 'md:aspect-square');
+          btn.classList.add('flex-shrink-0', 'md:w-full', 'md:h-auto', 'md:flex-shrink', 'md:aspect-square');
         });
         thumbs.classList.remove('hidden');
       } else {
