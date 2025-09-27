@@ -7,20 +7,33 @@ let baseSupabase = null;
 let cachedSession = undefined;
 let loadingPromise = null;
 let authSubscription = null;
+
+let lastCachedCaretakerId = null;
 const profileCache = new Map();
 const profilePromiseCache = new Map();
 
-function getProfileCacheKey(caretakerId) {
+function normalizeCaretakerIdValue(caretakerId, { warn = false } = {}) {
+
   if (!caretakerId) {
     return null;
   }
   try {
     return String(caretakerId);
   } catch (error) {
-    console.warn('Nie udało się znormalizować klucza pamięci podręcznej profilu opiekuna:', error);
+
+    if (warn) {
+      console.warn('Nie udało się znormalizować identyfikatora opiekuna:', error);
+    }
+
     return null;
   }
 }
+
+
+function getProfileCacheKey(caretakerId) {
+  return normalizeCaretakerIdValue(caretakerId, { warn: true });
+}
+
 
 function setProfileCacheEntry(caretakerId, profile) {
   const cacheKey = getProfileCacheKey(caretakerId);
@@ -34,9 +47,17 @@ function setProfileCacheEntry(caretakerId, profile) {
   }
 }
 
-function clearProfileCache() {
+let pendingCaretakerId = null;
+
+function clearProfileCache({ keepPendingCaretakerId = null } = {}) {
   profileCache.clear();
   profilePromiseCache.clear();
+  lastCachedCaretakerId = null;
+  pendingCaretakerId = keepPendingCaretakerId ? normalizeCaretakerIdValue(keepPendingCaretakerId) : null;
+}
+
+function updateLastCachedCaretakerId(caretakerId) {
+  lastCachedCaretakerId = normalizeCaretakerIdValue(caretakerId) || null;
 }
 
 function computeDisplayName(firstName, lastNameOrCompany, fallback = '') {
@@ -61,8 +82,23 @@ function ensureSupabaseClient() {
     }
   }
   if (!authSubscription && baseSupabase?.auth?.onAuthStateChange) {
-    const { data } = baseSupabase.auth.onAuthStateChange((_event, session) => {
+    const { data } = baseSupabase.auth.onAuthStateChange((event, session) => {
+      const sessionCaretakerId = normalizeCaretakerIdValue(session?.user?.id || null);
+      const normalizedPending = normalizeCaretakerIdValue(pendingCaretakerId);
+      const normalizedLast = normalizeCaretakerIdValue(lastCachedCaretakerId);
+      const effectiveNextCaretakerId = sessionCaretakerId ?? normalizedPending ?? null;
+      const caretakerChanged =
+        effectiveNextCaretakerId !== normalizedLast && effectiveNextCaretakerId !== normalizedPending;
+      const signedOut = event === 'SIGNED_OUT' || (!sessionCaretakerId && !!normalizedLast);
+
       cachedSession = undefined;
+      if (caretakerChanged || signedOut) {
+        const pendingToKeep = signedOut ? null : effectiveNextCaretakerId;
+        clearProfileCache({ keepPendingCaretakerId: pendingToKeep });
+      } else {
+        pendingCaretakerId = effectiveNextCaretakerId;
+      }
+
       loadingPromise = buildCaretakerSession({ existingSession: session }).catch((error) => {
         console.warn('Nie udało się odświeżyć sesji opiekuna po zmianie stanu uwierzytelnienia.', error);
         cachedSession = null;
@@ -71,6 +107,10 @@ function ensureSupabaseClient() {
       clearProfileCache();
       loadingPromise.then((value) => {
         cachedSession = value ?? null;
+        updateLastCachedCaretakerId(
+          value?.caretakerId || value?.user?.id || effectiveNextCaretakerId || sessionCaretakerId || null
+        );
+        pendingCaretakerId = null;
       });
     });
     authSubscription = data?.subscription || null;
@@ -282,6 +322,8 @@ async function buildCaretakerSession({ existingSession } = {}) {
   }
 
   const caretakerId = authSession.user?.id || null;
+  const normalizedCaretakerId = normalizeCaretakerIdValue(caretakerId);
+  pendingCaretakerId = normalizedCaretakerId || pendingCaretakerId || null;
   const caretakerClient = caretakerId ? createCaretakerSupabaseClient({ caretakerId }) : null;
   const profile = await ensureCaretakerProfile({ baseClient: client, caretakerClient, user: authSession.user });
   const session = buildSessionPayload({
@@ -303,9 +345,17 @@ export async function getCaretakerSession({ forceRefresh = false } = {}) {
   }
 
   if (forceRefresh) {
+    const expectedCaretakerId = normalizeCaretakerIdValue(
+      cachedSession?.caretakerId ||
+        cachedSession?.user?.id ||
+        lastCachedCaretakerId ||
+        pendingCaretakerId ||
+        null
+    );
     cachedSession = undefined;
     loadingPromise = null;
-    clearProfileCache();
+    clearProfileCache({ keepPendingCaretakerId: expectedCaretakerId });
+
   }
 
   if (cachedSession !== undefined && !forceRefresh) {
@@ -319,6 +369,8 @@ export async function getCaretakerSession({ forceRefresh = false } = {}) {
   try {
     const session = await loadingPromise;
     cachedSession = session ?? null;
+    updateLastCachedCaretakerId(cachedSession?.caretakerId || cachedSession?.user?.id || null);
+    pendingCaretakerId = null;
     return cachedSession;
   } finally {
     loadingPromise = null;
