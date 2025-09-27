@@ -122,7 +122,7 @@ export function createFacilitiesModule({
   }
 
   function formatFacilityLocation(facility) {
-    const parts = [facility.postal_code, facility.city]
+    const parts = [facility.city, facility.postal_code]
       .map((value) => String(value ?? '').trim())
       .filter(Boolean)
       .map((value) => escapeHtml(value));
