@@ -98,6 +98,8 @@ const FIELD_CONFIG = [
   { name: 'capacity', label: 'Pojemność', type: 'integer' },
   { name: 'price_per_hour', label: 'Cena za godzinę', type: 'decimal', precision: 2, allowNegative: false },
   { name: 'price_per_day', label: 'Cena za dobę', type: 'decimal', precision: 2, allowNegative: false },
+  { name: 'price_list_url', label: 'Link do cennika', type: 'text' },
+  { name: 'rental_rules_url', label: 'Link do regulaminu wynajmu', type: 'text' },
   { name: 'lat', label: 'Szerokość geograficzna', type: 'decimal', precision: 6 },
   { name: 'lng', label: 'Długość geograficzna', type: 'decimal', precision: 6 },
   { name: 'description', label: 'Opis', type: 'textarea' },

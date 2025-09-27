@@ -432,6 +432,26 @@ export function createFacilitiesModule({
     if (prices) {
       prices.textContent = formatPrices(facility);
     }
+    const linksContainer = $('#facilityLinks');
+    if (linksContainer) {
+      const links = [];
+      const priceUrl = typeof facility.price_list_url === 'string' ? facility.price_list_url.trim() : '';
+      if (priceUrl) {
+        const safeUrl = escapeHtml(priceUrl);
+        links.push(
+          `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-amber-700 hover:bg-amber-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300" aria-label="Otwórz cennik w nowym oknie">📄 Cennik</a>`,
+        );
+      }
+      const rulesUrl = typeof facility.rental_rules_url === 'string' ? facility.rental_rules_url.trim() : '';
+      if (rulesUrl) {
+        const safeUrl = escapeHtml(rulesUrl);
+        links.push(
+          `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-amber-700 hover:bg-amber-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300" aria-label="Zobacz regulamin wynajmu w nowym oknie">📘 Regulamin wynajmu</a>`,
+        );
+      }
+      linksContainer.innerHTML = links.join('');
+      linksContainer.classList.toggle('hidden', links.length === 0);
+    }
     const amenitiesList = $('#facilityAmenities');
     if (amenitiesList) {
       const joins = await runFirstSuccessfulQuery([
