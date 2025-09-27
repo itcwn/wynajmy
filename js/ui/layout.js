@@ -275,7 +275,7 @@ export function renderMain() {
                 Złóż wstępną rezerwację
               </button>
               <button id="cancelThisBooking" type="button" class="no-print hidden rounded-2xl border border-white/60 bg-white/70 px-4 py-2 text-sm font-medium text-slate-600 shadow-sm shadow-amber-500/15">Anuluj tę rezerwację</button>
-              <div id="formMsg" class="text-sm text-slate-600"></div>
+              <div id="formMsg" class="hidden"></div>
             </div>
 
             <p class="text-xs text-slate-500 md:col-span-2">

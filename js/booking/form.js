@@ -22,10 +22,44 @@ export function createBookingForm({
     state.facilitiesModule = facilitiesModule;
   }
 
-  function setFormMessage(text) {
+  const FORM_MESSAGE_BASE_CLASSES = [
+    'mt-3',
+    'rounded-2xl',
+    'border',
+    'px-4',
+    'py-2',
+    'text-sm',
+    'font-medium',
+    'shadow-sm',
+    'backdrop-blur-sm',
+  ];
+  const FORM_MESSAGE_TONE_CLASSES = {
+    success: ['border-emerald-400', 'bg-emerald-50/90', 'text-emerald-700'],
+    error: ['border-rose-400', 'bg-rose-50/90', 'text-rose-700'],
+    info: ['border-slate-200', 'bg-white/80', 'text-slate-700'],
+  };
+  const FORM_MESSAGE_ALL_TONE_CLASSES = Object.values(FORM_MESSAGE_TONE_CLASSES).flat();
+
+  function setFormMessage(text, tone = 'info') {
     const msg = $('#formMsg');
     if (msg) {
-      msg.textContent = text || '';
+      const { classList } = msg;
+      if (!text) {
+        msg.textContent = '';
+        classList.remove(
+          ...FORM_MESSAGE_BASE_CLASSES,
+          ...FORM_MESSAGE_ALL_TONE_CLASSES,
+        );
+        classList.add('hidden');
+        return;
+      }
+
+      msg.textContent = text;
+      classList.remove('hidden');
+      classList.remove(...FORM_MESSAGE_ALL_TONE_CLASSES);
+      classList.add(...FORM_MESSAGE_BASE_CLASSES);
+      const toneClasses = FORM_MESSAGE_TONE_CLASSES[tone] || FORM_MESSAGE_TONE_CLASSES.info;
+      classList.add(...toneClasses);
     }
   }
 
@@ -188,18 +222,18 @@ export function createBookingForm({
     const form = event.target;
     setFormMessage('');
     if (!validateMathPuzzleAnswer()) {
-      setFormMessage('Niepoprawna odpowiedź na zagadkę. Spróbuj ponownie.');
+      setFormMessage('Niepoprawna odpowiedź na zagadkę. Spróbuj ponownie.', 'error');
       refreshMathPuzzle({ focusInput: true });
       return;
     }
-    setFormMessage('Trwa zapisywanie...');
+    setFormMessage('Trwa zapisywanie...', 'info');
     let startIso;
     let endIso;
     let dayValue;
     if (state.mode === 'day') {
       dayValue = form.day_only.value;
       if (!dayValue) {
-        setFormMessage('Wybierz dzień.');
+        setFormMessage('Wybierz dzień.', 'error');
         return;
       }
       startIso = new Date(`${dayValue}T00:00`).toISOString();
@@ -207,7 +241,7 @@ export function createBookingForm({
     } else {
       dayValue = $('#dayPicker')?.value;
       if (!dayValue) {
-        setFormMessage('Wybierz dzień.');
+        setFormMessage('Wybierz dzień.', 'error');
         return;
       }
       const startHour = pad2(parseInt($('#hourStart')?.value ?? '0', 10));
@@ -215,7 +249,7 @@ export function createBookingForm({
       startIso = new Date(`${dayValue}T${startHour}:00`).toISOString();
       endIso = new Date(`${dayValue}T${endHour}:00`).toISOString();
       if (new Date(endIso) <= new Date(startIso)) {
-        setFormMessage('Koniec musi być po początku.');
+        setFormMessage('Koniec musi być po początku.', 'error');
         return;
       }
     }
@@ -223,7 +257,7 @@ export function createBookingForm({
     const isWeekendStart = startDay === 0 || startDay === 6;
     const overlap = await hasOverlap(state.selectedFacility.id, startIso, endIso);
     if (overlap) {
-      setFormMessage('Wybrany termin koliduje z istniejącą rezerwacją (wstępna lub potwierdzona). Wybierz inny termin.');
+      setFormMessage('Wybrany termin koliduje z istniejącą rezerwacją (wstępna lub potwierdzona). Wybierz inny termin.', 'error');
       return;
     }
     let touchesAdjacentBooking = false;
@@ -234,7 +268,7 @@ export function createBookingForm({
         endIso,
       );
       if (touchesAdjacentBooking) {
-        setFormMessage('Trwa zapisywanie... Uwaga: rezerwacja graniczy z inną i może wymagać uzgodnień między rezerwującymi.');
+        setFormMessage('Trwa zapisywanie... Uwaga: rezerwacja graniczy z inną i może wymagać uzgodnień między rezerwującymi.', 'info');
       }
     }
     updateTitleField();
@@ -254,14 +288,14 @@ export function createBookingForm({
     const { data, error } = await supabase.from('bookings').insert(payload).select();
     if (error) {
       console.error(error);
-      setFormMessage(`Błąd: ${error.message || 'nie udało się utworzyć rezerwacji.'}`);
+      setFormMessage(`Błąd: ${error.message || 'nie udało się utworzyć rezerwacji.'}`, 'error');
       return;
     }
     let successMessage = 'Wstępna rezerwacja złożona! Opiekun obiektu potwierdzi lub odrzuci.';
     if (touchesAdjacentBooking) {
       successMessage += ' Uwaga: rezerwacja graniczy z inną i może wymagać uzgodnień między rezerwującymi.';
     }
-    setFormMessage(successMessage);
+    setFormMessage(successMessage, 'success');
     const bookingRow = data && data[0] ? data[0] : null;
     state.bookingsCache.clear();
     await dayView.renderDay();
@@ -284,7 +318,7 @@ export function createBookingForm({
     }
     if (data) {
       alert('Rezerwacja anulowana.');
-      setFormMessage('Rezerwacja anulowana.');
+      setFormMessage('Rezerwacja anulowana.', 'success');
       state.lastBooking = null;
       state.bookingsCache.clear();
       await dayView.renderDay();
@@ -409,7 +443,7 @@ export function createBookingForm({
     }
     await showPostBookingActions(bookingRow, { logCancelUrl: false });
     if (message) {
-      setFormMessage(message);
+      setFormMessage(message, 'info');
     }
     return bookingRow;
   }
@@ -441,7 +475,7 @@ export function createBookingForm({
       }
       if (data) {
         alert('Rezerwacja anulowana.');
-        setFormMessage('Rezerwacja anulowana.');
+        setFormMessage('Rezerwacja anulowana.', 'success');
         state.lastBooking = null;
         state.bookingsCache.clear();
         if (state.selectedFacility) {
@@ -468,7 +502,7 @@ export function createBookingForm({
     if (looksLikeFacilityId) {
       handledAsFacility = await showDocumentsForFacility(trimmedBooking);
       if (handledAsFacility) {
-        setFormMessage('Wczytano dane świetlicy z linku. Możesz wygenerować dokumenty.');
+        setFormMessage('Wczytano dane świetlicy z linku. Możesz wygenerować dokumenty.', 'info');
         return;
       }
     }
@@ -478,7 +512,7 @@ export function createBookingForm({
     });
 
     if (!bookingRow && looksLikeFacilityId && !handledAsFacility) {
-      setFormMessage('Nie udało się wczytać danych powiązanych z tym linkiem.');
+      setFormMessage('Nie udało się wczytać danych powiązanych z tym linkiem.', 'error');
     }
   }
 
