@@ -110,6 +110,7 @@ export function renderMain() {
                   <span id="facilityCap" class="inline-flex items-center rounded-2xl bg-white/70 px-3 py-1 text-xs font-medium text-slate-700 shadow-sm shadow-amber-500/15"></span>
                   <span id="facilityPrices" class="inline-flex items-center rounded-2xl bg-white/70 px-3 py-1 text-xs font-medium text-slate-700 shadow-sm shadow-amber-500/15"></span>
                 </div>
+                <div id="facilityLinks" class="hidden flex flex-wrap items-center gap-2 text-xs font-medium text-amber-700"></div>
                 <div id="facilityAmenities" class="flex flex-wrap gap-2 text-xs text-slate-600"></div>
               </div>
             </div>

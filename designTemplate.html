@@ -187,7 +187,9 @@
           postal_code: '00-000',
           capacity: 80,
           price_per_hour: 50,
-          price_per_day: 400
+          price_per_day: 400,
+          price_list_url: 'https://gmina.example/cennik',
+          rental_rules_url: 'https://gmina.example/regulamin'
         }
       };
     }
@@ -206,7 +208,9 @@
         '{{facility.postal_code}}': ctx.facility.postal_code,
         '{{facility.capacity}}': ctx.facility.capacity,
         '{{facility.price_per_hour}}': ctx.facility.price_per_hour,
-        '{{facility.price_per_day}}': ctx.facility.price_per_day
+        '{{facility.price_per_day}}': ctx.facility.price_per_day,
+        '{{facility.price_list_url}}': ctx.facility.price_list_url,
+        '{{facility.rental_rules_url}}': ctx.facility.rental_rules_url
       };
       for (const [k,v] of Object.entries(map)) out = out.split(k).join(escapeHtml(String(v ?? '')));
       out = out.replace(/\{\{\s*date\s+booking\.start_time\s*\}\}/g, fmtDate(ctx.booking.start_time));

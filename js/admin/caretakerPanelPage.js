@@ -178,7 +178,7 @@ async function bootstrap() {
     try {
       const facilities = await loadMyFacilities({
         columns:
-          'id,name,postal_code,city,address_line1,address_line2,capacity,price_per_hour,price_per_day,lat,lng,description',
+          'id,name,postal_code,city,address_line1,address_line2,capacity,price_per_hour,price_per_day,price_list_url,rental_rules_url,lat,lng,description',
         forceRefresh,
       });
       facilitiesCache = Array.isArray(facilities) ? facilities : [];

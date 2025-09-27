@@ -57,6 +57,8 @@ export function createDocGenerator({ state, supabase, domUtils, formatUtils }) {
       capacity: facility.capacity || '',
       price_per_hour: facility.price_per_hour || '',
       price_per_day: facility.price_per_day || '',
+      price_list_url: facility.price_list_url || '',
+      rental_rules_url: facility.rental_rules_url || '',
     };
   }
 
@@ -77,6 +79,8 @@ export function createDocGenerator({ state, supabase, domUtils, formatUtils }) {
       '{{facility.capacity}}': facility.capacity || '',
       '{{facility.price_per_hour}}': facility.price_per_hour || '',
       '{{facility.price_per_day}}': facility.price_per_day || '',
+      '{{facility.price_list_url}}': facility.price_list_url || '',
+      '{{facility.rental_rules_url}}': facility.rental_rules_url || '',
     };
     Object.entries(replacements).forEach(([key, value]) => {
       html = html.split(key).join(escapeHtml(String(value ?? '')));

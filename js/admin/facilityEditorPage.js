@@ -146,6 +146,8 @@ const FACILITY_FIELD_CONFIG = [
   { name: 'capacity', label: 'Pojemność', type: 'integer', allowNegative: false },
   { name: 'price_per_hour', label: 'Cena za godzinę', type: 'decimal', precision: 2, allowNegative: false },
   { name: 'price_per_day', label: 'Cena za dobę', type: 'decimal', precision: 2, allowNegative: false },
+  { name: 'price_list_url', label: 'Link do cennika', type: 'text' },
+  { name: 'rental_rules_url', label: 'Link do regulaminu wynajmu', type: 'text' },
   { name: 'lat', label: 'Szerokość geograficzna', type: 'decimal', precision: 6 },
   { name: 'lng', label: 'Długość geograficzna', type: 'decimal', precision: 6 },
   { name: 'description', label: 'Opis', type: 'textarea' },
@@ -374,6 +376,18 @@ async function bootstrap() {
     if (facility.price_per_day !== null && facility.price_per_day !== undefined) {
       fragments.push(
         `<p><span class="font-medium text-gray-700">Cena za dobę:</span> ${escapeHtml(String(facility.price_per_day))} zł</p>`,
+      );
+    }
+    if (facility.price_list_url) {
+      const url = escapeHtml(String(facility.price_list_url));
+      fragments.push(
+        `<p><span class="font-medium text-gray-700">Cennik:</span> <a class="text-blue-600 underline" href="${url}" target="_blank" rel="noopener noreferrer">Otwórz cennik</a></p>`,
+      );
+    }
+    if (facility.rental_rules_url) {
+      const url = escapeHtml(String(facility.rental_rules_url));
+      fragments.push(
+        `<p><span class="font-medium text-gray-700">Regulamin wynajmu:</span> <a class="text-blue-600 underline" href="${url}" target="_blank" rel="noopener noreferrer">Zobacz regulamin</a></p>`,
       );
     }
     if (facility.description) {
@@ -1002,6 +1016,8 @@ async function bootstrap() {
         'capacity',
         'price_per_hour',
         'price_per_day',
+        'price_list_url',
+        'rental_rules_url',
         'lat',
         'lng',
         'description',
