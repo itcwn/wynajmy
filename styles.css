@@ -134,6 +134,7 @@ body.intro-video-open {
 .intro-video-dialog {
   position: relative;
   width: min(100%, 520px);
+  max-height: calc(100vh - 3rem);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -162,6 +163,8 @@ body.intro-video-open {
 
 .intro-video-frame {
   width: min(100%, 420px);
+  height: min(100%, calc(100vh - 3rem));
+  max-height: calc(100vh - 3rem);
   aspect-ratio: 9 / 16;
   border-radius: 20px;
   overflow: hidden;
@@ -179,7 +182,7 @@ body.intro-video-open {
 @media (min-width: 1024px) {
   .intro-video-dialog {
     width: min(90vw, 960px);
-    min-height: clamp(320px, 52vh, 640px);
+    max-height: calc(100vh - 3rem);
   }
 
   .intro-video-blur {
@@ -188,6 +191,7 @@ body.intro-video-open {
 
   .intro-video-frame {
     width: min(40vw, 440px);
+    height: min(100%, calc(100vh - 3rem));
   }
 }
 
