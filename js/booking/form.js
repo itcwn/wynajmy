@@ -120,6 +120,14 @@ export function createBookingForm({
     }
   }
 
+  function generateClientUuid() {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return crypto.randomUUID();
+    }
+    const randomPart = Math.random().toString(36).slice(2, 10);
+    return `${Date.now().toString(36)}-${randomPart}`;
+  }
+
   function validateMathPuzzleAnswer() {
     if (!mathAnswerInput) {
       return true;
@@ -273,6 +281,8 @@ export function createBookingForm({
     updateTitleField();
 
     const payload = {
+      id: generateClientUuid(),
+      cancel_token: generateClientUuid(),
       facility_id: state.selectedFacility.id,
       title: form.title.value.trim(),
       event_type_id: form.event_type_id.value || null,
@@ -284,7 +294,9 @@ export function createBookingForm({
       is_public: true,
       status: 'pending',
     };
-    const { data, error } = await supabase.from('bookings').insert(payload).select();
+    const { error } = await supabase
+      .from('bookings')
+      .insert(payload, { returning: 'minimal' });
     if (error) {
       console.error(error);
       setFormMessage(`Błąd: ${error.message || 'nie udało się utworzyć rezerwacji.'}`, 'error');
@@ -295,7 +307,23 @@ export function createBookingForm({
       successMessage += ' Uwaga: rezerwacja graniczy z inną i może wymagać uzgodnień między rezerwującymi.';
     }
     setFormMessage(successMessage, 'success');
-    const bookingRow = data && data[0] ? data[0] : null;
+    const { data: freshBooking, error: freshBookingError } = await supabase
+      .from('public_bookings')
+      .select('*')
+      .eq('id', payload.id)
+      .maybeSingle();
+    if (freshBookingError) {
+      console.error('Błąd pobierania nowej rezerwacji:', freshBookingError);
+    }
+    const bookingRow = freshBooking
+      ? {
+          ...freshBooking,
+          cancel_token: freshBooking.cancel_token ?? payload.cancel_token,
+          renter_email: freshBooking.renter_email ?? payload.renter_email,
+          renter_name: freshBooking.renter_name ?? payload.renter_name,
+          notes: freshBooking.notes ?? payload.notes,
+        }
+      : { ...payload };
     state.bookingsCache.clear();
     await dayView.renderDay();
     await showPostBookingActions(bookingRow, { logCancelUrl: true });
