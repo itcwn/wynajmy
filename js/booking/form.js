@@ -1,3 +1,8 @@
+import {
+  BOOKING_NOTIFICATION_EVENTS,
+  triggerBookingNotification,
+} from '../utils/emailNotifications.js';
+
 export function createBookingForm({
   state,
   supabase,
@@ -327,6 +332,19 @@ export function createBookingForm({
     state.bookingsCache.clear();
     await dayView.renderDay();
     await showPostBookingActions(bookingRow, { logCancelUrl: true });
+    if (bookingRow?.id) {
+      void triggerBookingNotification(
+        supabase,
+        BOOKING_NOTIFICATION_EVENTS.CREATED,
+        {
+          bookingId: bookingRow.id,
+          cancelToken: bookingRow.cancel_token || null,
+          metadata: {
+            source: 'public_form',
+          },
+        },
+      );
+    }
     refreshMathPuzzle();
   }
 
@@ -335,6 +353,7 @@ export function createBookingForm({
       alert('Brak ostatniej rezerwacji.');
       return;
     }
+    const lastBooking = state.lastBooking;
     if (!confirm('Na pewno anulować tę rezerwację?')) {
       return;
     }
@@ -346,6 +365,17 @@ export function createBookingForm({
     if (data) {
       alert('Rezerwacja anulowana.');
       setFormMessage('Rezerwacja anulowana.', 'success');
+      void triggerBookingNotification(
+        supabase,
+        BOOKING_NOTIFICATION_EVENTS.CANCELLED_BY_RENTER,
+        {
+          bookingId: lastBooking?.id || null,
+          cancelToken: lastBooking?.cancel_token || null,
+          metadata: {
+            source: 'self_service',
+          },
+        },
+      );
       state.lastBooking = null;
       state.bookingsCache.clear();
       await dayView.renderDay();
@@ -503,6 +533,17 @@ export function createBookingForm({
       if (data) {
         alert('Rezerwacja anulowana.');
         setFormMessage('Rezerwacja anulowana.', 'success');
+        void triggerBookingNotification(
+          supabase,
+          BOOKING_NOTIFICATION_EVENTS.CANCELLED_BY_RENTER,
+          {
+            bookingId: bookingRow?.id || null,
+            cancelToken: cancelToken || null,
+            metadata: {
+              source: 'email_link',
+            },
+          },
+        );
         state.lastBooking = null;
         state.bookingsCache.clear();
         if (state.selectedFacility) {
