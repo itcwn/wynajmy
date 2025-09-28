@@ -5,6 +5,7 @@ import {
 } from '../caretakers/session.js';
 import { loadMyFacilities } from '../caretakers/myFacilities.js';
 import { initFacilityForm } from './facilityForm.js';
+import { initCaretakerBookingsModal } from './caretakerBookingsModal.js';
 
 const logoutBtn = document.getElementById('caretakerLogout');
 const facilitiesList = document.getElementById('caretakerFacilitiesList');
@@ -145,6 +146,8 @@ async function bootstrap() {
     caretakerIdentity.classList.remove('hidden');
     caretakerIdentity.classList.add('inline-flex');
   }
+
+  initCaretakerBookingsModal({ session });
 
   if (logoutBtn) {
     logoutBtn.addEventListener('click', () => {
