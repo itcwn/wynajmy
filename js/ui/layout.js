@@ -67,6 +67,26 @@ export function renderMain() {
   }
   root.innerHTML = `
     <div id="mainInner" class="relative z-10 space-y-6">
+      <div
+        id="facilityPlaceholder"
+        class="${CARD_BASE_CLASSES} flex flex-col items-center gap-6 px-6 py-12 text-center"
+      >
+        <img
+          src="./assets/placeholder-facility.svg"
+          alt="Ilustracja świetlicy"
+          class="w-full max-w-sm"
+          loading="lazy"
+        />
+        <div class="space-y-2">
+          <h2 class="text-2xl font-semibold tracking-tight text-black">
+            Wybierz świetlicę, aby rozpocząć
+          </h2>
+          <p class="text-sm text-slate-600">
+            Skorzystaj z listy po lewej stronie, aby zobaczyć szczegóły, dostępność oraz formularz rezerwacji
+            wybranej świetlicy.
+          </p>
+        </div>
+      </div>
       <div id="facilityCard" class="hidden ${CARD_BASE_CLASSES}">
         <div class="flow-space space-y-6 p-6">
           <div class="flex items-center gap-3">

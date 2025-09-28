@@ -360,6 +360,8 @@ export function createFacilitiesModule({
     if (instructionsModal?.updateContent) {
       instructionsModal.updateContent(facility);
     }
+    const placeholder = $('#facilityPlaceholder');
+    placeholder?.classList.add('hidden');
     const card = $('#facilityCard');
     const selectors = $('#selectors');
     const booking = $('#booking');
