@@ -247,8 +247,8 @@ export function createDayView({ state, supabase, domUtils, formatUtils }) {
         html += `<div class="text-xs">${escapeHtml(info.title)}</div>`;
         html += `<div class="text-[11px] mt-1 inline-block px-2 py-0.5 rounded ${C.chipBg} ${C.chipText} border ${C.chipBorder}">${info.status === 'active' ? 'zajęte' : 'wstępna'}</div>`;
       } else {
-        cls += 'bg-gray-50 border-gray-200 text-gray-700';
-        html += '<div class="text-xs">wolne</div>';
+        cls += 'bg-emerald-50 border-emerald-200 text-emerald-700';
+        html += '<div class="text-xs font-semibold text-emerald-700">Termin dostępny</div>';
       }
       cell.className = cls;
       cell.innerHTML = html;
