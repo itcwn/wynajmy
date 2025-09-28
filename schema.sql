@@ -541,6 +541,28 @@ create trigger bookings_set_updated_at
 before update on public.bookings
 for each row execute function public.set_updated_at();
 
+alter table public.bookings enable row level security;
+
+drop policy if exists "Anonymous can create pending bookings" on public.bookings;
+create policy "Anonymous can create pending bookings"
+  on public.bookings
+  for insert
+  to anon
+  with check (
+    status = 'pending'
+    and is_public = true
+    and decision_comment is null
+    and cancelled_at is null
+  );
+
+drop policy if exists "Authenticated manage bookings" on public.bookings;
+create policy "Authenticated manage bookings"
+  on public.bookings
+  for all
+  to authenticated
+  using (true)
+  with check (true);
+
 -- Widok uproszczonych danych rezerwacji udostępniany publicznie.
 create or replace view public.public_bookings as
 select
