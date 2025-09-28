@@ -195,35 +195,3 @@ body.intro-video-open {
   }
 }
 
-#facilityThumbs {
-  scroll-snap-type: x proximity;
-  -webkit-overflow-scrolling: touch;
-}
-
-#facilityThumbs::-webkit-scrollbar {
-  display: none;
-}
-
-#facilityThumbs button {
-  flex: 0 0 auto;
-  scroll-snap-align: start;
-}
-
-@media (min-width: 1024px) {
-  #facilityThumbs {
-    scroll-snap-type: none;
-  }
-
-  #facilityThumbs button {
-    aspect-ratio: 1 / 1;
-    border-color: rgba(125, 211, 252, 0.6);
-    box-shadow:
-      0 0 0 1px rgba(125, 211, 252, 0.6),
-      0 10px 24px rgba(59, 130, 246, 0.12);
-  }
-
-  #facilityThumbs button.border-blue-500 {
-    border-color: #3b82f6;
-  }
-}
-
