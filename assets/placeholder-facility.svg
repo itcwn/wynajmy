@@ -1,0 +1,44 @@
+<svg width="640" height="480" viewBox="0 0 640 480" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="sky" x1="320" y1="40" x2="320" y2="420" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#f8fafc" />
+      <stop offset="1" stop-color="#e2e8f0" />
+    </linearGradient>
+    <linearGradient id="ground" x1="320" y1="360" x2="320" y2="460" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#d1fae5" />
+      <stop offset="1" stop-color="#bbf7d0" />
+    </linearGradient>
+    <linearGradient id="wall" x1="320" y1="150" x2="320" y2="350" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fef3c7" />
+      <stop offset="1" stop-color="#fde68a" />
+    </linearGradient>
+    <linearGradient id="roof" x1="320" y1="120" x2="320" y2="210" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fb7185" />
+      <stop offset="1" stop-color="#f97316" />
+    </linearGradient>
+    <linearGradient id="door" x1="320" y1="220" x2="320" y2="340" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#4f46e5" />
+      <stop offset="1" stop-color="#3730a3" />
+    </linearGradient>
+  </defs>
+  <rect width="640" height="360" fill="url(#sky)" rx="24" />
+  <rect y="320" width="640" height="160" fill="url(#ground)" />
+  <g opacity="0.2">
+    <circle cx="520" cy="120" r="36" fill="#facc15" />
+  </g>
+  <g>
+    <path d="M160 220L320 110L480 220V360H160V220Z" fill="url(#wall)" stroke="#f59e0b" stroke-width="4" stroke-linejoin="round" />
+    <path d="M130 220L320 80L510 220" fill="url(#roof)" stroke="#fb923c" stroke-width="6" stroke-linejoin="round" />
+    <rect x="248" y="220" width="144" height="140" fill="url(#door)" rx="14" />
+    <rect x="208" y="240" width="64" height="56" fill="#bae6fd" stroke="#38bdf8" stroke-width="4" rx="8" />
+    <rect x="368" y="240" width="64" height="56" fill="#bae6fd" stroke="#38bdf8" stroke-width="4" rx="8" />
+    <circle cx="324" cy="290" r="8" fill="#facc15" />
+  </g>
+  <g opacity="0.9">
+    <ellipse cx="320" cy="400" rx="140" ry="26" fill="#10b981" />
+  </g>
+  <g>
+    <path d="M120 360C120 360 96 332 88 316C80 300 72 284 80 270C88 256 116 254 132 268C148 282 152 312 152 328C152 344 140 360 140 360H120Z" fill="#4ade80" />
+    <path d="M520 360C520 360 544 332 552 316C560 300 568 284 560 270C552 256 524 254 508 268C492 282 488 312 488 328C488 344 500 360 500 360H520Z" fill="#4ade80" />
+  </g>
+</svg>
