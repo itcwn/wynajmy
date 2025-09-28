@@ -71,6 +71,20 @@
   border-radius: 0.5rem !important;
 }
 
+.linked-card--top {
+  margin-bottom: 0;
+  border-bottom-left-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+  border-bottom-width: 0;
+}
+
+.linked-card--bottom {
+  margin-top: 0 !important;
+  border-top-left-radius: 0 !important;
+  border-top-right-radius: 0 !important;
+  border-top-width: 0;
+}
+
 .flow-space > .hidden + * {
   margin-top: 0 !important;
 }
