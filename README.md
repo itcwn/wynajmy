@@ -25,6 +25,16 @@ Ten pakiet zawiera działające MVP:
 - Dodaj nowe szablony w `document_templates` (INSERT) lub stwórz prosty panel w UI.
 - Możesz dostosować CSS w sekcji `<style id="print-styles">` w oknie wydruku.
 
+## Powiadomienia e-mail o rezerwacjach
+- W katalogu `supabase/functions/send-booking-notifications` znajduje się funkcja Edge odpowiedzialna za wysyłkę powiadomień do
+  rezerwującego oraz opiekunów.
+- Konfiguracja wymaga ustawienia w Supabase zmiennych środowiskowych (np. `APP_BASE_URL`, `SMTP_HOST`, `SMTP_PORT`,
+  `SMTP_USERNAME`, `SMTP_PASSWORD`/hasło aplikacji Gmail, `NOTIFY_FROM_EMAIL`, opcjonalnie `NOTIFY_FROM_NAME`).
+- Po wdrożeniu funkcji należy uruchomić skrypt SQL `SQL_Updates/2024-10-03_booking_notifications.sql`, który dodaje funkcję
+  `get_booking_notification_payload` wykorzystywaną przez powiadomienia.
+- Aplikacja frontowa automatycznie wywołuje funkcję Edge po utworzeniu rezerwacji, zmianie decyzji opiekuna oraz anulowaniu przez
+  rezerwującego.
+
 ## Rejestracja opiekuna
 - W nagłówku aplikacji dostępny jest link „Zarejestruj opiekuna”, który prowadzi do formularza `registerCaretaker.html`.
 - Formularz zapisuje dane do tabeli `caretakers` oraz przypisania w tabeli `facility_caretakers`.

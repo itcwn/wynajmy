@@ -1,6 +1,10 @@
 import { requireCaretakerSession } from '../caretakers/session.js';
 import { getMyFacilitiesClient, loadMyFacilityIds } from '../caretakers/myFacilities.js';
 import { escapeHtml, formatDate, formatTime } from '../utils/format.js';
+import {
+  BOOKING_NOTIFICATION_EVENTS,
+  triggerBookingNotification,
+} from '../utils/emailNotifications.js';
 
 const sectionEl = document.getElementById('caretakerBookingsSection');
 const listEl = document.getElementById('caretakerBookingsList');
@@ -524,6 +528,7 @@ async function handleDecisionSubmit(form) {
     return;
   }
   const comment = form.querySelector('textarea[name="comment"]')?.value || '';
+  const trimmedComment = comment.trim();
   disableForm(form, true);
   setFormStatus(form, 'Zapisywanie decyzji...', 'info');
   const booking = state.bookings.find((item) => String(item.id) === String(bookingId));
@@ -539,6 +544,18 @@ async function handleDecisionSubmit(form) {
       : '';
     setMessage(`${baseMessage}${commentNote}`, 'success');
     setFormStatus(form, 'Decyzja zapisana. Odświeżanie listy...', 'success');
+    void triggerBookingNotification(
+      state.supabase,
+      BOOKING_NOTIFICATION_EVENTS.STATUS_DECIDED,
+      {
+        bookingId,
+        metadata: {
+          decision: mapping.label,
+          status: result.appliedStatus || null,
+          comment: trimmedComment || null,
+        },
+      },
+    );
     await refreshBookings({ showLoading: true });
   } catch (error) {
     console.error('Błąd zapisu decyzji:', error);
