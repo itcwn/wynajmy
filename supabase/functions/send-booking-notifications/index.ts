@@ -1,5 +1,4 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.47.2';
-import { SmtpClient } from 'https://deno.land/x/smtp@v0.11.0/mod.ts';
 
 type NotificationEvent =
   | 'booking_created'
@@ -58,17 +57,8 @@ type MessagePlan = {
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL');
 const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-const smtpHost = Deno.env.get('SMTP_HOST') ?? 'smtp.gmail.com';
-const smtpPort = Number(Deno.env.get('SMTP_PORT') ?? '587');
-const smtpUsername =
-  Deno.env.get('SMTP_USERNAME')
-  ?? Deno.env.get('GMAIL_SMTP_USER')
-  ?? '';
-const smtpPassword =
-  Deno.env.get('SMTP_PASSWORD')
-  ?? Deno.env.get('GMAIL_SMTP_PASS')
-  ?? '';
-const senderEmail = Deno.env.get('NOTIFY_FROM_EMAIL') ?? smtpUsername;
+const resendApiKey = Deno.env.get('RESEND_API_KEY') ?? '';
+const senderEmail = Deno.env.get('NOTIFY_FROM_EMAIL') ?? 'onboarding@resend.dev';
 const senderName = Deno.env.get('NOTIFY_FROM_NAME') ?? 'System rezerwacji świetlic';
 const appBaseUrlRaw = Deno.env.get('APP_BASE_URL') ?? '';
 const caretakerPanelPath = Deno.env.get('CARETAKER_PANEL_PATH') ?? '/caretakerPanel.html';
@@ -81,8 +71,12 @@ if (!supabaseUrl || !serviceRoleKey) {
   throw new Error('Missing Supabase configuration. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.');
 }
 
-if (!senderEmail) {
-  console.warn('Missing NOTIFY_FROM_EMAIL/SMTP credentials. Outgoing e-mails will fail without configuration.');
+if (!resendApiKey) {
+  console.warn('Missing RESEND_API_KEY. Outgoing e-mails will fail without configuration.');
+}
+
+if (!Deno.env.get('NOTIFY_FROM_EMAIL')) {
+  console.warn('Missing NOTIFY_FROM_EMAIL. Using default onboarding@resend.dev sender address.');
 }
 
 const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
@@ -395,51 +389,39 @@ async function sendMessages(event: NotificationEvent, plans: MessagePlan[]) {
     console.log('[DRY RUN] Powiadomienia e-mail', event, plans);
     return { sent: plans.length, dryRun: true };
   }
-  if (!smtpUsername || !smtpPassword || !senderEmail) {
-    throw new Error('SMTP credentials are missing. Configure SMTP_USERNAME and SMTP_PASSWORD.');
+  if (!resendApiKey) {
+    throw new Error('Resend API key is missing. Configure RESEND_API_KEY.');
   }
-  const client = new SmtpClient();
-  try {
-    if (smtpPort === 465) {
-      await client.connectTLS({
-        hostname: smtpHost,
-        port: smtpPort,
-        username: smtpUsername,
-        password: smtpPassword,
-      });
-    } else {
-      await client.connect({
-        hostname: smtpHost,
-        port: smtpPort,
-        username: smtpUsername,
-        password: smtpPassword,
-      });
+  let sentCount = 0;
+  for (const plan of plans) {
+    if (!plan.to.length) {
+      continue;
     }
-    let sentCount = 0;
-    for (const plan of plans) {
-      if (!plan.to.length) {
-        continue;
-      }
-      await client.send({
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${resendApiKey}`,
+      },
+      body: JSON.stringify({
         from: buildFromHeader(),
         to: plan.to,
         subject: plan.subject,
-        content: plan.text,
+        text: plan.text,
+        html: plan.text.replace(/\n/g, '<br>'),
+        ...(plan.replyTo ? { reply_to: plan.replyTo } : {}),
         headers: {
-          ...(plan.replyTo ? { 'Reply-To': plan.replyTo } : {}),
           'X-Booking-Event': event,
         },
-      });
-      sentCount += 1;
+      }),
+    });
+    if (!response.ok) {
+      const errorBody = await response.text();
+      throw new Error(`Resend API error (${response.status}): ${errorBody}`);
     }
-    return { sent: sentCount };
-  } finally {
-    try {
-      await client.close();
-    } catch (error) {
-      console.warn('Nie udało się poprawnie zamknąć połączenia SMTP.', error);
-    }
+    sentCount += 1;
   }
+  return { sent: sentCount };
 }
 
 async function handleRequest(request: Request) {
