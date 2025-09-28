@@ -15,7 +15,7 @@ export function renderSidebar({ onSearch } = {}) {
   }
   root.innerHTML = `
     <div class="space-y-6">
-      <div class="${CARD_BASE_CLASSES} p-6">
+      <div id="searchCard" class="${CARD_BASE_CLASSES} flex flex-col gap-4 p-6">
         <div class="flex items-center gap-3 pb-4">
           <h2 class="text-lg font-semibold tracking-tight text-black">
             <span class="${HEADING_ACCENT_CLASSES}">Wyszukaj</span>
@@ -374,4 +374,94 @@ export function renderMain() {
       </div>
     </div>
   `;
+  initLayoutAlignment();
+}
+
+const DESKTOP_MEDIA_QUERY = '(min-width: 1024px)';
+let alignmentInitialized = false;
+let mediaQueryList;
+let alignFrame;
+
+function isElementHidden(element) {
+  return element?.classList?.contains('hidden');
+}
+
+function getSearchCard() {
+  return document.getElementById('searchCard');
+}
+
+function getActiveFacilityPanel() {
+  const facilityCard = document.getElementById('facilityCard');
+  if (facilityCard && !isElementHidden(facilityCard)) {
+    return facilityCard;
+  }
+  const placeholder = document.getElementById('facilityPlaceholder');
+  if (placeholder && !isElementHidden(placeholder)) {
+    return placeholder;
+  }
+  return null;
+}
+
+function applySearchAlignment() {
+  const searchCard = getSearchCard();
+  if (!searchCard) {
+    return;
+  }
+
+  searchCard.style.minHeight = '';
+
+  const matchesDesktop = mediaQueryList?.matches ?? window.matchMedia?.(DESKTOP_MEDIA_QUERY)?.matches;
+  if (!matchesDesktop) {
+    return;
+  }
+
+  const target = getActiveFacilityPanel();
+  if (!target) {
+    return;
+  }
+
+  const { height } = target.getBoundingClientRect();
+  if (height > 0) {
+    searchCard.style.minHeight = `${Math.ceil(height)}px`;
+  }
+}
+
+function scheduleSearchAlignment() {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  if (alignFrame) {
+    cancelAnimationFrame(alignFrame);
+  }
+  alignFrame = requestAnimationFrame(() => {
+    alignFrame = null;
+    applySearchAlignment();
+  });
+}
+
+function handleResize() {
+  scheduleSearchAlignment();
+}
+
+export function initLayoutAlignment() {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  if (!alignmentInitialized) {
+    alignmentInitialized = true;
+    mediaQueryList = window.matchMedia ? window.matchMedia(DESKTOP_MEDIA_QUERY) : undefined;
+    if (mediaQueryList) {
+      if (typeof mediaQueryList.addEventListener === 'function') {
+        mediaQueryList.addEventListener('change', handleResize);
+      } else if (typeof mediaQueryList.addListener === 'function') {
+        mediaQueryList.addListener(handleResize);
+      }
+    }
+    window.addEventListener('resize', handleResize, { passive: true });
+  }
+  scheduleSearchAlignment();
+}
+
+export function refreshLayoutAlignment() {
+  scheduleSearchAlignment();
 }
