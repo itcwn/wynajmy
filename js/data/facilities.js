@@ -1,3 +1,5 @@
+import { refreshLayoutAlignment } from '../ui/layout.js';
+
 export function createFacilitiesModule({
   state,
   supabase,
@@ -311,7 +313,13 @@ export function createFacilitiesModule({
       } else {
         mainImg.alt = 'Zdjęcie świetlicy';
       }
+      const handleImageEvent = () => {
+        refreshLayoutAlignment();
+      };
+      mainImg.addEventListener('load', handleImageEvent, { once: true });
+      mainImg.addEventListener('error', handleImageEvent, { once: true });
     }
+    refreshLayoutAlignment();
 
     const openBtn = $('#openGalleryBtn');
     if (openBtn) {
@@ -370,6 +378,7 @@ export function createFacilitiesModule({
     selectors?.classList.remove('hidden');
     booking?.classList.remove('hidden');
     calendar?.classList.remove('hidden');
+    refreshLayoutAlignment();
 
     updateGalleryPreview(facility);
     updateGalleryColumnInfo(facility);
@@ -445,6 +454,7 @@ export function createFacilitiesModule({
     } else {
       hideMapCard();
     }
+    refreshLayoutAlignment();
   }
 
   function initMapsApi() {
