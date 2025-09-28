@@ -7,8 +7,49 @@ let baseSupabase = null;
 let cachedSession = undefined;
 let loadingPromise = null;
 let authSubscription = null;
+let loadingPromiseCounter = 0;
 const profileCache = new Map();
 const profilePromiseCache = new Map();
+
+function startCaretakerSessionLoading(promiseFactory, { clearCache = false } = {}) {
+  if (loadingPromise) {
+    if (clearCache) {
+      clearProfileCache();
+    }
+    return loadingPromise;
+  }
+
+  if (clearCache) {
+    clearProfileCache();
+  }
+
+  const promiseId = ++loadingPromiseCounter;
+  const basePromise = Promise.resolve().then(() => promiseFactory());
+  const normalizedPromise = basePromise
+    .then((session) => {
+      if (promiseId === loadingPromiseCounter) {
+        cachedSession = session ?? null;
+      }
+      return session ?? null;
+    })
+    .catch((error) => {
+      if (promiseId === loadingPromiseCounter) {
+        cachedSession = null;
+      }
+      throw error;
+    });
+
+  let finalPromiseReference = null;
+  const finalPromise = normalizedPromise.finally(() => {
+    if (loadingPromise === finalPromiseReference) {
+      loadingPromise = null;
+    }
+  });
+  finalPromiseReference = finalPromise;
+
+  loadingPromise = finalPromise;
+  return finalPromise;
+}
 
 function getProfileCacheKey(caretakerId) {
   if (!caretakerId) {
@@ -63,15 +104,17 @@ function ensureSupabaseClient() {
   if (!authSubscription && baseSupabase?.auth?.onAuthStateChange) {
     const { data } = baseSupabase.auth.onAuthStateChange((_event, session) => {
       cachedSession = undefined;
-      loadingPromise = buildCaretakerSession({ existingSession: session }).catch((error) => {
-        console.warn('Nie udało się odświeżyć sesji opiekuna po zmianie stanu uwierzytelnienia.', error);
-        cachedSession = null;
-        return null;
-      });
-      clearProfileCache();
-      loadingPromise.then((value) => {
-        cachedSession = value ?? null;
-      });
+      startCaretakerSessionLoading(
+        () =>
+          buildCaretakerSession({ existingSession: session }).catch((error) => {
+            console.warn(
+              'Nie udało się odświeżyć sesji opiekuna po zmianie stanu uwierzytelnienia.',
+              error,
+            );
+            return null;
+          }),
+        { clearCache: true },
+      );
     });
     authSubscription = data?.subscription || null;
   }
@@ -313,15 +356,14 @@ export async function getCaretakerSession({ forceRefresh = false } = {}) {
   }
 
   if (!loadingPromise) {
-    loadingPromise = buildCaretakerSession();
+    startCaretakerSessionLoading(() => buildCaretakerSession());
   }
 
   try {
-    const session = await loadingPromise;
-    cachedSession = session ?? null;
-    return cachedSession;
-  } finally {
-    loadingPromise = null;
+    return await loadingPromise;
+  } catch (error) {
+    cachedSession = null;
+    throw error;
   }
 }
 
