@@ -114,6 +114,31 @@
       cursor: pointer;
     }
 
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .actions button {
+      padding: 10px 18px;
+      border-radius: 8px;
+      border: none;
+      background: #2563eb;
+      color: #fff;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+
+    .actions button:hover {
+      background: #1d4ed8;
+    }
+
+    .actions button:active {
+      background: #1e40af;
+    }
+
     .workspace-wrapper {
       display: flex;
       flex-direction: column;
@@ -180,6 +205,39 @@
         width: min(15cm, 100%);
       }
     }
+
+    @page {
+      size: 15cm 10cm;
+      margin: 0;
+    }
+
+    @media print {
+      body {
+        background: #fff;
+        padding: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+      }
+
+      h1,
+      .controls,
+      .workspace-label,
+      .actions {
+        display: none !important;
+      }
+
+      .workspace-wrapper {
+        margin: 0;
+      }
+
+      .workspace {
+        box-shadow: none;
+        border: none;
+        background-image: none;
+      }
+    }
   </style>
 </head>
 <body>
@@ -227,6 +285,14 @@
         <input type="color" id="backgroundColor" value="#ffffff" />
       </div>
     </section>
+
+    <section class="controls-section">
+      <h2>Eksport</h2>
+      <div class="actions">
+        <button type="button" id="saveImage">Zapisz jako obraz</button>
+        <button type="button" id="printWorkspace">Drukuj</button>
+      </div>
+    </section>
   </div>
 
   <div class="workspace-wrapper">
@@ -239,6 +305,7 @@
     </div>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <script>
     const mmToPx = (mm) => mm * (96 / 25.4);
 
@@ -300,6 +367,36 @@
     backgroundColorPicker.addEventListener('input', (event) => {
       const color = event.target.value;
       document.documentElement.style.setProperty('--workspace-bg', color);
+    });
+
+    const saveImageButton = document.getElementById('saveImage');
+    const printButton = document.getElementById('printWorkspace');
+
+    saveImageButton.addEventListener('click', async () => {
+      saveImageButton.disabled = true;
+      saveImageButton.textContent = 'Trwa zapisywanie...';
+
+      try {
+        const canvas = await html2canvas(workspace, {
+          backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--workspace-bg') || '#ffffff',
+          scale: window.devicePixelRatio > 1 ? window.devicePixelRatio : 2
+        });
+
+        const link = document.createElement('a');
+        link.download = 'wydruk-10x15.png';
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+      } catch (error) {
+        console.error('Nie udało się zapisać obrazu', error);
+        alert('Wystąpił błąd podczas zapisywania obrazu. Spróbuj ponownie.');
+      } finally {
+        saveImageButton.disabled = false;
+        saveImageButton.textContent = 'Zapisz jako obraz';
+      }
+    });
+
+    printButton.addEventListener('click', () => {
+      window.print();
     });
   </script>
 </body>
