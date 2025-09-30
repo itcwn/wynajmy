@@ -23,6 +23,9 @@ const checklistMessage = document.getElementById('checklistMessage');
 const addChecklistItemBtn = document.getElementById('addChecklistItem');
 const saveChecklistBtn = document.getElementById('saveChecklist');
 
+const tabButtons = document.querySelectorAll('[data-tab-target]');
+const tabPanels = document.querySelectorAll('[data-tab-panel]');
+
 const logoutBtn = document.getElementById('caretakerLogout');
 
 const PHASE_OPTIONS = [
@@ -631,67 +634,93 @@ async function bootstrap() {
       setStatus(checklistMessage, '', 'info');
       return;
     }
-    if (!checklistItems.length) {
-      checklistContainer.innerHTML = '<p class="text-sm text-gray-500">Brak elementów. Dodaj pierwszy element listy kontrolnej.</p>';
-    } else {
-      const rows = checklistItems
-        .map((item, index) => {
-          const key = ensureChecklistDomKey(item);
-          const options = PHASE_OPTIONS.map(
-            (option) =>
-              `<option value="${option.value}" ${item.phase === option.value ? 'selected' : ''}>${option.label}</option>`,
-          ).join('');
-          return `
-            <article class="border rounded-2xl p-4 space-y-3 bg-gray-50" data-key="${key}">
-              <div class="flex items-start justify-between gap-3 flex-wrap">
-                <div class="flex items-center gap-3 flex-wrap text-sm">
-                  <span class="font-semibold text-base">#${index + 1}</span>
-                  <label class="flex items-center gap-2 text-xs bg-slate-100 border border-slate-200 rounded-lg px-2 py-1">
-                    <span>Etap:</span>
-                    <select data-role="phase" class="border rounded-lg px-2 py-1 text-sm bg-white">
-                      ${options}
-                    </select>
-                  </label>
-                  <label class="flex items-center gap-2 text-xs">
-                    <input type="checkbox" data-role="required" ${item.is_required !== false ? 'checked' : ''} />
-                    <span>Wymagane</span>
-                  </label>
-                </div>
-                <div class="flex items-center gap-2 text-xs">
-                  <button type="button" class="text-blue-600 hover:underline disabled:opacity-40" data-action="move-up" ${
-                    index === 0 ? 'disabled' : ''
-                  }>↑ do góry</button>
-                  <button type="button" class="text-blue-600 hover:underline disabled:opacity-40" data-action="move-down" ${
-                    index === checklistItems.length - 1 ? 'disabled' : ''
-                  }>↓ w dół</button>
-                  <button type="button" class="text-red-600 hover:underline" data-action="delete">Usuń</button>
-                </div>
+    const hasItems = checklistItems.length > 0;
+    const columns = {};
+    PHASE_OPTIONS.forEach((option) => {
+      columns[option.value] = [];
+    });
+
+    if (hasItems) {
+      checklistItems.forEach((item, index) => {
+        const key = ensureChecklistDomKey(item);
+        const itemPhase = PHASE_OPTIONS.some((option) => option.value === item.phase) ? item.phase : 'handover';
+        const options = PHASE_OPTIONS.map(
+          (option) => `<option value="${option.value}" ${itemPhase === option.value ? 'selected' : ''}>${option.label}</option>`,
+        ).join('');
+        const row = `
+          <article class="border rounded-2xl p-4 space-y-3 bg-gray-50" data-key="${key}">
+            <div class="flex items-start justify-between gap-3 flex-wrap">
+              <div class="flex items-center gap-3 flex-wrap text-sm">
+                <span class="font-semibold text-base">#${index + 1}</span>
+                <label class="flex items-center gap-2 text-xs bg-slate-100 border border-slate-200 rounded-lg px-2 py-1">
+                  <span>Etap:</span>
+                  <select data-role="phase" class="border rounded-lg px-2 py-1 text-sm bg-white">
+                    ${options}
+                  </select>
+                </label>
+                <label class="flex items-center gap-2 text-xs">
+                  <input type="checkbox" data-role="required" ${item.is_required !== false ? 'checked' : ''} />
+                  <span>Wymagane</span>
+                </label>
               </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-700">Tytuł elementu</label>
-                <input
-                  type="text"
-                  data-role="title"
-                  class="mt-1 w-full border rounded-xl px-3 py-2 text-sm"
-                  placeholder="np. Sprawdź stan liczników"
-                  value="${escapeHtml(item.title || '')}"
-                />
+              <div class="flex items-center gap-2 text-xs">
+                <button type="button" class="text-blue-600 hover:underline disabled:opacity-40" data-action="move-up" ${
+                  index === 0 ? 'disabled' : ''
+                }>↑ do góry</button>
+                <button type="button" class="text-blue-600 hover:underline disabled:opacity-40" data-action="move-down" ${
+                  index === checklistItems.length - 1 ? 'disabled' : ''
+                }>↓ w dół</button>
+                <button type="button" class="text-red-600 hover:underline" data-action="delete">Usuń</button>
               </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-700">Opis szczegółowy (opcjonalnie)</label>
-                <textarea
-                  data-role="description"
-                  class="mt-1 w-full border rounded-xl px-3 py-2 text-sm"
-                  rows="3"
-                  placeholder="Dodaj dodatkowe instrukcje lub kontekst."
-                >${escapeHtml(item.description || '')}</textarea>
-              </div>
-            </article>
-          `;
-        })
-        .join('');
-      checklistContainer.innerHTML = rows;
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700">Tytuł elementu</label>
+              <input
+                type="text"
+                data-role="title"
+                class="mt-1 w-full border rounded-xl px-3 py-2 text-sm"
+                placeholder="np. Sprawdź stan liczników"
+                value="${escapeHtml(item.title || '')}"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700">Opis szczegółowy (opcjonalnie)</label>
+              <textarea
+                data-role="description"
+                class="mt-1 w-full border rounded-xl px-3 py-2 text-sm"
+                rows="3"
+                placeholder="Dodaj dodatkowe instrukcje lub kontekst."
+              >${escapeHtml(item.description || '')}</textarea>
+            </div>
+          </article>
+        `;
+        columns[itemPhase].push(row);
+      });
     }
+
+    const columnMarkup = PHASE_OPTIONS.map((option) => {
+      const rows = columns[option.value];
+      let content = '';
+      if (!hasItems) {
+        content = '<p class="text-sm text-gray-500">Brak elementów. Dodaj pierwszy element listy kontrolnej.</p>';
+      } else if (!rows.length) {
+        content = '<p class="text-sm text-gray-500">Brak elementów dla tego etapu.</p>';
+      } else {
+        content = rows.join('');
+      }
+      return `
+        <section class="space-y-3" data-phase-wrapper="${option.value}">
+          <div class="flex items-center justify-between">
+            <h3 class="text-base font-semibold">${option.label}</h3>
+          </div>
+          <div class="space-y-3" data-phase-list="${option.value}">
+            ${content}
+          </div>
+        </section>
+      `;
+    }).join('');
+
+    checklistContainer.innerHTML = `<div class="grid gap-4 md:grid-cols-2">${columnMarkup}</div>`;
     if (addChecklistItemBtn) {
       addChecklistItemBtn.disabled = false;
     }
@@ -1107,3 +1136,43 @@ async function bootstrap() {
 }
 
 void bootstrap();
+function activateTab(tabId) {
+  if (!tabId) {
+    return;
+  }
+  tabButtons.forEach((button) => {
+    const isActive = button.dataset.tabTarget === tabId;
+    button.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    button.setAttribute('tabindex', isActive ? '0' : '-1');
+    button.classList.toggle('bg-blue-600', isActive);
+    button.classList.toggle('text-white', isActive);
+    button.classList.toggle('shadow', isActive);
+    button.classList.toggle('bg-slate-100', !isActive);
+    button.classList.toggle('text-slate-600', !isActive);
+  });
+  tabPanels.forEach((panel) => {
+    const isActive = panel.dataset.tabPanel === tabId;
+    panel.hidden = !isActive;
+    panel.setAttribute('aria-hidden', isActive ? 'false' : 'true');
+  });
+}
+
+if (tabButtons.length && tabPanels.length) {
+  tabPanels.forEach((panel) => {
+    panel.setAttribute('role', 'tabpanel');
+  });
+  tabButtons.forEach((button, index) => {
+    button.setAttribute('role', 'tab');
+    button.addEventListener('click', () => {
+      activateTab(button.dataset.tabTarget);
+    });
+    if (index === 0) {
+      activateTab(button.dataset.tabTarget);
+    }
+  });
+  const tablist = tabButtons[0]?.closest('[role="tablist"]');
+  if (tablist) {
+    tablist.setAttribute('aria-orientation', 'horizontal');
+  }
+}
+
