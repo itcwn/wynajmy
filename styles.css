@@ -85,6 +85,10 @@
   border-top-width: 0;
 }
 
+.space-y-6 > #facilityCard {
+  margin-top: 0 !important;
+}
+
 .flow-space > .hidden + * {
   margin-top: 0 !important;
 }
