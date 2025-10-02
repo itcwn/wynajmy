@@ -25,7 +25,10 @@
     <div class="max-w-6xl mx-auto flex items-center justify-between">
       <div>
         <h1 class="text-xl font-bold">Design Template</h1>
-        <p class="text-xs text-gray-500">Placeholdery: <code>{{booking.*}}</code>, <code>{{facility.*}}</code>, <code>{{date booking.start_time}}</code>, <code>{{time booking.start_time}}</code></p>
+        <p class="text-xs text-gray-500">
+          Placeholdery: <code>{{booking.*}}</code>, <code>{{facility.*}}</code>, <code>{{date booking.start_time}}</code>, <code>{{time booking.start_time}}</code>.
+          Własne pola formularza: <code>{{booking.extra.nazwa_pola|Etykieta (opcjonalnie)}}</code> – etykieta pojawia się tylko w formularzu, a w szablonie podstawiana jest wartość z klucza <code>nazwa_pola</code>.
+        </p>
       </div>
       <a href="./index.html" class="text-sm text-blue-700 underline">← powrót do aplikacji</a>
     </div>
