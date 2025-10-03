@@ -90,7 +90,7 @@ export function createDocGenerator({ state, supabase, domUtils, formatUtils }) {
     html = html.replace(/\{\{\s*time\s+booking\.start_time\s*\}\}/g, formatTime(booking.start_time));
     html = html.replace(/\{\{\s*time\s+booking\.end_time\s*\}\}/g, formatTime(booking.end_time));
     html = html.replace(/\{\{\s*date\s+booking\.request_date\s*\}\}/g, formatDate(booking.request_date));
-    html = html.replace(/\{\{\s*booking\.extra\.([a-zA-Z0-9_]+)(?:\|[^}]+)?\s*\}\}/g, (_, key) => {
+    html = html.replace(/\{\{\s*booking\.extra\.([a-zA-Z0-9_]+)(?:\s*\|\s*[^}]+)?\s*\}\}/g, (_, key) => {
       const val = state.docFormValues?.[key];
       return val == null ? '' : escapeHtml(String(val));
     });
@@ -159,7 +159,7 @@ export function createDocGenerator({ state, supabase, domUtils, formatUtils }) {
     function renderLiveFields(tpl) {
       fieldsWrap.innerHTML = '';
       const matches = [
-        ...tpl.html.matchAll(/\{\{\s*booking\.extra\.([a-zA-Z0-9_]+)(?:\|([^}]*))?\s*\}\}/g),
+        ...tpl.html.matchAll(/\{\{\s*booking\.extra\.([a-zA-Z0-9_]+)(?:\s*\|\s*([^}]*))?\s*\}\}/g),
       ];
       const uniqueFields = new Map();
       matches.forEach((match) => {
