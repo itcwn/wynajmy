@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Generator wydruków 12,5×11 cm</title>
+  <style>
+    :root {
+      --workspace-bg: #ffffff;
+      --column-gap: 8px;
+      --row-gap: 12px;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      background: #f2f2f2;
+      color: #333;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px 16px 48px;
+      gap: 24px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 1.8rem;
+      text-align: center;
+    }
+
+    .controls {
+      width: min(960px, 100%);
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+      padding: 24px;
+      display: grid;
+      gap: 24px;
+    }
+
+    .controls-section {
+      display: grid;
+      gap: 12px;
+    }
+
+    .controls-section h2 {
+      margin: 0;
+      font-size: 1.1rem;
+    }
+
+    .file-inputs {
+      display: grid;
+      gap: 12px;
+    }
+
+    .file-inputs label {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-weight: 600;
+    }
+
+    .file-inputs input[type="file"] {
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      background: #fafafa;
+    }
+
+    .sliders {
+      display: grid;
+      gap: 16px;
+    }
+
+    .slider-control {
+      display: grid;
+      gap: 8px;
+    }
+
+    .slider-control label {
+      font-weight: 600;
+    }
+
+    .slider-inputs {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .slider-inputs input[type="range"] {
+      flex: 1 1 260px;
+    }
+
+    .slider-inputs input[type="number"] {
+      width: 90px;
+      padding: 6px 8px;
+      border: 1px solid #bbb;
+      border-radius: 6px;
+    }
+
+    .background-picker {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .background-picker input[type="color"] {
+      width: 48px;
+      height: 32px;
+      border: none;
+      background: none;
+      cursor: pointer;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .actions button {
+      padding: 10px 18px;
+      border-radius: 8px;
+      border: none;
+      background: #2563eb;
+      color: #fff;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+
+    .actions button:hover {
+      background: #1d4ed8;
+    }
+
+    .actions button:active {
+      background: #1e40af;
+    }
+
+    .workspace-wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .workspace-label {
+      font-weight: 600;
+      color: #555;
+    }
+
+    .workspace {
+      width: 12.5cm;
+      height: 11cm;
+      background: var(--workspace-bg);
+      border-radius: 12px;
+      border: 1px solid rgba(0, 0, 0, 0.18);
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.12);
+      overflow: hidden;
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      grid-template-rows: repeat(2, 1fr);
+      column-gap: var(--column-gap);
+      row-gap: var(--row-gap);
+      padding: 14px;
+      box-sizing: border-box;
+      background-image: radial-gradient(circle at top left, rgba(255, 255, 255, 0.35), transparent 55%);
+      position: relative;
+    }
+
+    .workspace::before {
+      content: "";
+      position: absolute;
+      left: 14px;
+      right: 14px;
+      top: calc(50% - var(--row-gap) / 2);
+      border-top: 2px dotted rgba(0, 0, 0, 0.25);
+      pointer-events: none;
+    }
+
+    .image-half {
+      position: relative;
+      border-radius: 10px;
+      overflow: hidden;
+      background-color: rgba(0, 0, 0, 0.08);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: rgba(0, 0, 0, 0.4);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-size: 0.85rem;
+    }
+
+    .image-half img {
+      position: absolute;
+      top: 0;
+      height: 100%;
+      width: 200%;
+      object-fit: cover;
+      display: none;
+    }
+
+    .image-half.filled {
+      color: transparent;
+    }
+
+    .image-half.filled img {
+      display: block;
+    }
+
+    .image-half-left img {
+      left: 0;
+    }
+
+    .image-half-right img {
+      left: -100%;
+    }
+
+    @media (max-width: 960px) {
+      .workspace {
+        width: min(12.5cm, 100%);
+      }
+    }
+
+    @page {
+      size: 12.5cm 11cm;
+      margin: 0;
+    }
+
+    @media print {
+      *,
+      *::before,
+      *::after {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+
+      body {
+        background: #fff;
+        padding: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+      }
+
+      h1,
+      .controls,
+      .workspace-label,
+      .actions {
+        display: none !important;
+      }
+
+      .workspace-wrapper {
+        margin: 0;
+      }
+
+      .workspace {
+        box-shadow: none;
+        border: none;
+        background-image: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>Przygotuj wydruk 12,5×11 cm</h1>
+
+  <div class="controls">
+    <section class="controls-section">
+      <h2>Wgraj zdjęcia</h2>
+      <div class="file-inputs">
+        <label for="photo1">
+          Zdjęcie 1
+          <input type="file" id="photo1" accept="image/*" />
+        </label>
+        <label for="photo2">
+          Zdjęcie 2
+          <input type="file" id="photo2" accept="image/*" />
+        </label>
+      </div>
+    </section>
+
+    <section class="controls-section">
+      <h2>Ustaw odstępy</h2>
+      <div class="sliders">
+        <div class="slider-control">
+          <label for="columnGapRange">Odstęp między kolumnami (mm)</label>
+          <div class="slider-inputs">
+            <input type="range" id="columnGapRange" min="0" max="30" value="8" step="1" />
+            <input type="number" id="columnGapNumber" min="0" max="30" value="8" step="1" />
+          </div>
+        </div>
+        <div class="slider-control">
+          <label for="rowGapRange">Odstęp między wierszami (mm)</label>
+          <div class="slider-inputs">
+            <input type="range" id="rowGapRange" min="0" max="30" value="12" step="1" />
+            <input type="number" id="rowGapNumber" min="0" max="30" value="12" step="1" />
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="controls-section">
+      <h2>Tło obszaru roboczego</h2>
+      <div class="background-picker">
+        <label for="backgroundColor">Wybierz kolor:</label>
+        <input type="color" id="backgroundColor" value="#ffffff" />
+      </div>
+    </section>
+
+    <section class="controls-section">
+      <h2>Eksport</h2>
+      <div class="actions">
+        <button type="button" id="saveImage">Zapisz jako obraz</button>
+        <button type="button" id="printWorkspace">Drukuj</button>
+      </div>
+    </section>
+  </div>
+
+  <div class="workspace-wrapper">
+    <span class="workspace-label">Obszar roboczy 12,5×11 cm</span>
+    <div class="workspace" id="workspace">
+      <div class="image-half image-half-left" id="photo1-left">
+        Zdjęcie 1
+        <img alt="Lewa połowa zdjęcia 1" />
+      </div>
+      <div class="image-half image-half-right" id="photo1-right">
+        Zdjęcie 1
+        <img alt="Prawa połowa zdjęcia 1" />
+      </div>
+      <div class="image-half image-half-left" id="photo2-left">
+        Zdjęcie 2
+        <img alt="Lewa połowa zdjęcia 2" />
+      </div>
+      <div class="image-half image-half-right" id="photo2-right">
+        Zdjęcie 2
+        <img alt="Prawa połowa zdjęcia 2" />
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const CSS_DPI = 96;
+    const PRINT_DPI = 300;
+    const CM_TO_INCH = 1 / 2.54;
+
+    const mmToPx = (mm) => mm * (CSS_DPI / 25.4);
+    const mmToPrintPx = (mm) => (mm / 25.4) * PRINT_DPI;
+    const pxToMm = (px) => (px / CSS_DPI) * 25.4;
+
+    const photoInputs = [
+      {
+        input: document.getElementById('photo1'),
+        left: document.getElementById('photo1-left'),
+        right: document.getElementById('photo1-right')
+      },
+      {
+        input: document.getElementById('photo2'),
+        left: document.getElementById('photo2-left'),
+        right: document.getElementById('photo2-right')
+      }
+    ];
+
+    const imagePromises = new Map();
+
+    const loadImage = (src) =>
+      new Promise((resolve, reject) => {
+        const image = new Image();
+        image.onload = () => resolve(image);
+        image.onerror = () => reject(new Error('Nie udało się wczytać obrazu'));
+        image.src = src;
+      });
+
+    photoInputs.forEach(({ input, left, right }) => {
+      const leftImage = left.querySelector('img');
+      const rightImage = right.querySelector('img');
+
+      input.addEventListener('change', (event) => {
+        const file = event.target.files?.[0];
+        if (!file) {
+          leftImage.removeAttribute('src');
+          rightImage.removeAttribute('src');
+          left.classList.remove('filled');
+          right.classList.remove('filled');
+          imagePromises.delete(input.id);
+          return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = () => {
+          const dataUrl = reader.result;
+          if (typeof dataUrl !== 'string') {
+            return;
+          }
+
+          leftImage.src = dataUrl;
+          rightImage.src = dataUrl;
+
+          const promise = loadImage(dataUrl)
+            .then((image) => {
+              left.classList.add('filled');
+              right.classList.add('filled');
+              return image;
+            })
+            .catch((error) => {
+              console.error(error);
+              left.classList.remove('filled');
+              right.classList.remove('filled');
+              imagePromises.delete(input.id);
+              throw error;
+            });
+
+          imagePromises.set(input.id, promise);
+        };
+        reader.readAsDataURL(file);
+      });
+    });
+
+    const workspace = document.getElementById('workspace');
+
+    const columnGapRange = document.getElementById('columnGapRange');
+    const columnGapNumber = document.getElementById('columnGapNumber');
+    const rowGapRange = document.getElementById('rowGapRange');
+    const rowGapNumber = document.getElementById('rowGapNumber');
+
+    const syncGapControls = (rangeInput, numberInput, cssVariable) => {
+      const updateGap = (value) => {
+        const numericValue = Math.max(Number(rangeInput.min), Math.min(Number(rangeInput.max), Number(value)));
+        rangeInput.value = numericValue;
+        numberInput.value = numericValue;
+        workspace.style.setProperty(cssVariable, `${mmToPx(numericValue)}px`);
+      };
+
+      rangeInput.addEventListener('input', (e) => updateGap(e.target.value));
+      numberInput.addEventListener('input', (e) => updateGap(e.target.value));
+
+      updateGap(rangeInput.value);
+    };
+
+    syncGapControls(columnGapRange, columnGapNumber, '--column-gap');
+    syncGapControls(rowGapRange, rowGapNumber, '--row-gap');
+
+    const backgroundColorPicker = document.getElementById('backgroundColor');
+    backgroundColorPicker.addEventListener('input', (event) => {
+      const color = event.target.value;
+      document.documentElement.style.setProperty('--workspace-bg', color);
+    });
+
+    const saveImageButton = document.getElementById('saveImage');
+    const printButton = document.getElementById('printWorkspace');
+
+    const createRoundedRectPath = (ctx, x, y, width, height, radius) => {
+      const clampedRadius = Math.min(radius, width / 2, height / 2);
+      ctx.beginPath();
+      ctx.moveTo(x + clampedRadius, y);
+      ctx.lineTo(x + width - clampedRadius, y);
+      ctx.quadraticCurveTo(x + width, y, x + width, y + clampedRadius);
+      ctx.lineTo(x + width, y + height - clampedRadius);
+      ctx.quadraticCurveTo(x + width, y + height, x + width - clampedRadius, y + height);
+      ctx.lineTo(x + clampedRadius, y + height);
+      ctx.quadraticCurveTo(x, y + height, x, y + height - clampedRadius);
+      ctx.lineTo(x, y + clampedRadius);
+      ctx.quadraticCurveTo(x, y, x + clampedRadius, y);
+      ctx.closePath();
+    };
+
+    const drawImageHalf = (ctx, image, half, x, y, width, height) => {
+      if (!image) {
+        return;
+      }
+
+      const sourceWidth = image.naturalWidth / 2;
+      const sourceHeight = image.naturalHeight;
+      const sourceX = half === 'left' ? 0 : sourceWidth;
+      const sourceAspect = sourceWidth / sourceHeight;
+      const destAspect = width / height;
+
+      let drawWidth;
+      let drawHeight;
+      let offsetX;
+      let offsetY;
+
+      if (sourceAspect > destAspect) {
+        drawHeight = height;
+        drawWidth = height * sourceAspect;
+        offsetX = (width - drawWidth) / 2;
+        offsetY = 0;
+      } else {
+        drawWidth = width;
+        drawHeight = width / sourceAspect;
+        offsetX = 0;
+        offsetY = (height - drawHeight) / 2;
+      }
+
+      ctx.drawImage(image, sourceX, 0, sourceWidth, sourceHeight, x + offsetX, y + offsetY, drawWidth, drawHeight);
+    };
+
+    const renderWorkspaceToImage = async () => {
+      const printWidth = Math.round(12.5 * CM_TO_INCH * PRINT_DPI);
+      const printHeight = Math.round(11 * CM_TO_INCH * PRINT_DPI);
+
+      const canvas = document.createElement('canvas');
+      canvas.width = printWidth;
+      canvas.height = printHeight;
+
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        throw new Error('Brak wsparcia dla renderowania 2D');
+      }
+
+      const backgroundColorValue = getComputedStyle(document.documentElement)
+        .getPropertyValue('--workspace-bg')
+        .trim();
+      ctx.fillStyle = backgroundColorValue || '#ffffff';
+      ctx.fillRect(0, 0, printWidth, printHeight);
+
+      const workspaceStyle = getComputedStyle(workspace);
+      const paddingPx = parseFloat(workspaceStyle.paddingLeft) || 0;
+      const paddingMm = pxToMm(paddingPx);
+      const paddingPrint = mmToPrintPx(paddingMm);
+
+      const columnGapMm = Number(columnGapRange.value);
+      const rowGapMm = Number(rowGapRange.value);
+      const columnGapPrint = mmToPrintPx(columnGapMm);
+      const rowGapPrint = mmToPrintPx(rowGapMm);
+
+      const cellWidth = (printWidth - paddingPrint * 2 - columnGapPrint) / 2;
+      const cellHeight = (printHeight - paddingPrint * 2 - rowGapPrint) / 2;
+
+      const sampleHalf = document.querySelector('.image-half');
+      const halfStyle = sampleHalf ? getComputedStyle(sampleHalf) : null;
+      const placeholderColor = halfStyle?.backgroundColor || 'rgba(0, 0, 0, 0.08)';
+      const placeholderTextColor = halfStyle?.color || 'rgba(0, 0, 0, 0.4)';
+      const borderRadiusPx = halfStyle ? parseFloat(halfStyle.borderRadius) || 0 : 0;
+      const borderRadiusPrint = mmToPrintPx(pxToMm(borderRadiusPx));
+
+      const cells = [
+        { inputId: 'photo1', half: 'left', label: 'Zdjęcie 1', x: paddingPrint, y: paddingPrint },
+        {
+          inputId: 'photo1',
+          half: 'right',
+          label: 'Zdjęcie 1',
+          x: paddingPrint + cellWidth + columnGapPrint,
+          y: paddingPrint
+        },
+        {
+          inputId: 'photo2',
+          half: 'left',
+          label: 'Zdjęcie 2',
+          x: paddingPrint,
+          y: paddingPrint + cellHeight + rowGapPrint
+        },
+        {
+          inputId: 'photo2',
+          half: 'right',
+          label: 'Zdjęcie 2',
+          x: paddingPrint + cellWidth + columnGapPrint,
+          y: paddingPrint + cellHeight + rowGapPrint
+        }
+      ];
+
+      for (const cell of cells) {
+        ctx.save();
+        createRoundedRectPath(ctx, cell.x, cell.y, cellWidth, cellHeight, borderRadiusPrint);
+        ctx.clip();
+
+        ctx.fillStyle = placeholderColor;
+        ctx.fillRect(cell.x, cell.y, cellWidth, cellHeight);
+
+        let image = null;
+        const promise = imagePromises.get(cell.inputId);
+        if (promise) {
+          try {
+            image = await promise;
+          } catch (error) {
+            console.error(error);
+            imagePromises.delete(cell.inputId);
+          }
+        }
+
+        if (!image) {
+          const fallback = document
+            .getElementById(`${cell.inputId}-${cell.half}`)
+            ?.querySelector('img');
+          if (fallback?.naturalWidth && fallback?.naturalHeight) {
+            image = fallback;
+          }
+        }
+
+        drawImageHalf(ctx, image, cell.half, cell.x, cell.y, cellWidth, cellHeight);
+
+        if (!image) {
+          ctx.fillStyle = placeholderTextColor;
+          ctx.font = `${Math.max(cellHeight * 0.12, 24)}px 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(cell.label.toUpperCase(), cell.x + cellWidth / 2, cell.y + cellHeight / 2);
+        }
+
+        ctx.restore();
+      }
+
+      const separatorY = paddingPrint + cellHeight + rowGapPrint / 2;
+      const separatorDash = mmToPrintPx(pxToMm(2));
+      const separatorWidth = mmToPrintPx(pxToMm(2));
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.25)';
+      ctx.setLineDash([separatorDash, separatorDash]);
+      ctx.lineWidth = Math.max(separatorWidth, 1);
+      ctx.beginPath();
+      ctx.moveTo(paddingPrint, separatorY);
+      ctx.lineTo(printWidth - paddingPrint, separatorY);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      return canvas.toDataURL('image/png');
+    };
+
+    saveImageButton.addEventListener('click', async () => {
+      saveImageButton.disabled = true;
+      saveImageButton.textContent = 'Trwa zapisywanie...';
+
+      try {
+        const dataUrl = await renderWorkspaceToImage();
+        const link = document.createElement('a');
+        link.download = 'wydruk-12_5x11.png';
+        link.href = dataUrl;
+        link.click();
+      } catch (error) {
+        console.error('Nie udało się zapisać obrazu', error);
+        alert('Wystąpił błąd podczas zapisywania obrazu. Spróbuj ponownie.');
+      } finally {
+        saveImageButton.disabled = false;
+        saveImageButton.textContent = 'Zapisz jako obraz';
+      }
+    });
+
+    printButton.addEventListener('click', () => {
+      window.print();
+    });
+  </script>
+</body>
+</html>
