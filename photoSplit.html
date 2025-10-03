@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Generator wydruków 10x15</title>
+  <title>Generator wydruków 12,5×11 cm</title>
   <style>
     :root {
       --workspace-bg: #ffffff;
@@ -152,8 +152,8 @@
     }
 
     .workspace {
-      width: 15cm;
-      height: 10cm;
+      width: 12.5cm;
+      height: 11cm;
       background: var(--workspace-bg);
       border-radius: 12px;
       border: 1px solid rgba(0, 0, 0, 0.18);
@@ -222,12 +222,12 @@
 
     @media (max-width: 960px) {
       .workspace {
-        width: min(15cm, 100%);
+        width: min(12.5cm, 100%);
       }
     }
 
     @page {
-      size: 15cm 10cm;
+      size: 12.5cm 11cm;
       margin: 0;
     }
 
@@ -268,7 +268,7 @@
   </style>
 </head>
 <body>
-  <h1>Przygotuj wydruk 10×15 cm</h1>
+  <h1>Przygotuj wydruk 12,5×11 cm</h1>
 
   <div class="controls">
     <section class="controls-section">
@@ -323,7 +323,7 @@
   </div>
 
   <div class="workspace-wrapper">
-    <span class="workspace-label">Obszar roboczy 10×15 cm</span>
+    <span class="workspace-label">Obszar roboczy 12,5×11 cm</span>
     <div class="workspace" id="workspace">
       <div class="image-half image-half-left" id="photo1-left">
         Zdjęcie 1
@@ -501,8 +501,8 @@
     };
 
     const renderWorkspaceToImage = async () => {
-      const printWidth = Math.round(15 * CM_TO_INCH * PRINT_DPI);
-      const printHeight = Math.round(10 * CM_TO_INCH * PRINT_DPI);
+      const printWidth = Math.round(12.5 * CM_TO_INCH * PRINT_DPI);
+      const printHeight = Math.round(11 * CM_TO_INCH * PRINT_DPI);
 
       const canvas = document.createElement('canvas');
       canvas.width = printWidth;
@@ -627,7 +627,7 @@
       try {
         const dataUrl = await renderWorkspaceToImage();
         const link = document.createElement('a');
-        link.download = 'wydruk-10x15.png';
+        link.download = 'wydruk-12_5x11.png';
         link.href = dataUrl;
         link.click();
       } catch (error) {
