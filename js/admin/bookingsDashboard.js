@@ -1,6 +1,6 @@
 import { requireCaretakerSession } from '../caretakers/session.js';
 import { getMyFacilitiesClient, loadMyFacilityIds } from '../caretakers/myFacilities.js';
-import { escapeHtml, formatDate, formatTime } from '../utils/format.js';
+import { escapeHtml, formatDate, formatTime, fmtDateLabel, ymd } from '../utils/format.js';
 import {
   BOOKING_NOTIFICATION_EVENTS,
   triggerBookingNotification,
@@ -10,6 +10,25 @@ const sectionEl = document.getElementById('caretakerBookingsSection');
 const listEl = document.getElementById('caretakerBookingsList');
 const messageEl = document.getElementById('caretakerBookingsMessage');
 const refreshBtn = document.getElementById('caretakerBookingsRefresh');
+
+function createNavigationElement() {
+  if (!listEl || !listEl.parentElement) {
+    return null;
+  }
+  const existing = document.getElementById('caretakerBookingsNavigation');
+  if (existing) {
+    return existing;
+  }
+  const element = document.createElement('div');
+  element.id = 'caretakerBookingsNavigation';
+  element.classList.add('hidden', 'flex', 'flex-wrap', 'items-center', 'gap-2', 'text-sm');
+  element.setAttribute('data-role', 'booking-tabs');
+  listEl.parentElement.insertBefore(element, listEl);
+  return element;
+}
+
+const navigationEl = createNavigationElement();
+let navigationListenerAttached = false;
 
 const COMMENT_COLUMN_CANDIDATES = [
   'decision_comment',
@@ -34,7 +53,162 @@ const state = {
   isLoading: false,
   loadSeq: 0,
   preferredCommentColumn: null,
+  groupedBookings: [],
+  activeGroupKey: null,
 };
+
+function normalizeLabel(value) {
+  if (!value) {
+    return '';
+  }
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return '';
+  }
+  return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+}
+
+function pluralizeBookings(count) {
+  const value = Number.parseInt(count, 10) || 0;
+  if (value === 1) {
+    return 'rezerwacja';
+  }
+  const mod100 = value % 100;
+  if (mod100 >= 10 && mod100 <= 20) {
+    return 'rezerwacji';
+  }
+  const mod10 = value % 10;
+  if (mod10 >= 2 && mod10 <= 4) {
+    return 'rezerwacje';
+  }
+  return 'rezerwacji';
+}
+
+function pluralizeVerb(count) {
+  const value = Number.parseInt(count, 10) || 0;
+  if (value === 1) {
+    return 'oczekuje';
+  }
+  const mod100 = value % 100;
+  if (mod100 >= 10 && mod100 <= 20) {
+    return 'oczekuje';
+  }
+  const mod10 = value % 10;
+  if (mod10 >= 2 && mod10 <= 4) {
+    return 'oczekują';
+  }
+  return 'oczekuje';
+}
+
+function buildGroupedBookings(bookings) {
+  const groupsMap = new Map();
+  bookings.forEach((booking) => {
+    const rawKey = ymd(booking.start_time);
+    const key = rawKey || '__missing__';
+    if (!groupsMap.has(key)) {
+      const labelSource = rawKey ? fmtDateLabel(booking.start_time) || formatDate(booking.start_time) : '';
+      const label = normalizeLabel(labelSource || 'Brak daty rozpoczęcia');
+      const summaryLabel = rawKey
+        ? formatDate(booking.start_time) || normalizeLabel(labelSource)
+        : 'Brak daty';
+      groupsMap.set(key, {
+        key,
+        label,
+        summaryLabel,
+        bookings: [],
+      });
+    }
+    groupsMap.get(key).bookings.push(booking);
+  });
+  return Array.from(groupsMap.values()).map((group) => ({
+    ...group,
+    count: group.bookings.length,
+  }));
+}
+
+function renderNavigation(groups) {
+  if (!navigationEl) {
+    return;
+  }
+  if (!Array.isArray(groups) || groups.length <= 1) {
+    navigationEl.innerHTML = '';
+    navigationEl.classList.add('hidden');
+    return;
+  }
+  navigationEl.classList.remove('hidden');
+  const baseClasses =
+    'inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition focus:outline-none focus-visible:ring focus-visible:ring-blue-500/70';
+  const activeClasses = 'border border-blue-600 bg-blue-600 text-white shadow-sm';
+  const inactiveClasses = 'border border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100';
+  navigationEl.innerHTML = groups
+    .map((group) => {
+      const isActive = group.key === state.activeGroupKey;
+      const countLabel = String(group.count);
+      const countToneClass = isActive ? 'text-blue-100' : 'text-gray-500';
+      const noun = pluralizeBookings(group.count);
+      return `
+        <button
+          type="button"
+          data-role="booking-tab"
+          data-group-key="${escapeHtml(group.key)}"
+          class="${baseClasses} ${isActive ? activeClasses : inactiveClasses}"
+        >
+          <span class="font-semibold">${escapeHtml(group.summaryLabel)}</span>
+          <span class="text-xs font-semibold ${countToneClass}">${escapeHtml(countLabel)}&nbsp;${escapeHtml(noun)}</span>
+        </button>
+      `;
+    })
+    .join('');
+
+  if (!navigationListenerAttached) {
+    navigationEl.addEventListener('click', (event) => {
+      const target = event.target;
+      const button = target instanceof Element ? target.closest('button[data-role="booking-tab"]') : null;
+      if (!button) {
+        return;
+      }
+      const { groupKey } = button.dataset;
+      if (!groupKey || groupKey === state.activeGroupKey) {
+        return;
+      }
+      state.activeGroupKey = groupKey;
+      renderNavigation(state.groupedBookings);
+      renderActiveGroup(state.groupedBookings);
+      attachFormHandlers();
+    });
+    navigationListenerAttached = true;
+  }
+}
+
+function renderActiveGroup(groups) {
+  if (!listEl) {
+    return;
+  }
+  if (!Array.isArray(groups) || !groups.length) {
+    listEl.innerHTML = '';
+    return;
+  }
+  let activeGroup = groups.find((group) => group.key === state.activeGroupKey);
+  if (!activeGroup) {
+    activeGroup = groups[0];
+    state.activeGroupKey = activeGroup?.key || null;
+  }
+  if (!activeGroup) {
+    listEl.innerHTML = '';
+    return;
+  }
+  const noun = pluralizeBookings(activeGroup.count);
+  const verb = pluralizeVerb(activeGroup.count);
+  const headerNote = `${activeGroup.count} ${noun} ${verb} na decyzję`;
+  const headerHtml = `
+    <div class="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-gray-50 px-4 py-3">
+      <h3 class="text-sm font-semibold text-gray-700">${escapeHtml(activeGroup.label)}</h3>
+      <span class="text-xs font-medium text-gray-500">${escapeHtml(headerNote)}</span>
+    </div>
+  `;
+  const cards = activeGroup.bookings.map((booking) => createBookingCard(booking)).join('');
+  listEl.innerHTML = `${headerHtml}${cards}`;
+}
 
 function setTone(element, tone) {
   if (!element) {
@@ -124,18 +298,42 @@ function renderBookings({ loading = false, emptyMessage } = {}) {
     return;
   }
   if (loading) {
+    if (navigationEl) {
+      renderNavigation([]);
+    }
+    state.groupedBookings = [];
+    state.activeGroupKey = null;
     listEl.innerHTML = '<p class="text-sm text-gray-500">Ładowanie zgłoszeń...</p>';
     return;
   }
   if (!state.bookings.length) {
+    if (navigationEl) {
+      renderNavigation([]);
+    }
+    state.groupedBookings = [];
+    state.activeGroupKey = null;
     const message = emptyMessage || 'Brak rezerwacji oczekujących na decyzję.';
     listEl.innerHTML = `<p class="rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-4 text-sm text-gray-600">${escapeHtml(
       message,
     )}</p>`;
     return;
   }
-  const cards = state.bookings.map((booking) => createBookingCard(booking)).join('');
-  listEl.innerHTML = cards;
+  state.groupedBookings = buildGroupedBookings(state.bookings);
+  if (!state.groupedBookings.length) {
+    if (navigationEl) {
+      renderNavigation([]);
+    }
+    state.activeGroupKey = null;
+    listEl.innerHTML = `<p class="rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-4 text-sm text-gray-600">${escapeHtml(
+      emptyMessage || 'Brak rezerwacji oczekujących na decyzję.',
+    )}</p>`;
+    return;
+  }
+  if (!state.activeGroupKey || !state.groupedBookings.some((group) => group.key === state.activeGroupKey)) {
+    state.activeGroupKey = state.groupedBookings[0]?.key || null;
+  }
+  renderNavigation(state.groupedBookings);
+  renderActiveGroup(state.groupedBookings);
   attachFormHandlers();
 }
 
@@ -474,6 +672,8 @@ async function refreshBookings({ showLoading = false, forceFacilitiesRefresh = f
       return;
     }
     state.bookings = bookings;
+    state.groupedBookings = [];
+    state.activeGroupKey = null;
     renderBookings();
     if (!bookings.length) {
       setMessage('Brak rezerwacji oczekujących na decyzję.', 'info');

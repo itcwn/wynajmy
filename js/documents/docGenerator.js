@@ -90,7 +90,7 @@ export function createDocGenerator({ state, supabase, domUtils, formatUtils }) {
     html = html.replace(/\{\{\s*time\s+booking\.start_time\s*\}\}/g, formatTime(booking.start_time));
     html = html.replace(/\{\{\s*time\s+booking\.end_time\s*\}\}/g, formatTime(booking.end_time));
     html = html.replace(/\{\{\s*date\s+booking\.request_date\s*\}\}/g, formatDate(booking.request_date));
-    html = html.replace(/\{\{booking\.extra\.([a-zA-Z0-9_]+)\}\}/g, (_, key) => {
+    html = html.replace(/\{\{\s*booking\.extra\.([a-zA-Z0-9_]+)(?:\|[^}]+)?\s*\}\}/g, (_, key) => {
       const val = state.docFormValues?.[key];
       return val == null ? '' : escapeHtml(String(val));
     });
@@ -158,15 +158,27 @@ export function createDocGenerator({ state, supabase, domUtils, formatUtils }) {
 
     function renderLiveFields(tpl) {
       fieldsWrap.innerHTML = '';
-      const matches = [...tpl.html.matchAll(/\{\{booking\.extra\.([a-zA-Z0-9_]+)\}\}/g)];
-      const keys = [...new Set(matches.map((m) => m[1]))];
+      const matches = [
+        ...tpl.html.matchAll(/\{\{\s*booking\.extra\.([a-zA-Z0-9_]+)(?:\|([^}]*))?\s*\}\}/g),
+      ];
+      const uniqueFields = new Map();
+      matches.forEach((match) => {
+        const [, key, label] = match;
+        if (!uniqueFields.has(key)) {
+          uniqueFields.set(key, {
+            key,
+            label: label?.trim() || '',
+          });
+        }
+      });
+      const fields = [...uniqueFields.values()];
       const head = document.createElement('div');
       head.className = 'mb-2 text-sm text-gray-700';
-      head.textContent = keys.length
+      head.textContent = fields.length
         ? 'Uzupełnij pola dla wybranego szablonu:'
         : 'Ten szablon nie ma dodatkowych pól do uzupełnienia.';
       fieldsWrap.appendChild(head);
-      if (keys.length) {
+      if (fields.length) {
         const table = document.createElement('table');
         table.className = 'table-auto w-full border rounded bg-white';
         table.innerHTML = `
@@ -179,10 +191,13 @@ export function createDocGenerator({ state, supabase, domUtils, formatUtils }) {
           <tbody></tbody>
         `;
         const tbody = table.querySelector('tbody');
-        keys.forEach((key) => {
+        fields.forEach(({ key, label }) => {
           const row = document.createElement('tr');
           row.innerHTML = `
-            <td class="border p-2 align-top"><code>${escapeHtml(key)}</code></td>
+            <td class="border p-2 align-top">
+              <div class="font-medium">${escapeHtml(label || key)}</div>
+              <div class="text-xs text-gray-500"><code>${escapeHtml(key)}</code></div>
+            </td>
             <td class="border p-2">
               <input type="text" class="w-full border rounded px-2 py-1" data-extra="${escapeHtml(key)}" value="${escapeHtml(state.docFormValues[key] ?? '')}">
             </td>
