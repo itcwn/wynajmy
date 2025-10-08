@@ -125,9 +125,12 @@ export function createDocGenerator({ state, supabase, domUtils, formatUtils }) {
     iframe.style.position = 'fixed';
     iframe.style.top = '-10000px';
     iframe.style.left = '-10000px';
-    iframe.style.width = '0';
-    iframe.style.height = '0';
+    iframe.style.width = '210mm';
+    iframe.style.minHeight = '297mm';
+    iframe.style.height = 'auto';
     iframe.style.opacity = '0';
+    iframe.style.pointerEvents = 'none';
+    iframe.style.visibility = 'hidden';
     iframe.setAttribute('aria-hidden', 'true');
     document.body.appendChild(iframe);
 
