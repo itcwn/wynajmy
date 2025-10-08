@@ -118,6 +118,62 @@ export function createDocGenerator({ state, supabase, domUtils, formatUtils }) {
     }
   }
 
+  function downloadPdf(html, filename) {
+    const parser = new DOMParser();
+    const parsed = parser.parseFromString(html, 'text/html');
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.top = '-10000px';
+    iframe.style.left = '-10000px';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.opacity = '0';
+    iframe.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(iframe);
+
+    const cleanup = () => {
+      if (iframe.parentNode) {
+        iframe.parentNode.removeChild(iframe);
+      }
+    };
+
+    const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+    if (!iframeDoc) {
+      cleanup();
+      throw new Error('Nie udało się przygotować dokumentu PDF.');
+    }
+
+    iframeDoc.open();
+    iframeDoc.write(parsed.documentElement.outerHTML);
+    iframeDoc.close();
+
+    const sourceElement = iframeDoc.body;
+    if (!sourceElement) {
+      cleanup();
+      throw new Error('Nie udało się przygotować zawartości PDF.');
+    }
+
+    const worker = window
+      .html2pdf()
+      .set({
+        margin: 15,
+        filename,
+        html2canvas: { scale: 2 },
+        jsPDF: { format: 'a4', unit: 'mm' },
+      })
+      .from(sourceElement)
+      .save();
+
+    return worker
+      .then(() => {
+        cleanup();
+      })
+      .catch((error) => {
+        cleanup();
+        throw error;
+      });
+  }
+
   async function showTemplateSelectorLive(bookingRow, mountEl) {
     if (!mountEl) {
       return;
@@ -217,6 +273,7 @@ export function createDocGenerator({ state, supabase, domUtils, formatUtils }) {
       actions.innerHTML = `
         <button type="button" id="previewDoc" class="px-3 py-2 rounded border">👁️ Podgląd</button>
         <button type="button" id="printDoc" class="px-3 py-2 rounded border">🖨️ Drukuj</button>
+        <button type="button" id="downloadDoc" class="px-3 py-2 rounded border">⬇️ Pobierz PDF</button>
       `;
       fieldsWrap.appendChild(actions);
       fieldsWrap.querySelector('#previewDoc')?.addEventListener('click', () => {
@@ -226,6 +283,30 @@ export function createDocGenerator({ state, supabase, domUtils, formatUtils }) {
       fieldsWrap.querySelector('#printDoc')?.addEventListener('click', () => {
         const html = applyTemplate(tpl.html, bookingRow);
         openPreviewWindow(html, true);
+      });
+      fieldsWrap.querySelector('#downloadDoc')?.addEventListener('click', async () => {
+        if (!window.html2pdf) {
+          window.alert('Funkcja pobierania PDF jest niedostępna. Odśwież stronę i spróbuj ponownie.');
+          return;
+        }
+
+        const html = applyTemplate(tpl.html, bookingRow);
+        const baseName = String(tpl.code || bookingRow?.title || state.lastBooking?.title || 'dokument').trim();
+        const sanitized = baseName
+          .toLowerCase()
+          .replace(/\s+/g, '-')
+          .replace(/[^a-z0-9_.-]+/g, '')
+          .replace(/^-+/, '')
+          .replace(/-+$/, '');
+        const filenameBase = sanitized || 'dokument';
+        const filename = filenameBase.endsWith('.pdf') ? filenameBase : `${filenameBase}.pdf`;
+
+        try {
+          await downloadPdf(html, filename);
+        } catch (error) {
+          console.error('Nie udało się wygenerować PDF', error);
+          window.alert('Nie udało się wygenerować pliku PDF. Spróbuj ponownie później.');
+        }
       });
     }
   }
