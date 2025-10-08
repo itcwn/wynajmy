@@ -248,11 +248,16 @@ export function createDocGenerator({ state, supabase, domUtils, formatUtils }) {
         `;
         const tbody = table.querySelector('tbody');
         fields.forEach(({ key, label }) => {
+          const trimmedLabel = label?.trim() || '';
+          const displayLabel = trimmedLabel || key;
+          const codeHint = trimmedLabel
+            ? ''
+            : `<div class="text-xs text-gray-500"><code>${escapeHtml(key)}</code></div>`;
           const row = document.createElement('tr');
           row.innerHTML = `
             <td class="border p-2 align-top">
-              <div class="font-medium">${escapeHtml(label || key)}</div>
-              <div class="text-xs text-gray-500"><code>${escapeHtml(key)}</code></div>
+              <div class="font-medium">${escapeHtml(displayLabel)}</div>
+              ${codeHint}
             </td>
             <td class="border p-2">
               <input type="text" class="w-full border rounded px-2 py-1" data-extra="${escapeHtml(key)}" value="${escapeHtml(state.docFormValues[key] ?? '')}">
