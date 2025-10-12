@@ -378,7 +378,9 @@ export function createFacilitiesModule({
     const calendar = $('#calendar');
     card?.classList.remove('hidden');
     selectors?.classList.remove('hidden');
-    calendar?.classList.remove('hidden');
+    if (calendar) {
+      calendar.classList.toggle('hidden', state.mode !== 'hour');
+    }
     if (bookingWizard?.reset) {
       bookingWizard.reset();
     } else {

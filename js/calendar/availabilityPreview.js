@@ -44,6 +44,28 @@ export function createAvailabilityPreview({ state, dayView, domUtils, formatUtil
     return date.toLocaleDateString('pl-PL', { month: 'short' }).replace('.', '');
   }
 
+  function formatWeekdayLabel(date) {
+    return date.toLocaleDateString('pl-PL', { weekday: 'short' }).replace('.', '');
+  }
+
+  function updateMonthHeading(date) {
+    const monthEl = $('#availabilityPreviewMonth');
+    if (!monthEl) {
+      return;
+    }
+    let base = null;
+    if (date instanceof Date && !Number.isNaN(date.getTime())) {
+      base = date;
+    } else if (state.currentDate instanceof Date && !Number.isNaN(state.currentDate.getTime())) {
+      base = state.currentDate;
+    } else {
+      base = new Date();
+    }
+    monthEl.textContent = base
+      .toLocaleDateString('pl-PL', { month: 'long', year: 'numeric' })
+      .replace('.', '');
+  }
+
   function ensureContainerMessage(container, message) {
     if (container) {
       container.innerHTML = `<p class="text-xs text-slate-500">${message}</p>`;
@@ -73,6 +95,7 @@ export function createAvailabilityPreview({ state, dayView, domUtils, formatUtil
     if (!container) {
       return;
     }
+    updateMonthHeading(anchorDate);
     if (!currentFacilityId) {
       ensureContainerMessage(container, 'Wybierz świetlicę, aby zobaczyć dostępność.');
       return;
@@ -90,6 +113,7 @@ export function createAvailabilityPreview({ state, dayView, domUtils, formatUtil
     });
 
     const sequence = ++renderSeq;
+    updateMonthHeading(baseDate);
     ensureContainerMessage(container, 'Ładowanie dostępności…');
 
     try {
@@ -114,8 +138,9 @@ export function createAvailabilityPreview({ state, dayView, domUtils, formatUtil
         tile.setAttribute('aria-label', `${date.toLocaleDateString('pl-PL')} – ${meta.label}`);
         tile.title = meta.label;
         tile.innerHTML = `
+          <span class="availability-tile__weekday">${formatWeekdayLabel(date)}</span>
           <span class="availability-tile__badge">${date.getDate()}</span>
-          <span class="text-[10px] font-semibold uppercase tracking-wide text-slate-500">${formatMonthLabel(date)}</span>
+          <span class="availability-tile__month">${formatMonthLabel(date)}</span>
         `;
         tile.addEventListener('click', () => {
           state.currentDate = new Date(date);
@@ -137,6 +162,7 @@ export function createAvailabilityPreview({ state, dayView, domUtils, formatUtil
     if (container) {
       ensureContainerMessage(container, 'Wybierz świetlicę, aby zobaczyć dostępność.');
     }
+    updateMonthHeading(state.currentDate);
     if (typeof dayView.onDateChange === 'function') {
       unsubscribeDateChange = dayView.onDateChange((date) => {
         void render({ anchorDate: date });

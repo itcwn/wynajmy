@@ -194,11 +194,17 @@ export function renderMain() {
               </div>
             </div>
             <div class="space-y-4 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 shadow-sm">
-              <div class="flex items-center justify-between gap-2">
-                <h4 class="text-sm font-semibold text-slate-700">Mini podgląd dostępności</h4>
-                <span class="text-xs text-slate-500">Kliknij dzień, aby ustawić datę</span>
+              <div class="flex flex-wrap items-baseline justify-between gap-2">
+                <div class="space-y-0.5">
+                  <h4 class="text-sm font-semibold text-slate-700">Mini podgląd dostępności</h4>
+                  <span class="text-xs text-slate-500">Kliknij dzień, aby ustawić datę</span>
+                </div>
+                <div id="availabilityPreviewMonth" class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400"></div>
               </div>
               <div id="availabilityPreviewGrid" class="availability-preview" aria-live="polite"></div>
+              <p class="text-[11px] leading-snug text-slate-500">
+                Doba rozliczeniowa liczona jest zgodnie z umową i zależy od rodzaju wynajmu. Przekroczenie doby może wiązać się z dodatkową opłatą. Szczegóły w cenniku danego obiektu.
+              </p>
               <div class="availability-legend">
                 <span><span class="availability-legend-dot" style="background:#21a35f"></span>Dostępny</span>
                 <span><span class="availability-legend-dot" style="background:#f4b632"></span>Wstępnie zajęty</span>
@@ -230,10 +236,6 @@ export function renderMain() {
           <div id="hours" class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"></div>
           <p class="text-xs text-slate-500">
             🔴 Zajęte (potwierdzone) · 🟡 Wstępne (czeka na akceptację) · brak koloru = dostępne
-          </p>
-          <p class="text-xs text-slate-500">
-            Doba rozliczeniowa liczona jest zgodnie z umową i zależy od rodzaju wynajmu. Przekroczenie doby może wiązać się z dodatkową opłatą.
-            Szczegóły w cenniku danego obiektu.
           </p>
         </div>
       </div>

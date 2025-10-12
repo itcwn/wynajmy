@@ -104,9 +104,25 @@ input[type="range"] {
 }
 
 .availability-preview {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(78px, 1fr));
-  gap: 0.75rem;
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding-bottom: 0.35rem;
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+}
+
+.availability-preview::-webkit-scrollbar {
+  height: 6px;
+}
+
+.availability-preview::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.6);
+  border-radius: 9999px;
+}
+
+.availability-preview > * {
+  scroll-snap-align: start;
 }
 
 .availability-tile {
@@ -114,13 +130,14 @@ input[type="range"] {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.35rem;
-  padding: 0.75rem 0.5rem;
+  gap: 0.3rem;
+  padding: 0.6rem 0.45rem;
+  min-width: 3.4rem;
   border-radius: 0.9rem;
   border: 1px solid #dbe2f0;
   background: #f7f9ff;
   color: #1f2937;
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   line-height: 1.1;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
@@ -133,15 +150,31 @@ input[type="range"] {
 }
 
 .availability-tile__badge {
-  width: 2.5rem;
-  height: 2.5rem;
+  width: 2.25rem;
+  height: 2.25rem;
   border-radius: 9999px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 600;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   color: #fff;
+}
+
+.availability-tile__weekday,
+.availability-tile__month {
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.availability-tile__weekday {
+  color: #475569;
+}
+
+.availability-tile__month {
+  color: #94a3b8;
 }
 
 .availability-tile--available {
@@ -173,6 +206,26 @@ input[type="range"] {
 
 .availability-tile--active {
   box-shadow: 0 0 0 3px rgba(0, 53, 128, 0.18);
+}
+
+.hours--compact {
+  gap: 0.5rem !important;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+}
+
+.hours--compact > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.65rem 0.6rem;
+}
+
+.hours--compact > div .font-mono {
+  font-size: 0.75rem;
+}
+
+.hours--compact > div .text-xs {
+  font-size: 0.65rem;
 }
 
 .availability-legend {
