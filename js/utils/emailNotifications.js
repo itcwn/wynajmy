@@ -27,23 +27,24 @@ export async function triggerBookingNotification(
     console.warn('Nieznany typ zdarzenia powiadomienia:', eventType);
     return { error: new Error('UNSUPPORTED_EVENT') };
   }
-  if (!supabase || !supabase.functions || typeof supabase.functions.invoke !== 'function') {
-    console.warn('Brak wsparcia Supabase Functions w bieżącej instancji klienta.');
-    return { error: new Error('FUNCTIONS_NOT_AVAILABLE') };
+  if (!supabase || typeof supabase.rpc !== 'function') {
+    console.warn('Brak klienta Supabase lub metody RPC do obsługi kolejki powiadomień.');
+    return { error: new Error('RPC_NOT_AVAILABLE') };
   }
   try {
-    const { data, error } = await supabase.functions.invoke(
-      'send-booking-notifications',
-      {
-        body: normalizePayload(eventType, options),
-      },
-    );
+    const normalized = normalizePayload(eventType, options);
+    const { data, error } = await supabase.rpc('enqueue_booking_notification', {
+      p_event_type: normalized.eventType,
+      p_booking_id: normalized.bookingId ?? null,
+      p_cancel_token: normalized.cancelToken ?? null,
+      p_metadata: normalized.metadata ?? null,
+    });
     if (error) {
       throw error;
     }
     return { data: data ?? null };
   } catch (error) {
-    console.warn('Nie udało się wysłać powiadomienia e-mail.', error);
+    console.warn('Nie udało się dodać powiadomienia e-mail do kolejki.', error);
     return { error };
   }
 }

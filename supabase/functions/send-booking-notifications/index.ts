@@ -62,7 +62,7 @@ const senderEmail = Deno.env.get('NOTIFY_FROM_EMAIL') ?? 'onboarding@resend.dev'
 const senderName = Deno.env.get('NOTIFY_FROM_NAME') ?? 'System rezerwacji świetlic';
 const appBaseUrlRaw = Deno.env.get('APP_BASE_URL') ?? '';
 const caretakerPanelPath = Deno.env.get('CARETAKER_PANEL_PATH') ?? '/caretakerPanel.html';
-const bookingPagePath = Deno.env.get('BOOKING_PAGE_PATH') ?? '/index.html';
+const bookingPagePath = Deno.env.get('BOOKING_PAGE_PATH') ?? '/';
 const checklistPath = Deno.env.get('CHECKLIST_PATH') ?? '/checklistReport.html';
 const defaultTimeZone = Deno.env.get('BOOKING_TIMEZONE') ?? 'Europe/Warsaw';
 const dryRun = (Deno.env.get('NOTIFY_DRY_RUN') ?? '').toLowerCase() === 'true';
@@ -188,7 +188,7 @@ function buildLinks(payload: BookingPayload) {
   const bookingSearch = bookingToken ? `booking=${bookingToken}` : '';
   const checklistSearch = `booking=${bookingId}`;
   return {
-    bookingUrl: bookingSearch ? sanitizeUrl(base, bookingPagePath, bookingSearch) : null,
+    publicBookingUrl: bookingSearch ? sanitizeUrl(base, bookingPagePath, bookingSearch) : null,
     caretakerPanelUrl: sanitizeUrl(base, caretakerPanelPath),
     checklistUrl: sanitizeUrl(base, checklistPath, checklistSearch),
   };
@@ -216,6 +216,7 @@ function buildCommonLines(payload: BookingPayload, timeZone: string): string[] {
   return lines;
 }
 
+// Teksty wiadomości dla opiekunów – w razie potrzeby można dostosować poniższe linie/układ.
 function buildCaretakerMessage(payload: BookingPayload, event: NotificationEvent, timeZone: string, metadata: Record<string, unknown> | null, links: ReturnType<typeof buildLinks>): MessagePlan | null {
   const caretakers = getCaretakerEmails(payload);
   if (!caretakers.length) {
@@ -229,8 +230,8 @@ function buildCaretakerMessage(payload: BookingPayload, event: NotificationEvent
   if (links.caretakerPanelUrl) {
     lines.push(`Panel opiekuna: ${links.caretakerPanelUrl}`);
   }
-  if (links.bookingUrl) {
-    lines.push(`Link dla rezerwującego (podgląd/anulowanie): ${links.bookingUrl}`);
+  if (links.publicBookingUrl) {
+    lines.push(`Podgląd zgłoszenia (strona główna z automatycznym wczytaniem): ${links.publicBookingUrl}`);
   }
   if (links.checklistUrl) {
     lines.push(`Raport przekazania/zdania obiektu: ${links.checklistUrl}`);
@@ -279,6 +280,7 @@ function buildCaretakerMessage(payload: BookingPayload, event: NotificationEvent
   };
 }
 
+// Teksty wiadomości dla rezerwującego – można je edytować według potrzeb projektu.
 function buildRenterMessage(payload: BookingPayload, event: NotificationEvent, timeZone: string, metadata: Record<string, unknown> | null, links: ReturnType<typeof buildLinks>): MessagePlan | null {
   const renterEmail = payload.booking.renter_email?.trim();
   if (!renterEmail) {
@@ -293,8 +295,8 @@ function buildRenterMessage(payload: BookingPayload, event: NotificationEvent, t
     if (caretakerNames || caretakerEmails.length) {
       lines.push(`Opiekun odpowiedzialny za obiekt: ${caretakerNames || caretakerEmails.join(', ')}`);
     }
-    if (links.bookingUrl) {
-      lines.push(`Podgląd zgłoszenia i anulowanie: ${links.bookingUrl}`);
+    if (links.publicBookingUrl) {
+      lines.push(`Podgląd zgłoszenia i anulowanie (strona główna): ${links.publicBookingUrl}`);
     }
     if (links.checklistUrl) {
       lines.push(`Formularz przekazania/zdania obiektu: ${links.checklistUrl}`);
@@ -314,13 +316,13 @@ function buildRenterMessage(payload: BookingPayload, event: NotificationEvent, t
       lines.push('Komentarz od opiekuna:');
       lines.push(comment);
     }
-    if (links.bookingUrl) {
-      lines.push(`Szczegóły rezerwacji: ${links.bookingUrl}`);
+    if (links.publicBookingUrl) {
+      lines.push(`Szczegóły rezerwacji: ${links.publicBookingUrl}`);
     }
   } else if (event === 'booking_cancelled_by_renter') {
     lines.unshift('Potwierdzamy anulowanie rezerwacji.');
-    if (links.bookingUrl) {
-      lines.push(`Zapis zmian możesz sprawdzić tutaj: ${links.bookingUrl}`);
+    if (links.publicBookingUrl) {
+      lines.push(`Zapis zmian możesz sprawdzić tutaj: ${links.publicBookingUrl}`);
     }
   }
   if (payload.facility?.caretaker_instructions) {
