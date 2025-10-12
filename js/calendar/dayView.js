@@ -3,6 +3,20 @@ export function createDayView({ state, supabase, domUtils, formatUtils }) {
   const { pad2, fmtDateLabel, ymd, escapeHtml } = formatUtils;
 
   let listenersAttached = false;
+  const dateChangeListeners = new Set();
+
+  function notifyDateChange(date = state.currentDate) {
+    const safeDate = date instanceof Date ? new Date(date) : new Date(state.currentDate);
+    dateChangeListeners.forEach((listener) => {
+      if (typeof listener === 'function') {
+        try {
+          listener(new Date(safeDate));
+        } catch (error) {
+          console.warn('Błąd listenera zmiany daty:', error);
+        }
+      }
+    });
+  }
 
   function setDayPickerFromCurrent() {
     const d = state.currentDate;
@@ -19,6 +33,7 @@ export function createDayView({ state, supabase, domUtils, formatUtils }) {
     if (label) {
       label.textContent = fmtDateLabel(d);
     }
+    notifyDateChange(state.currentDate);
   }
 
   function getVisibleHourRange() {
@@ -296,6 +311,7 @@ export function createDayView({ state, supabase, domUtils, formatUtils }) {
         const d = new Date(`${value}T00:00`);
         if (!Number.isNaN(d.getTime())) {
           state.currentDate = d;
+          setDayPickerFromCurrent();
           updateHourLabels(false);
           void renderDay();
         }
@@ -332,5 +348,12 @@ export function createDayView({ state, supabase, domUtils, formatUtils }) {
     renderDay,
     setDayPickerFromCurrent,
     statusClasses,
+    onDateChange: (listener) => {
+      if (typeof listener === 'function') {
+        dateChangeListeners.add(listener);
+        return () => dateChangeListeners.delete(listener);
+      }
+      return () => {};
+    },
   };
 }
