@@ -188,6 +188,8 @@ export function createDayView({ state, supabase, domUtils, formatUtils }) {
     if (!hoursEl) {
       return;
     }
+    hoursEl.classList.toggle('hours--compact', state.mode === 'hour');
+    hoursEl.dataset.mode = state.mode;
     hoursEl.innerHTML = '';
     const bookings = await fetchBookingsForDay(state.selectedFacility.id, d);
     if (mySeq !== state.renderSeq) {
@@ -254,16 +256,16 @@ export function createDayView({ state, supabase, domUtils, formatUtils }) {
       const labelHour = `${pad2(h)}:00`;
       const info = busy[h];
       const cell = document.createElement('div');
-      let cls = 'rounded-xl p-3 border ';
-      let html = `<div class="font-mono text-sm">${labelHour}</div>`;
+      let cls = 'rounded-lg border p-2.5 ';
+      let html = `<div class="font-mono text-[11px] text-slate-600">${labelHour}</div>`;
       if (info) {
         const C = statusClasses(info.status);
         cls += `${C.bg} ${C.border} ${C.text} shadow-sm`;
-        html += `<div class="text-xs">${escapeHtml(info.title)}</div>`;
-        html += `<div class="text-[11px] mt-1 inline-block px-2 py-0.5 rounded ${C.chipBg} ${C.chipText} border ${C.chipBorder}">${info.status === 'active' ? 'zajęte' : 'wstępna'}</div>`;
+        html += `<div class="text-[11px] leading-snug">${escapeHtml(info.title)}</div>`;
+        html += `<div class="text-[10px] mt-1 inline-flex items-center gap-1 rounded px-2 py-0.5 ${C.chipBg} ${C.chipText} border ${C.chipBorder}">${info.status === 'active' ? 'zajęte' : 'wstępna'}</div>`;
       } else {
         cls += 'bg-emerald-50 border-emerald-200 text-emerald-700';
-        html += '<div class="text-xs font-semibold text-emerald-700">Termin dostępny</div>';
+        html += '<div class="text-[11px] font-semibold text-emerald-700">Termin dostępny</div>';
       }
       cell.className = cls;
       cell.innerHTML = html;
@@ -325,6 +327,10 @@ export function createDayView({ state, supabase, domUtils, formatUtils }) {
         const wrap = $('#hourSliderWrap');
         if (wrap) {
           wrap.classList.toggle('hidden', state.mode !== 'hour');
+        }
+        const calendarCard = $('#calendar');
+        if (calendarCard) {
+          calendarCard.classList.toggle('hidden', state.mode !== 'hour');
         }
         void renderDay();
       });
