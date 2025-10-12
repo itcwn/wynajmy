@@ -11,6 +11,8 @@ export function createBookingForm({
   dayView,
   docGenerator,
   facilities,
+  availabilityPreview,
+  bookingWizard,
 }) {
   const { $ } = domUtils;
   const { pad2 } = formatUtils;
@@ -26,6 +28,8 @@ export function createBookingForm({
   if (facilitiesModule && state.facilitiesModule !== facilitiesModule) {
     state.facilitiesModule = facilitiesModule;
   }
+  const previewModule = availabilityPreview || null;
+  const wizardModule = bookingWizard || null;
 
   const FORM_MESSAGE_BASE_CLASSES = [
     'mt-3',
@@ -65,6 +69,13 @@ export function createBookingForm({
       classList.add(...FORM_MESSAGE_BASE_CLASSES);
       const toneClasses = FORM_MESSAGE_TONE_CLASSES[tone] || FORM_MESSAGE_TONE_CLASSES.info;
       classList.add(...toneClasses);
+    }
+  }
+
+  async function rerenderDayAndPreview() {
+    await dayView.renderDay();
+    if (previewModule?.refresh) {
+      await previewModule.refresh();
     }
   }
 
@@ -330,8 +341,11 @@ export function createBookingForm({
         }
       : { ...payload };
     state.bookingsCache.clear();
-    await dayView.renderDay();
+    await rerenderDayAndPreview();
     await showPostBookingActions(bookingRow, { logCancelUrl: true });
+    if (wizardModule?.showForm) {
+      wizardModule.showForm({ focusForm: false });
+    }
     if (bookingRow?.id) {
       void triggerBookingNotification(
         supabase,
@@ -378,7 +392,7 @@ export function createBookingForm({
       );
       state.lastBooking = null;
       state.bookingsCache.clear();
-      await dayView.renderDay();
+      await rerenderDayAndPreview();
       setCancelButtonVisible(false);
     } else {
       alert('Nie znaleziono lub już anulowana.');
@@ -463,6 +477,12 @@ export function createBookingForm({
     }
     state.bookingsCache.clear();
     await showPostBookingActions(null);
+    if (previewModule?.refresh) {
+      await previewModule.refresh();
+    }
+    if (wizardModule?.showForm) {
+      wizardModule.showForm({ focusForm: false });
+    }
     return true;
   }
 
@@ -499,6 +519,12 @@ export function createBookingForm({
       }
     }
     await showPostBookingActions(bookingRow, { logCancelUrl: false });
+    if (previewModule?.refresh) {
+      await previewModule.refresh();
+    }
+    if (wizardModule?.showForm) {
+      wizardModule.showForm({ focusForm: false });
+    }
     if (message) {
       setFormMessage(message, 'info');
     }
@@ -547,7 +573,7 @@ export function createBookingForm({
         state.lastBooking = null;
         state.bookingsCache.clear();
         if (state.selectedFacility) {
-          await dayView.renderDay();
+          await rerenderDayAndPreview();
         }
         setCancelButtonVisible(false);
       } else {

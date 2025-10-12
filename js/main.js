@@ -19,6 +19,8 @@ import { createDocGenerator } from './documents/docGenerator.js';
 import { createInstructionsModal } from './ui/instructionsModal.js';
 import { createGalleryModal } from './ui/galleryModal.js';
 import { createIntroVideoModal } from './ui/introVideo.js';
+import { createAvailabilityPreview } from './calendar/availabilityPreview.js';
+import { createBookingWizard } from './ui/bookingWizard.js';
 
 const supabase = createSupabaseClient();
 
@@ -33,6 +35,8 @@ if (!supabase) {
   const instructionsModal = createInstructionsModal({ state, domUtils });
   const galleryModal = createGalleryModal({ state, domUtils, formatUtils });
   const introVideoModal = createIntroVideoModal();
+  const bookingWizard = createBookingWizard({ state, domUtils });
+  const availabilityPreview = createAvailabilityPreview({ state, dayView, domUtils, formatUtils });
   const facilities = createFacilitiesModule({
     state,
     supabase,
@@ -43,6 +47,8 @@ if (!supabase) {
     instructionsModal,
     galleryModal,
     googleMapsKey: GOOGLE_MAPS_API_KEY,
+    bookingWizard,
+    availabilityPreview,
   });
   const monthModal = createMonthModal({
     state,
@@ -58,6 +64,8 @@ if (!supabase) {
     dayView,
     docGenerator,
     facilities,
+    availabilityPreview,
+    bookingWizard,
   });
 
   window.initMapsApi = facilities.initMapsApi;
@@ -125,9 +133,10 @@ if (!supabase) {
 
   async function init() {
     void setupCaretakerNavigation();
-    introVideoModal.showIfNeeded();
     renderSidebar({ onSearch: facilities.renderFacilityList });
     renderMain();
+    bookingWizard.init();
+    availabilityPreview.init();
     dayView.attachDayViewListeners();
     instructionsModal.attachListeners();
     galleryModal.attachListeners();

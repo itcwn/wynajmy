@@ -10,6 +10,8 @@ export function createFacilitiesModule({
   instructionsModal,
   galleryModal,
   googleMapsKey,
+  bookingWizard,
+  availabilityPreview,
 }) {
   const { $ } = domUtils;
   const { escapeHtml } = formatUtils;
@@ -105,9 +107,9 @@ export function createFacilitiesModule({
       .map(
         (facility) => `
       <li>
-        <button data-id="${facility.id}" class="w-full text-left border rounded-xl p-3 hover:bg-gray-50">
-          <div class="font-semibold">${escapeHtml(facility.name || '')}</div>
-          <div class="text-sm text-gray-600">${formatFacilityLocation(facility)}</div>
+        <button data-id="${facility.id}" class="w-full text-left rounded-xl border border-transparent px-4 py-3 transition hover:border-[#003580] hover:bg-[#003580]/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#003580]/40">
+          <div class="font-semibold text-slate-900">${escapeHtml(facility.name || '')}</div>
+          <div class="text-sm text-slate-500">${formatFacilityLocation(facility)}</div>
         </button>
       </li>`
       )
@@ -376,8 +378,12 @@ export function createFacilitiesModule({
     const calendar = $('#calendar');
     card?.classList.remove('hidden');
     selectors?.classList.remove('hidden');
-    booking?.classList.remove('hidden');
     calendar?.classList.remove('hidden');
+    if (bookingWizard?.reset) {
+      bookingWizard.reset();
+    } else {
+      booking?.classList.add('hidden');
+    }
     refreshLayoutAlignment();
 
     updateGalleryPreview(facility);
@@ -446,6 +452,9 @@ export function createFacilitiesModule({
     dayView.setDayPickerFromCurrent();
     dayView.initHourSliderDefaults();
     await dayView.renderDay();
+    if (availabilityPreview?.setFacility) {
+      availabilityPreview.setFacility(facility);
+    }
     if (docGenerator?.loadTemplatesForFacility) {
       await docGenerator.loadTemplatesForFacility(facility.id);
     }
