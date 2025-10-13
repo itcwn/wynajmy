@@ -2,13 +2,14 @@ function resolveBucketName() {
   if (typeof window !== 'undefined') {
     const configured = window.__SUPA?.STORAGE_BUCKET_FACILITY_IMAGES;
     if (configured && typeof configured === 'string') {
-      return configured;
+      const trimmed = configured.trim();
+      if (trimmed) {
+        return trimmed;
+      }
     }
   }
   return 'facility-images';
 }
-
-const DEFAULT_BUCKET = resolveBucketName();
 
 function ensureSupabaseClient(supabase) {
   if (!supabase || typeof supabase !== 'object' || !supabase.storage?.from) {
@@ -60,7 +61,7 @@ function toArray(files) {
 export async function uploadFacilityImages({
   supabase,
   files,
-  bucket = DEFAULT_BUCKET,
+  bucket,
   prefix,
   maxFileSize = 8 * 1024 * 1024,
 } = {}) {
@@ -75,7 +76,11 @@ export async function uploadFacilityImages({
     throw new Error(`Plik "${rejected.name}" jest za duży. Maksymalny rozmiar to ${(maxFileSize / (1024 * 1024)).toFixed(0)} MB.`);
   }
 
-  const storageBucket = client.storage.from(bucket);
+  const bucketName = typeof bucket === 'string' && bucket.trim()
+    ? bucket.trim()
+    : resolveBucketName();
+
+  const storageBucket = client.storage.from(bucketName);
   const publicUrls = [];
 
   for (const [index, file] of selectedFiles.entries()) {
@@ -87,9 +92,9 @@ export async function uploadFacilityImages({
     });
     if (error) {
       const message = error.message || 'Nie udało się przesłać pliku.';
-      if (/bucket\s+not\s+found/i.test(message) && bucket) {
+      if (/bucket\s+not\s+found/i.test(message) && bucketName) {
         throw new Error(
-          `Nie udało się przesłać pliku. Sprawdź, czy w Supabase istnieje bucket "${bucket}" i ma włączony dostęp publiczny.`,
+          `Nie udało się przesłać pliku. Sprawdź, czy w Supabase istnieje bucket "${bucketName}" i ma włączony dostęp publiczny.`,
         );
       }
       throw new Error(message);
@@ -105,6 +110,8 @@ export async function uploadFacilityImages({
   return publicUrls;
 }
 
-export const STORAGE_BUCKET_FACILITY_IMAGES = DEFAULT_BUCKET;
+export function getStorageBucketName() {
+  return resolveBucketName();
+}
 
 export default uploadFacilityImages;
