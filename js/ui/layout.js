@@ -138,7 +138,7 @@ export function renderMain() {
               <span class="wizard-step-dot" data-wizard-dot="2">2</span>
             </div>
           </div>
-          <div class="grid gap-6 xl:grid-cols-[1.2fr_minmax(0,1fr)]">
+          <div class="space-y-6">
             <div class="space-y-5">
               <div class="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm">
                 <div class="flex flex-wrap items-center justify-between gap-3">
@@ -153,7 +153,12 @@ export function renderMain() {
                       type="date"
                       class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-[#003580] focus:ring-2 focus:ring-[#003580]/40 focus:outline-none"
                     />
-                    <button id="openMonthPreview" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-[#003580] hover:text-[#003580]">Podgląd miesiąca</button>
+                    <button
+                      id="openMonthPreview"
+                      class="inline-flex items-center justify-center gap-2 rounded-xl bg-[#003580] px-4 py-2 text-sm font-semibold text-white shadow-md shadow-[#003580]/30 transition hover:bg-[#00245c]"
+                    >
+                      Kalendarz terminów
+                    </button>
                     <button
                       id="openFacilityInstructions"
                       type="button"
