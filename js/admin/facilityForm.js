@@ -196,6 +196,7 @@ export function initFacilityForm({
   caretakerId: suppliedCaretakerId,
 } = {}) {
   const supabase = suppliedSupabase || session?.supabase || null;
+  const storageSupabase = session?.baseSupabase || supabase || null;
   const caretakerId =
     suppliedCaretakerId !== undefined ? suppliedCaretakerId : session?.caretakerId ?? null;
   if (!form) {
@@ -263,11 +264,21 @@ export function initFacilityForm({
 
     let uploadedImageUrls = [];
     if (selectedFiles.length) {
+      if (!storageSupabase) {
+        setMessage(
+          messageElement,
+          'Brak klienta Supabase z uprawnieniami do zapisu plików. Spróbuj ponownie po odświeżeniu strony.',
+          'error',
+        );
+        state.isSaving = false;
+        toggleFormDisabled(form, false);
+        return;
+      }
       setMessage(messageElement, 'Przesyłanie zdjęć świetlicy...', 'info');
       const prefix = `new/${Date.now().toString(36)}`;
       try {
         uploadedImageUrls = await uploadFacilityImages({
-          supabase,
+          supabase: storageSupabase,
           files: selectedFiles,
           bucket: getStorageBucketName(),
           prefix,

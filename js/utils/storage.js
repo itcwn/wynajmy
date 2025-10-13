@@ -100,7 +100,10 @@ export async function uploadFacilityImages({
       throw new Error(message);
     }
     const storedPath = data?.path || path;
-    const { data: publicData } = storageBucket.getPublicUrl(storedPath);
+    const { data: publicData, error: publicError } = storageBucket.getPublicUrl(storedPath);
+    if (publicError) {
+      throw new Error(publicError.message || 'Nie udało się pobrać publicznego adresu zdjęcia.');
+    }
     if (!publicData?.publicUrl) {
       throw new Error('Nie udało się pobrać publicznego adresu zdjęcia.');
     }

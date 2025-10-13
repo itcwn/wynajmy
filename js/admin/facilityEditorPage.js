@@ -344,11 +344,15 @@ async function bootstrap() {
     });
   }
 
-  const supa = session?.supabase || session?.baseSupabase || null;
+  const caretakerSupabase = session?.supabase || null;
+  const baseSupabase = session?.baseSupabase || null;
+  const supa = caretakerSupabase || baseSupabase || null;
+  const storageSupabase = baseSupabase || caretakerSupabase || null;
   const caretakerId = session?.caretakerId || null;
-  if (!supa || !caretakerId) {
+  if (!supa || !caretakerId || !storageSupabase) {
     setStatus(facilityStateMessage, 'Brak konfiguracji Supabase lub identyfikatora opiekuna.', 'error');
     setFacilityFormMessage('Brak konfiguracji Supabase lub identyfikatora opiekuna.', 'error');
+    setStatus(facilityImagesUploadMessage, 'Brak konfiguracji Supabase.', 'error');
     selectedFacility = null;
     populateFacilityForm(null);
     refreshFacilityFormState();
@@ -375,7 +379,7 @@ async function bootstrap() {
     try {
       const prefix = `facility-${selectedFacility.id}`;
       const uploadedUrls = await uploadFacilityImages({
-        supabase: supa,
+        supabase: storageSupabase,
         files,
         bucket: getStorageBucketName(),
         prefix,
