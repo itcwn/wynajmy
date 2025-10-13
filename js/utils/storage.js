@@ -1,4 +1,14 @@
-const DEFAULT_BUCKET = 'RentalObjectsImages';
+function resolveBucketName() {
+  if (typeof window !== 'undefined') {
+    const configured = window.__SUPA?.STORAGE_BUCKET_FACILITY_IMAGES;
+    if (configured && typeof configured === 'string') {
+      return configured;
+    }
+  }
+  return 'facility-images';
+}
+
+const DEFAULT_BUCKET = resolveBucketName();
 
 function ensureSupabaseClient(supabase) {
   if (!supabase || typeof supabase !== 'object' || !supabase.storage?.from) {
@@ -76,7 +86,13 @@ export async function uploadFacilityImages({
       contentType: file.type || 'image/jpeg',
     });
     if (error) {
-      throw new Error(error.message || 'Nie udało się przesłać pliku.');
+      const message = error.message || 'Nie udało się przesłać pliku.';
+      if (/bucket\s+not\s+found/i.test(message) && bucket) {
+        throw new Error(
+          `Nie udało się przesłać pliku. Sprawdź, czy w Supabase istnieje bucket "${bucket}" i ma włączony dostęp publiczny.`,
+        );
+      }
+      throw new Error(message);
     }
     const storedPath = data?.path || path;
     const { data: publicData } = storageBucket.getPublicUrl(storedPath);
