@@ -1,6 +1,4 @@
-import { uploadFacilityImages, STORAGE_BUCKET_FACILITY_IMAGES } from '../utils/storage.js';
-
-const IMAGE_BUCKET = STORAGE_BUCKET_FACILITY_IMAGES;
+import { uploadFacilityImages, getStorageBucketName } from '../utils/storage.js';
 
 function setMessage(element, text, tone = 'info') {
   if (!element) {
@@ -271,7 +269,7 @@ export function initFacilityForm({
         uploadedImageUrls = await uploadFacilityImages({
           supabase,
           files: selectedFiles,
-          bucket: IMAGE_BUCKET,
+          bucket: getStorageBucketName(),
           prefix,
         });
       } catch (uploadError) {

@@ -1,7 +1,7 @@
 import { clearCaretakerSession, requireCaretakerSession } from '../caretakers/session.js';
 import { clearMyFacilitiesCache, loadMyFacilities } from '../caretakers/myFacilities.js';
 import { INSTRUCTION_FIELDS, findInstructionInfo } from '../utils/instructions.js';
-import { uploadFacilityImages, STORAGE_BUCKET_FACILITY_IMAGES } from '../utils/storage.js';
+import { uploadFacilityImages, getStorageBucketName } from '../utils/storage.js';
 
 const titleEl = document.getElementById('facilityTitle');
 const facilityStateMessage = document.getElementById('facilityStateMessage');
@@ -37,7 +37,6 @@ const PHASE_OPTIONS = [
   { value: 'return', label: 'Zdanie obiektu' },
 ];
 
-const IMAGE_BUCKET = STORAGE_BUCKET_FACILITY_IMAGES;
 
 if (facilityFormSubmit) {
   facilityFormSubmit.dataset.originalLabel = facilityFormSubmit.textContent || '';
@@ -378,7 +377,7 @@ async function bootstrap() {
       const uploadedUrls = await uploadFacilityImages({
         supabase: supa,
         files,
-        bucket: IMAGE_BUCKET,
+        bucket: getStorageBucketName(),
         prefix,
       });
       if (uploadedUrls.length) {
