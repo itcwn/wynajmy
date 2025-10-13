@@ -81,6 +81,9 @@ export function createBookingWizard({ state, domUtils }) {
         selectorsCard.classList.remove('hidden');
       }
     } else {
+      if (selectorsCard) {
+        selectorsCard.classList.add('hidden');
+      }
       if (bookingCard) {
         bookingCard.classList.remove('hidden');
         if (focusForm) {

@@ -1,6 +1,7 @@
 import { refreshLayoutAlignment } from '../ui/layout.js';
 
 const PREVIEW_DAYS = 14;
+const PREVIEW_STEP = 7;
 
 const STATUS_META = {
   available: {
@@ -23,7 +24,42 @@ export function createAvailabilityPreview({ state, dayView, domUtils, formatUtil
 
   let currentFacilityId = null;
   let renderSeq = 0;
+  let previewAnchorDate = null;
   let unsubscribeDateChange = null;
+
+  function normalizeDate(input) {
+    if (!(input instanceof Date) || Number.isNaN(input.getTime())) {
+      return null;
+    }
+    const normalized = new Date(input);
+    normalized.setHours(0, 0, 0, 0);
+    return normalized;
+  }
+
+  function getDefaultAnchorDate() {
+    const candidate = normalizeDate(state.currentDate || new Date());
+    if (candidate) {
+      return candidate;
+    }
+    const fallback = normalizeDate(new Date());
+    return fallback || new Date();
+  }
+
+  function setPreviewAnchor(date) {
+    const normalized = normalizeDate(date);
+    previewAnchorDate = normalized ? new Date(normalized) : null;
+  }
+
+  function getPreviewAnchor() {
+    return previewAnchorDate ? new Date(previewAnchorDate) : getDefaultAnchorDate();
+  }
+
+  function shiftAnchorBy(days) {
+    const anchor = getPreviewAnchor();
+    anchor.setDate(anchor.getDate() + days);
+    setPreviewAnchor(anchor);
+    return getPreviewAnchor();
+  }
 
   function getStatus(bookings = []) {
     if (!Array.isArray(bookings) || bookings.length === 0) {
@@ -72,6 +108,23 @@ export function createAvailabilityPreview({ state, dayView, domUtils, formatUtil
     }
   }
 
+  function createNavButton(direction) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = `availability-preview-nav availability-preview-nav--${direction}`;
+    const label =
+      direction === 'prev' ? 'Pokaż wcześniejsze terminy' : 'Pokaż kolejne terminy';
+    button.setAttribute('aria-label', label);
+    button.title = label;
+    button.innerHTML = direction === 'prev' ? '<span aria-hidden="true">◀</span>' : '<span aria-hidden="true">▶</span>';
+    button.addEventListener('click', () => {
+      const delta = direction === 'prev' ? -PREVIEW_STEP : PREVIEW_STEP;
+      const nextAnchor = shiftAnchorBy(delta);
+      void render({ anchorDate: nextAnchor });
+    });
+    return button;
+  }
+
   function highlightActiveTile(container) {
     if (!container) {
       return;
@@ -95,17 +148,22 @@ export function createAvailabilityPreview({ state, dayView, domUtils, formatUtil
     if (!container) {
       return;
     }
-    updateMonthHeading(anchorDate);
+    const baseDate = normalizeDate(anchorDate) || getPreviewAnchor();
+    setPreviewAnchor(baseDate);
+    updateMonthHeading(baseDate);
     if (!currentFacilityId) {
       ensureContainerMessage(container, 'Wybierz świetlicę, aby zobaczyć dostępność.');
       return;
     }
-    const baseDate = anchorDate instanceof Date ? new Date(anchorDate) : new Date(state.currentDate || new Date());
-    if (Number.isNaN(baseDate.getTime())) {
+    if (!(baseDate instanceof Date) || Number.isNaN(baseDate.getTime())) {
       ensureContainerMessage(container, 'Brak danych o dacie.');
       return;
     }
-    baseDate.setHours(0, 0, 0, 0);
+    container.innerHTML = '';
+    const loadingMessage = document.createElement('p');
+    loadingMessage.className = 'text-xs text-slate-500';
+    loadingMessage.textContent = 'Ładowanie dostępności…';
+    container.appendChild(loadingMessage);
     const dates = Array.from({ length: PREVIEW_DAYS }, (_, index) => {
       const d = new Date(baseDate);
       d.setDate(baseDate.getDate() + index);
@@ -114,7 +172,6 @@ export function createAvailabilityPreview({ state, dayView, domUtils, formatUtil
 
     const sequence = ++renderSeq;
     updateMonthHeading(baseDate);
-    ensureContainerMessage(container, 'Ładowanie dostępności…');
 
     try {
       const facilityId = currentFacilityId;
@@ -128,6 +185,7 @@ export function createAvailabilityPreview({ state, dayView, domUtils, formatUtil
         return;
       }
       container.innerHTML = '';
+      container.appendChild(createNavButton('prev'));
       results.forEach(({ date, bookings }) => {
         const status = getStatus(bookings);
         const meta = STATUS_META[status] || STATUS_META.available;
@@ -149,6 +207,7 @@ export function createAvailabilityPreview({ state, dayView, domUtils, formatUtil
         });
         container.appendChild(tile);
       });
+      container.appendChild(createNavButton('next'));
       highlightActiveTile(container);
       refreshLayoutAlignment();
     } catch (error) {
@@ -165,7 +224,31 @@ export function createAvailabilityPreview({ state, dayView, domUtils, formatUtil
     updateMonthHeading(state.currentDate);
     if (typeof dayView.onDateChange === 'function') {
       unsubscribeDateChange = dayView.onDateChange((date) => {
-        void render({ anchorDate: date });
+        const normalized = normalizeDate(date);
+        if (!normalized) {
+          return;
+        }
+        const anchor = getPreviewAnchor();
+        const rangeStart = new Date(anchor);
+        const rangeEnd = new Date(anchor);
+        rangeEnd.setDate(rangeEnd.getDate() + PREVIEW_DAYS - 1);
+        if (normalized < rangeStart || normalized > rangeEnd) {
+          let newStart = new Date(rangeStart);
+          let newEnd = new Date(rangeEnd);
+          while (normalized < newStart) {
+            newStart.setDate(newStart.getDate() - PREVIEW_STEP);
+            newEnd.setDate(newEnd.getDate() - PREVIEW_STEP);
+          }
+          while (normalized > newEnd) {
+            newStart.setDate(newStart.getDate() + PREVIEW_STEP);
+            newEnd.setDate(newEnd.getDate() + PREVIEW_STEP);
+          }
+          setPreviewAnchor(newStart);
+          void render({ anchorDate: getPreviewAnchor() });
+          return;
+        }
+        highlightActiveTile($('#availabilityPreviewGrid'));
+        refreshLayoutAlignment();
       });
     }
   }
@@ -173,6 +256,7 @@ export function createAvailabilityPreview({ state, dayView, domUtils, formatUtil
   function setFacility(facility) {
     currentFacilityId = facility ? facility.id || facility : null;
     renderSeq += 1; // reset pending renders
+    setPreviewAnchor(state.currentDate || new Date());
     void render();
   }
 
@@ -185,6 +269,7 @@ export function createAvailabilityPreview({ state, dayView, domUtils, formatUtil
       unsubscribeDateChange();
       unsubscribeDateChange = null;
     }
+    previewAnchorDate = null;
   }
 
   return {

@@ -140,6 +140,27 @@ export function renderMain() {
           </div>
           <div class="space-y-6">
             <div class="space-y-5">
+              <div class="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm">
+                <div class="space-y-0.5">
+                  <span class="text-sm font-medium text-slate-600">Tryb rezerwacji</span>
+                  <span class="text-xs text-slate-500">Przełącz między rezerwacją dzienną i godzinową.</span>
+                </div>
+                <button
+                  id="modeSwitch"
+                  type="button"
+                  role="switch"
+                  aria-label="Przełącz tryb rezerwacji"
+                  aria-checked="false"
+                  class="booking-mode-switch"
+                  data-mode="day"
+                >
+                  <span class="booking-mode-switch__option booking-mode-switch__option--day">Dni</span>
+                  <span class="booking-mode-switch__track">
+                    <span class="booking-mode-switch__thumb"></span>
+                  </span>
+                  <span class="booking-mode-switch__option booking-mode-switch__option--hour">Godziny</span>
+                </button>
+              </div>
               <div class="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm">
                 <div class="flex flex-wrap items-center justify-between gap-3">
                   <div class="flex items-center gap-2">
@@ -175,15 +196,6 @@ export function renderMain() {
                   <span id="dateLabel" class="text-base font-semibold text-slate-900"></span>
                 </div>
               </div>
-              <div class="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm">
-                <span class="text-sm font-medium text-slate-600">Tryb rezerwacji:</span>
-                <label class="inline-flex items-center gap-2 text-sm text-slate-600">
-                  <input type="radio" name="mode" value="day" checked> Dni
-                </label>
-                <label class="inline-flex items-center gap-2 text-sm text-slate-600">
-                  <input type="radio" name="mode" value="hour"> Godziny
-                </label>
-              </div>
               <div id="hourSliderWrap" class="hidden rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-sm">
                 <div class="grid grid-cols-1 items-center gap-4 md:grid-cols-[auto_minmax(0,1fr)]">
                   <div class="text-sm font-medium text-slate-600">Zakres godzin</div>
@@ -201,7 +213,7 @@ export function renderMain() {
             <div class="space-y-4 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 shadow-sm">
               <div class="flex flex-wrap items-baseline justify-between gap-2">
                 <div class="space-y-0.5">
-                  <h4 class="text-sm font-semibold text-slate-700">Mini podgląd dostępności</h4>
+                  <h4 class="text-sm font-semibold text-slate-700">Dostępność</h4>
                   <span class="text-xs text-slate-500">Kliknij dzień, aby ustawić datę</span>
                 </div>
                 <div id="availabilityPreviewMonth" class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400"></div>
@@ -215,33 +227,31 @@ export function renderMain() {
                 <span><span class="availability-legend-dot" style="background:#f4b632"></span>Wstępnie zajęty</span>
                 <span><span class="availability-legend-dot" style="background:#e64a4a"></span>Zajęty</span>
               </div>
+              <div
+                id="calendar"
+                class="hidden space-y-4 rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-sm"
+              >
+                <div class="flex flex-wrap items-baseline justify-between gap-2">
+                  <h5 class="text-sm font-semibold text-slate-700">Dostępność godzinowa</h5>
+                  <span class="text-xs uppercase tracking-[0.18em] text-slate-400">Tryb godzinowy</span>
+                </div>
+                <div id="hours" class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"></div>
+                <p class="text-[11px] leading-snug text-slate-500">
+                  🔴 Zajęte (potwierdzone) · 🟡 Wstępne (czeka na akceptację) · brak koloru = dostępne
+                </p>
+              </div>
+              <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div id="stepValidationMessage" class="step-validation-message hidden"></div>
+                <button
+                  id="goToBookingStep"
+                  type="button"
+                  class="inline-flex items-center justify-center gap-2 rounded-xl bg-[#003580] px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-[#003580]/30 transition hover:bg-[#00245c]"
+                >
+                  Kontynuuj do formularza
+                </button>
+              </div>
             </div>
           </div>
-          <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div id="stepValidationMessage" class="step-validation-message hidden"></div>
-            <button
-              id="goToBookingStep"
-              type="button"
-              class="inline-flex items-center justify-center gap-2 rounded-xl bg-[#003580] px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-[#003580]/30 transition hover:bg-[#00245c]"
-            >
-              Kontynuuj do formularza
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div id="calendar" class="hidden ${CARD_BASE_CLASSES} linked-card linked-card--bottom">
-        <div class="flow-space space-y-6 p-6 lg:p-8">
-          <div class="flex flex-wrap items-center gap-3">
-            <h3 class="text-xl font-semibold text-slate-900">
-              <span class="${HEADING_ACCENT_CLASSES}">Dostępność szczegółowa</span>
-            </h3>
-            <span class="${HEADING_DIVIDER_CLASSES}"></span>
-          </div>
-          <div id="hours" class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"></div>
-          <p class="text-xs text-slate-500">
-            🔴 Zajęte (potwierdzone) · 🟡 Wstępne (czeka na akceptację) · brak koloru = dostępne
-          </p>
         </div>
       </div>
 

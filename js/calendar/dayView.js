@@ -319,22 +319,59 @@ export function createDayView({ state, supabase, domUtils, formatUtils }) {
         }
       });
     }
-    $$('input[name="mode"]').forEach((el) => {
-      el.addEventListener('change', (event) => {
-        state.mode = event.target.value;
-        $$('[data-hour-fields]').forEach((node) => node.classList.toggle('hidden', state.mode === 'day'));
-        $$('[data-day-fields]').forEach((node) => node.classList.toggle('hidden', state.mode !== 'day'));
-        const wrap = $('#hourSliderWrap');
-        if (wrap) {
-          wrap.classList.toggle('hidden', state.mode !== 'hour');
-        }
-        const calendarCard = $('#calendar');
-        if (calendarCard) {
-          calendarCard.classList.toggle('hidden', state.mode !== 'hour');
-        }
-        void renderDay();
+    const modeSwitch = $('#modeSwitch');
+    const syncModeDependentElements = () => {
+      $$('[data-hour-fields]').forEach((node) => node.classList.toggle('hidden', state.mode === 'day'));
+      $$('[data-day-fields]').forEach((node) => node.classList.toggle('hidden', state.mode !== 'day'));
+      const wrap = $('#hourSliderWrap');
+      if (wrap) {
+        wrap.classList.toggle('hidden', state.mode !== 'hour');
+      }
+      const calendarCard = $('#calendar');
+      if (calendarCard) {
+        calendarCard.classList.toggle('hidden', state.mode !== 'hour');
+      }
+      if (modeSwitch) {
+        const isHour = state.mode === 'hour';
+        modeSwitch.dataset.mode = state.mode;
+        modeSwitch.setAttribute('aria-checked', isHour ? 'true' : 'false');
+      }
+    };
+
+    const setMode = (mode) => {
+      const nextMode = mode === 'hour' ? 'hour' : 'day';
+      if (state.mode === nextMode) {
+        syncModeDependentElements();
+        return;
+      }
+      state.mode = nextMode;
+      syncModeDependentElements();
+      void renderDay();
+    };
+
+    if (modeSwitch) {
+      modeSwitch.addEventListener('click', () => {
+        const nextMode = state.mode === 'hour' ? 'day' : 'hour';
+        setMode(nextMode);
       });
-    });
+      modeSwitch.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ' || event.key === 'Spacebar') {
+          event.preventDefault();
+          const nextMode = state.mode === 'hour' ? 'day' : 'hour';
+          setMode(nextMode);
+          return;
+        }
+        if (event.key === 'ArrowLeft') {
+          event.preventDefault();
+          setMode('day');
+        } else if (event.key === 'ArrowRight') {
+          event.preventDefault();
+          setMode('hour');
+        }
+      });
+    }
+
+    syncModeDependentElements();
     const startEl = $('#hourStart');
     if (startEl) {
       startEl.addEventListener('input', () => updateHourLabels());
