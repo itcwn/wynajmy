@@ -103,6 +103,73 @@ input[type="range"] {
   border-color: #1d7f4d;
 }
 
+.booking-mode-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.45rem 0.75rem;
+  border-radius: 9999px;
+  border: 1px solid #dbe2f0;
+  background: #f7f9ff;
+  color: #1f2937;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease, border 0.2s ease, box-shadow 0.2s ease, color 0.2s ease;
+}
+
+.booking-mode-switch:hover,
+.booking-mode-switch:focus-visible {
+  background: #e0e7ff;
+  border-color: #b6c4ff;
+  box-shadow: 0 10px 24px rgba(0, 53, 128, 0.12);
+  outline: none;
+}
+
+.booking-mode-switch__option {
+  color: #475569;
+  min-width: 2.5rem;
+  text-align: center;
+  letter-spacing: 0.02em;
+  pointer-events: none;
+  transition: color 0.2s ease;
+}
+
+.booking-mode-switch[data-mode='day'] .booking-mode-switch__option--day,
+.booking-mode-switch[data-mode='hour'] .booking-mode-switch__option--hour {
+  color: #003580;
+}
+
+.booking-mode-switch__track {
+  position: relative;
+  width: 3.4rem;
+  height: 1.6rem;
+  border-radius: 9999px;
+  background: #cbd5f5;
+  box-shadow: inset 0 1px 3px rgba(15, 23, 42, 0.15);
+  transition: background 0.2s ease;
+}
+
+.booking-mode-switch[data-mode='hour'] .booking-mode-switch__track {
+  background: #003580;
+}
+
+.booking-mode-switch__thumb {
+  position: absolute;
+  top: 0.18rem;
+  left: 0.18rem;
+  width: 1.24rem;
+  height: 1.24rem;
+  border-radius: 9999px;
+  background: #fff;
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.2);
+  transition: transform 0.24s ease;
+}
+
+.booking-mode-switch[data-mode='hour'] .booking-mode-switch__thumb {
+  transform: translateX(1.72rem);
+}
+
 .availability-preview {
   display: flex;
   gap: 0.5rem;
@@ -123,6 +190,34 @@ input[type="range"] {
 
 .availability-preview > * {
   scroll-snap-align: start;
+}
+
+.availability-preview-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 3.4rem;
+  padding: 0.6rem 0.45rem;
+  border-radius: 0.9rem;
+  border: 1px solid #dbe2f0;
+  background: #eef2ff;
+  color: #1f2937;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.2s ease, color 0.2s ease;
+}
+
+.availability-preview-nav:hover,
+.availability-preview-nav:focus-visible {
+  background: #dbe4ff;
+  color: #0f172a;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(0, 53, 128, 0.1);
+  outline: none;
+}
+
+.availability-preview-nav span {
+  pointer-events: none;
 }
 
 .availability-tile {
