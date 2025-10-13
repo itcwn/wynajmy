@@ -1,6 +1,7 @@
 import { clearCaretakerSession, requireCaretakerSession } from '../caretakers/session.js';
 import { clearMyFacilitiesCache, loadMyFacilities } from '../caretakers/myFacilities.js';
 import { INSTRUCTION_FIELDS, findInstructionInfo } from '../utils/instructions.js';
+import { uploadFacilityImages, STORAGE_BUCKET_FACILITY_IMAGES } from '../utils/storage.js';
 
 const titleEl = document.getElementById('facilityTitle');
 const facilityStateMessage = document.getElementById('facilityStateMessage');
@@ -13,6 +14,9 @@ const facilityForm = document.getElementById('facilityDetailsForm');
 const facilityFormSubmit = document.getElementById('facilityDetailsSubmit');
 const facilityFormMessage = document.getElementById('facilityDetailsMessage');
 const facilityIdInput = document.getElementById('facilityIdDisplay');
+const facilityImagesTextarea = document.getElementById('facilityImagesInput');
+const facilityImagesUploadInput = document.getElementById('facilityImagesUploadInput');
+const facilityImagesUploadMessage = document.getElementById('facilityImagesUploadMessage');
 
 const amenitiesContainer = document.getElementById('amenitiesContainer');
 const saveAmenitiesBtn = document.getElementById('saveAmenities');
@@ -32,6 +36,8 @@ const PHASE_OPTIONS = [
   { value: 'handover', label: 'Odbiór obiektu' },
   { value: 'return', label: 'Zdanie obiektu' },
 ];
+
+const IMAGE_BUCKET = STORAGE_BUCKET_FACILITY_IMAGES;
 
 if (facilityFormSubmit) {
   facilityFormSubmit.dataset.originalLabel = facilityFormSubmit.textContent || '';
@@ -140,6 +146,45 @@ function normalizeImageList(value) {
   return parts.join(';');
 }
 
+function splitImageList(value) {
+  if (!value) {
+    return [];
+  }
+  return String(value)
+    .split(';')
+    .map((part) => part.trim())
+    .filter((part) => part && part.toLowerCase() !== 'null' && part.toLowerCase() !== 'undefined');
+}
+
+function collectSelectedFiles(input) {
+  if (!input || !input.files) {
+    return [];
+  }
+  return Array.from(input.files).filter((file) => file && file.size);
+}
+
+function appendUploadedUrlsToTextarea(urls) {
+  if (!facilityImagesTextarea || !Array.isArray(urls) || !urls.length) {
+    return;
+  }
+  const currentNormalized = normalizeImageList(facilityImagesTextarea.value || '');
+  const currentList = currentNormalized ? splitImageList(currentNormalized) : [];
+  const unique = new Map();
+  currentList.forEach((url) => {
+    unique.set(url, url);
+  });
+  urls.forEach((url) => {
+    if (url) {
+      unique.set(url, url);
+    }
+  });
+  const merged = Array.from(unique.values());
+  facilityImagesTextarea.value = merged.join('\n');
+  if (selectedFacility) {
+    selectedFacility.image_urls = merged.length ? merged.join(';') : null;
+  }
+}
+
 const FACILITY_FIELD_CONFIG = [
   { name: 'name', label: 'Nazwa świetlicy', type: 'text', required: true },
   { name: 'postal_code', label: 'Kod pocztowy', type: 'text' },
@@ -174,6 +219,9 @@ function refreshFacilityFormState() {
     }
     element.disabled = disableInputs;
   });
+  if (facilityImagesUploadInput) {
+    facilityImagesUploadInput.disabled = disableInputs;
+  }
   if (facilityFormSubmit) {
     facilityFormSubmit.disabled = disableInputs;
     if (isSavingFacilityDetails) {
@@ -187,6 +235,9 @@ function refreshFacilityFormState() {
 function populateFacilityForm(facility) {
   if (facilityIdInput) {
     facilityIdInput.value = facility?.id ? String(facility.id) : '';
+  }
+  if (facilityImagesUploadMessage) {
+    setStatus(facilityImagesUploadMessage, '', 'info');
   }
   if (!facilityForm) {
     return;
@@ -206,6 +257,9 @@ function populateFacilityForm(facility) {
       element.value = String(value);
     }
   });
+  if (facilityImagesUploadInput) {
+    facilityImagesUploadInput.value = '';
+  }
   refreshFacilityFormState();
 }
 
@@ -300,6 +354,62 @@ async function bootstrap() {
     populateFacilityForm(null);
     refreshFacilityFormState();
     return;
+  }
+
+  async function handleFacilityImagesUpload() {
+    if (!facilityImagesUploadInput) {
+      return;
+    }
+    const files = collectSelectedFiles(facilityImagesUploadInput);
+    if (!files.length) {
+      setStatus(facilityImagesUploadMessage, 'Nie wybrano plików do przesłania.', 'info');
+      facilityImagesUploadInput.value = '';
+      return;
+    }
+    if (!selectedFacility) {
+      setStatus(facilityImagesUploadMessage, 'Wybierz świetlicę przed przesłaniem zdjęć.', 'error');
+      facilityImagesUploadInput.value = '';
+      return;
+    }
+    facilityImagesUploadInput.disabled = true;
+    setStatus(facilityImagesUploadMessage, 'Przesyłanie zdjęć...', 'info');
+    try {
+      const prefix = `facility-${selectedFacility.id}`;
+      const uploadedUrls = await uploadFacilityImages({
+        supabase: supa,
+        files,
+        bucket: IMAGE_BUCKET,
+        prefix,
+      });
+      if (uploadedUrls.length) {
+        appendUploadedUrlsToTextarea(uploadedUrls);
+        setStatus(
+          facilityImagesUploadMessage,
+          uploadedUrls.length === 1
+            ? 'Dodano nowe zdjęcie. Zapisz formularz, aby opublikować zmiany.'
+            : `Dodano ${uploadedUrls.length} zdjęcia. Zapisz formularz, aby opublikować zmiany.`,
+          'success',
+        );
+      } else {
+        setStatus(facilityImagesUploadMessage, 'Nie udało się przesłać zdjęć.', 'error');
+      }
+    } catch (error) {
+      console.error('Nie udało się przesłać zdjęć świetlicy:', error);
+      setStatus(
+        facilityImagesUploadMessage,
+        error?.message || 'Nie udało się przesłać zdjęć świetlicy.',
+        'error',
+      );
+    } finally {
+      facilityImagesUploadInput.value = '';
+      facilityImagesUploadInput.disabled = !selectedFacility || isSavingFacilityDetails;
+    }
+  }
+
+  if (facilityImagesUploadInput) {
+    facilityImagesUploadInput.addEventListener('change', () => {
+      void handleFacilityImagesUpload();
+    });
   }
 
   const params = new URLSearchParams(window.location.search);

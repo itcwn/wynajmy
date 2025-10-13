@@ -108,8 +108,20 @@ export function createFacilitiesModule({
         (facility) => `
       <li>
         <button data-id="${facility.id}" class="w-full text-left rounded-xl border border-transparent px-4 py-3 transition hover:border-[#003580] hover:bg-[#003580]/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#003580]/40">
-          <div class="font-semibold text-slate-900">${escapeHtml(facility.name || '')}</div>
-          <div class="text-sm text-slate-500">${formatFacilityLocation(facility)}</div>
+          <div class="flex items-center gap-3">
+            <div class="relative h-16 w-24 flex-shrink-0 overflow-hidden rounded-xl bg-slate-100">
+              <img
+                src="${escapeHtml(parseImageUrls(facility)[0] || PLACEHOLDER_IMAGE)}"
+                alt="${escapeHtml(facility.name ? `Zdjęcie obiektu ${facility.name}` : 'Zdjęcie świetlicy')}"
+                class="h-full w-full object-cover"
+                loading="lazy"
+              />
+            </div>
+            <div class="min-w-0">
+              <div class="font-semibold text-slate-900">${escapeHtml(facility.name || '')}</div>
+              <div class="text-sm text-slate-500">${formatFacilityLocation(facility)}</div>
+            </div>
+          </div>
         </button>
       </li>`
       )
@@ -355,7 +367,7 @@ export function createFacilitiesModule({
     if (hasImages) {
       infoEl.textContent = '';
     } else {
-      infoEl.textContent = 'Brak zapisanych linków do zdjęć.';
+      infoEl.textContent = 'Brak zdjęć. Dodaj fotografie w panelu opiekuna, korzystając z przesyłania plików.';
     }
   }
 
