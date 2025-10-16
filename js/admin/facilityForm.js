@@ -1,3 +1,5 @@
+import { uploadFacilityImages, getStorageBucketName } from '../utils/storage.js';
+
 function setMessage(element, text, tone = 'info') {
   if (!element) {
     return;
@@ -89,6 +91,23 @@ function normalizeImageList(value) {
   return parts.join(';');
 }
 
+function splitImageList(value) {
+  if (!value) {
+    return [];
+  }
+  return String(value)
+    .split(';')
+    .map((part) => part.trim())
+    .filter((part) => part && part.toLowerCase() !== 'null' && part.toLowerCase() !== 'undefined');
+}
+
+function collectSelectedFiles(input) {
+  if (!input || !input.files) {
+    return [];
+  }
+  return Array.from(input.files).filter((file) => file && file.size);
+}
+
 const FIELD_CONFIG = [
   { name: 'name', label: 'Nazwa świetlicy', type: 'text', required: true },
   { name: 'postal_code', label: 'Kod pocztowy', type: 'text' },
@@ -177,6 +196,7 @@ export function initFacilityForm({
   caretakerId: suppliedCaretakerId,
 } = {}) {
   const supabase = suppliedSupabase || session?.supabase || null;
+  const storageSupabase = session?.baseSupabase || supabase || null;
   const caretakerId =
     suppliedCaretakerId !== undefined ? suppliedCaretakerId : session?.caretakerId ?? null;
   if (!form) {
@@ -212,6 +232,11 @@ export function initFacilityForm({
 
   function resetForm({ focus = true } = {}) {
     form.reset();
+    const uploadInput = form.querySelector('[data-role="facility-image-upload"]');
+    if (uploadInput) {
+      uploadInput.value = '';
+      uploadInput.disabled = false;
+    }
     if (focus) {
       focusFirstField();
     }
@@ -231,9 +256,69 @@ export function initFacilityForm({
       return;
     }
 
+    const uploadInput = form.querySelector('[data-role="facility-image-upload"]');
+    const selectedFiles = collectSelectedFiles(uploadInput);
+
     state.isSaving = true;
     toggleFormDisabled(form, true);
+
+    let uploadedImageUrls = [];
+    if (selectedFiles.length) {
+      if (!storageSupabase) {
+        setMessage(
+          messageElement,
+          'Brak klienta Supabase z uprawnieniami do zapisu plików. Spróbuj ponownie po odświeżeniu strony.',
+          'error',
+        );
+        state.isSaving = false;
+        toggleFormDisabled(form, false);
+        return;
+      }
+      setMessage(messageElement, 'Przesyłanie zdjęć świetlicy...', 'info');
+      const prefix = `new/${Date.now().toString(36)}`;
+      try {
+        uploadedImageUrls = await uploadFacilityImages({
+          supabase: storageSupabase,
+          files: selectedFiles,
+          bucket: getStorageBucketName(),
+          prefix,
+        });
+      } catch (uploadError) {
+        console.error('Nie udało się przesłać zdjęć świetlicy:', uploadError);
+        setMessage(
+          messageElement,
+          uploadError?.message || 'Nie udało się przesłać zdjęć świetlicy. Spróbuj ponownie.',
+          'error',
+        );
+        state.isSaving = false;
+        toggleFormDisabled(form, false);
+        if (uploadInput) {
+          uploadInput.disabled = false;
+        }
+        return;
+      }
+    }
+
     setMessage(messageElement, 'Zapisywanie nowej świetlicy...', 'info');
+
+    if (uploadedImageUrls.length) {
+      const existing = splitImageList(payload.image_urls);
+      const unique = new Map();
+      existing.forEach((url) => {
+        unique.set(url, url);
+      });
+      uploadedImageUrls.forEach((url) => {
+        if (url) {
+          unique.set(url, url);
+        }
+      });
+      const combined = Array.from(unique.values());
+      if (combined.length) {
+        payload.image_urls = combined.join(';');
+      } else if (Object.prototype.hasOwnProperty.call(payload, 'image_urls')) {
+        delete payload.image_urls;
+      }
+    }
 
     try {
       const { data, error } = await supabase.from('facilities').insert(payload);

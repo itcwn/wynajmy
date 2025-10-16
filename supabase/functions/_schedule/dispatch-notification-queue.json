@@ -1,0 +1,8 @@
+{
+  "name": "dispatch-notification-queue",
+  "schedule": "*/3 * * * *",
+  "request": {
+    "method": "POST",
+    "path": "/dispatch-notification-queue?limit=25"
+  }
+}

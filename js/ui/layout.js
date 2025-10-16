@@ -2,10 +2,10 @@
 import { $ } from '../utils/dom.js';
 
 const CARD_BASE_CLASSES =
-  'rounded-3xl border border-amber-900/10 bg-white/75 backdrop-blur shadow-xl shadow-amber-500/10';
-const HEADING_ACCENT_CLASSES = 'text-black';
+  'rounded-2xl border border-slate-200 bg-white shadow-[0_18px_48px_rgba(15,23,42,0.08)]';
+const HEADING_ACCENT_CLASSES = 'text-[#003580]';
 const HEADING_DIVIDER_CLASSES =
-  'h-px flex-1 bg-gradient-to-r from-slate-400/30 via-slate-300/15 to-transparent';
+  'hidden lg:flex lg:h-px lg:flex-1 lg:bg-slate-200';
 
 export function renderSidebar({ onSearch } = {}) {
   const root = $('#sidebar');
@@ -15,41 +15,33 @@ export function renderSidebar({ onSearch } = {}) {
   }
   root.innerHTML = `
     <div class="space-y-6">
-      <div id="searchCard" class="${CARD_BASE_CLASSES} flex flex-col gap-4 p-6">
-        <div class="flex items-center gap-3 pb-4">
-          <h2 class="text-lg font-semibold tracking-tight text-black">
-            <span class="${HEADING_ACCENT_CLASSES}">Wyszukaj</span>
-          </h2>
-          <span class="${HEADING_DIVIDER_CLASSES}"></span>
+      <div id="searchCard" class="${CARD_BASE_CLASSES} flex flex-col gap-4 p-6 lg:p-7">
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-[0.2em] text-[#003580]/70">Znajdź obiekt</p>
+          <h2 class="mt-1 text-xl font-semibold text-slate-900">Wyszukaj świetlicę</h2>
         </div>
         <input
           id="q"
-          class="w-full rounded-2xl border border-white/60 bg-white/60 px-4 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-300/60"
-          placeholder="Szukaj ..."
+          class="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-[#003580] focus:ring-2 focus:ring-[#003580]/40 focus:outline-none"
+          placeholder="Szukaj po nazwie lub miejscowości"
         />
       </div>
-      <div class="${CARD_BASE_CLASSES} p-6">
-        <div class="flex items-center gap-3 pb-4">
-          <h2 class="text-lg font-semibold tracking-tight text-black">
+      <div class="${CARD_BASE_CLASSES} overflow-hidden">
+        <div class="flex items-center justify-between gap-3 border-b border-slate-200 px-6 py-4">
+          <h2 class="text-lg font-semibold text-slate-900">
             <span class="${HEADING_ACCENT_CLASSES}">Świetlice</span>
-            <span class="ml-2 text-sm font-medium text-slate-600">(<span id="count">0</span>)</span>
+            <span class="ml-2 text-sm font-medium text-slate-500">(<span id="count">0</span>)</span>
           </h2>
-          <span class="${HEADING_DIVIDER_CLASSES}"></span>
         </div>
-        <ul id="facilities" class="space-y-3"></ul>
+        <ul id="facilities" class="space-y-1 px-2 py-3"></ul>
       </div>
-      <div id="mapCard" class="hidden ${CARD_BASE_CLASSES} p-6">
-        <div class="flex items-center gap-3 pb-4">
-          <h3 class="text-lg font-semibold tracking-tight text-black">
+      <div id="mapCard" class="hidden ${CARD_BASE_CLASSES} overflow-hidden">
+        <div class="flex items-center justify-between gap-3 border-b border-slate-200 px-6 py-4">
+          <h3 class="text-lg font-semibold text-slate-900">
             <span class="${HEADING_ACCENT_CLASSES}">Mapa</span>
           </h3>
-          <span class="${HEADING_DIVIDER_CLASSES}"></span>
         </div>
-        <div
-          id="map"
-          class="rounded-2xl border border-white/40 shadow-inner shadow-amber-500/10"
-          style="width:100%;height:280px;"
-        ></div>
+        <div id="map" class="h-[280px] w-full"></div>
       </div>
     </div>
   `;
@@ -78,7 +70,7 @@ export function renderMain() {
           loading="lazy"
         />
         <div class="space-y-2">
-          <h2 class="text-2xl font-semibold tracking-tight text-black">
+          <h2 class="text-2xl font-semibold tracking-tight text-slate-900">
             Wybierz świetlicę, aby rozpocząć
           </h2>
           <p class="text-sm text-slate-600">
@@ -90,7 +82,7 @@ export function renderMain() {
       <div id="facilityCard" class="hidden ${CARD_BASE_CLASSES}">
         <div class="flow-space space-y-6 p-6">
           <div class="flex items-center gap-3">
-            <h2 class="text-lg font-semibold tracking-tight text-black">
+            <h2 class="text-lg font-semibold tracking-tight text-slate-900">
               <span class="${HEADING_ACCENT_CLASSES}">Wybrana świetlica</span>
             </h2>
             <span class="${HEADING_DIVIDER_CLASSES}"></span>
@@ -116,7 +108,7 @@ export function renderMain() {
             </div>
             <div class="space-y-4 md:col-span-2">
               <div>
-                <h2 id="facilityName" class="text-2xl font-semibold tracking-tight text-black"></h2>
+                <h2 id="facilityName" class="text-2xl font-semibold tracking-tight text-slate-900"></h2>
                 <p id="facilityDesc" class="mt-1 text-sm text-slate-600"></p>
               </div>
               <div class="space-y-3 text-sm text-slate-700">
@@ -134,33 +126,64 @@ export function renderMain() {
       </div>
 
       <div id="selectors" class="hidden ${CARD_BASE_CLASSES} linked-card linked-card--top">
-        <div class="flow-space space-y-6 p-6">
-          <div class="flex items-center gap-3">
-            <h3 class="text-lg font-semibold tracking-tight text-black">
-              <span class="${HEADING_ACCENT_CLASSES}">Planowanie rezerwacji</span>
-            </h3>
-            <span class="${HEADING_DIVIDER_CLASSES}"></span>
+        <div class="flow-space space-y-6 p-6 lg:p-8">
+          <div class="flex flex-wrap items-start justify-between gap-4">
+            <div class="space-y-1">
+              <p class="text-xs font-semibold uppercase tracking-[0.2em] text-[#003580]/70">Krok 1 z 2</p>
+              <h3 class="text-2xl font-semibold text-slate-900">Wybierz termin</h3>
+              <p class="text-sm text-slate-600">Sprawdź dostępność i wskaż dzień rezerwacji, aby przejść dalej.</p>
+            </div>
+            <div class="wizard-step-dots" aria-hidden="true">
+              <span class="wizard-step-dot is-active" data-wizard-dot="1">1</span>
+              <span class="wizard-step-dot" data-wizard-dot="2">2</span>
+            </div>
           </div>
-          <div class="flex flex-wrap items-center gap-3 md:justify-between">
-            <div class="flex w-full flex-wrap items-center gap-2 md:w-auto">
-              <div class="flex w-full flex-wrap items-center gap-2 sm:flex-nowrap">
-                <div class="flex items-center gap-2">
-                  <button id="prevDay" class="rounded-2xl border border-white/60 bg-white/70 px-3 py-2 text-sm font-medium text-slate-700 shadow-sm shadow-amber-500/15">◀</button>
-                  <button id="todayBtn" class="rounded-2xl border border-white/60 bg-white/70 px-3 py-2 text-sm font-medium text-slate-700 shadow-sm shadow-amber-500/15">Dziś</button>
-                  <button id="nextDay" class="rounded-2xl border border-white/60 bg-white/70 px-3 py-2 text-sm font-medium text-slate-700 shadow-sm shadow-amber-500/15">▶</button>
+          <div class="space-y-6">
+            <div class="space-y-5">
+              <div class="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm">
+                <div class="space-y-0.5">
+                  <span class="text-sm font-medium text-slate-600">Tryb rezerwacji</span>
+                  <span class="text-xs text-slate-500">Przełącz między rezerwacją dzienną i godzinową.</span>
                 </div>
-                <div class="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:flex-nowrap">
-                  <input
-                    id="dayPicker"
-                    type="date"
-                    class="w-full flex-1 rounded-2xl border border-white/60 bg-white/60 px-3 py-2 text-sm text-slate-900 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-300/60 sm:w-auto"
-                  />
-                  <div class="flex w-full items-center gap-2 sm:w-auto sm:flex-nowrap">
-                    <button id="openMonthPreview" class="flex-1 rounded-2xl border border-white/60 bg-white/70 px-3 py-2 text-sm font-medium text-slate-700 shadow-sm shadow-amber-500/15 transition hover:border-amber-400/60 hover:text-amber-700 sm:flex-none sm:w-auto">Podgląd miesiąca</button>
+                <button
+                  id="modeSwitch"
+                  type="button"
+                  role="switch"
+                  aria-label="Przełącz tryb rezerwacji"
+                  aria-checked="false"
+                  class="booking-mode-switch"
+                  data-mode="day"
+                >
+                  <span class="booking-mode-switch__option booking-mode-switch__option--day">Dni</span>
+                  <span class="booking-mode-switch__track">
+                    <span class="booking-mode-switch__thumb"></span>
+                  </span>
+                  <span class="booking-mode-switch__option booking-mode-switch__option--hour">Godziny</span>
+                </button>
+              </div>
+              <div class="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                  <div class="flex items-center gap-2">
+                    <button id="prevDay" class="rounded-full border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-[#003580] hover:text-[#003580]">◀</button>
+                    <button id="todayBtn" class="rounded-full border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-[#003580] hover:text-[#003580]">Dziś</button>
+                    <button id="nextDay" class="rounded-full border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-[#003580] hover:text-[#003580]">▶</button>
+                  </div>
+                  <div class="flex flex-wrap items-center gap-2 sm:flex-nowrap">
+                    <input
+                      id="dayPicker"
+                      type="date"
+                      class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-[#003580] focus:ring-2 focus:ring-[#003580]/40 focus:outline-none"
+                    />
+                    <button
+                      id="openMonthPreview"
+                      class="inline-flex items-center justify-center gap-2 rounded-xl bg-[#003580] px-4 py-2 text-sm font-semibold text-white shadow-md shadow-[#003580]/30 transition hover:bg-[#00245c]"
+                    >
+                      Kalendarz terminów
+                    </button>
                     <button
                       id="openFacilityInstructions"
                       type="button"
-                      class="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-slate-500/80 via-slate-400/70 to-slate-500/80 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-amber-500/20 focus:outline-none focus:ring-2 focus:ring-slate-300/60 focus:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-40 sm:px-3 sm:py-2"
+                      class="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-[#003580] hover:bg-[#003580]/10 hover:text-[#003580] disabled:cursor-not-allowed disabled:opacity-50"
                       title="Instrukcja od opiekuna"
                       disabled
                     >
@@ -168,99 +191,131 @@ export function renderMain() {
                     </button>
                   </div>
                 </div>
+                <div class="flex flex-wrap items-center gap-3 rounded-xl bg-slate-50/70 p-3 text-sm text-slate-600">
+                  <span class="font-medium text-slate-600">Wybrany dzień:</span>
+                  <span id="dateLabel" class="text-base font-semibold text-slate-900"></span>
+                </div>
               </div>
-            </div>
-            <div class="flex w-full flex-wrap items-center gap-3 text-sm text-slate-600 md:w-auto md:flex-nowrap">
-              <span class="text-sm font-medium text-slate-500">Tryb:</span>
-              <label class="inline-flex items-center gap-2 text-sm">
-                <input type="radio" name="mode" value="day" checked> Dni
-              </label>
-              <label class="inline-flex items-center gap-2 text-sm">
-                <input type="radio" name="mode" value="hour"> Godziny
-              </label>
-            </div>
-          </div>
-          <div id="hourSliderWrap" class="hidden rounded-2xl border border-white/50 bg-white/60 p-4">
-            <div class="grid grid-cols-1 items-center gap-3 md:grid-cols-3">
-              <div class="text-sm text-slate-600 md:col-span-1">Zakres godzin:</div>
-              <div class="flex items-center gap-3 md:col-span-2">
-                <div class="flex-1"><input id="hourStart" type="range" min="0" max="23" step="1"></div>
-                <div class="text-slate-500">—</div>
-                <div class="flex-1"><input id="hourEnd" type="range" min="0" max="23" step="1" value="23"></div>
-                <div class="whitespace-nowrap text-sm text-slate-600">
-                  <span id="hourStartLabel">12:00</span>–<span id="hourEndLabel">14:00</span>
+              <div id="hourSliderWrap" class="hidden rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-sm">
+                <div class="grid grid-cols-1 items-center gap-4 md:grid-cols-[auto_minmax(0,1fr)]">
+                  <div class="text-sm font-medium text-slate-600">Zakres godzin</div>
+                  <div class="flex items-center gap-3">
+                    <div class="flex-1"><input id="hourStart" type="range" min="0" max="23" step="1"></div>
+                    <span class="text-slate-400">—</span>
+                    <div class="flex-1"><input id="hourEnd" type="range" min="0" max="23" step="1" value="23"></div>
+                    <div class="whitespace-nowrap text-sm font-semibold text-slate-600">
+                      <span id="hourStartLabel">12:00</span>–<span id="hourEndLabel">14:00</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
+            <div class="space-y-4 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 shadow-sm">
+              <div class="flex flex-wrap items-baseline justify-between gap-2">
+                <div class="space-y-0.5">
+                  <h4 class="text-sm font-semibold text-slate-700">Dostępność</h4>
+                  <span class="text-xs text-slate-500">Kliknij dzień, aby ustawić datę</span>
+                </div>
+                <div id="availabilityPreviewMonth" class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400"></div>
+              </div>
+              <div id="availabilityPreviewGrid" class="availability-preview" aria-live="polite"></div>
+              <p class="text-[11px] leading-snug text-slate-500">
+                Doba rozliczeniowa liczona jest zgodnie z umową i zależy od rodzaju wynajmu. Przekroczenie doby może wiązać się z dodatkową opłatą. Szczegóły w cenniku danego obiektu.
+              </p>
+              <div class="availability-legend">
+                <span><span class="availability-legend-dot" style="background:#21a35f"></span>Dostępny</span>
+                <span><span class="availability-legend-dot" style="background:#f4b632"></span>Wstępnie zajęty</span>
+                <span><span class="availability-legend-dot" style="background:#e64a4a"></span>Zajęty</span>
+              </div>
+              <div
+                id="calendar"
+                class="hidden space-y-4 rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-sm"
+              >
+                <div class="flex flex-wrap items-baseline justify-between gap-2">
+                  <h5 class="text-sm font-semibold text-slate-700">Dostępność godzinowa</h5>
+                  <span class="text-xs uppercase tracking-[0.18em] text-slate-400">Tryb godzinowy</span>
+                </div>
+                <div id="hours" class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"></div>
+                <p class="text-[11px] leading-snug text-slate-500">
+                  🔴 Zajęte (potwierdzone) · 🟡 Wstępne (czeka na akceptację) · brak koloru = dostępne
+                </p>
+              </div>
+              <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div id="stepValidationMessage" class="step-validation-message hidden"></div>
+                <button
+                  id="goToBookingStep"
+                  type="button"
+                  class="inline-flex items-center justify-center gap-2 rounded-xl bg-[#003580] px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-[#003580]/30 transition hover:bg-[#00245c]"
+                >
+                  Kontynuuj do formularza
+                </button>
+              </div>
+            </div>
           </div>
-          <div id="dateLabel" class="text-lg font-semibold tracking-tight text-black"></div>
-        </div>
-      </div>
-
-      <div id="calendar" class="hidden ${CARD_BASE_CLASSES} linked-card linked-card--bottom">
-        <div class="flow-space space-y-6 p-6">
-          <div class="flex items-center gap-3">
-            <h3 class="text-lg font-semibold tracking-tight text-black">
-              <span class="${HEADING_ACCENT_CLASSES}">Dostępność</span>
-            </h3>
-            <span class="${HEADING_DIVIDER_CLASSES}"></span>
-          </div>
-          <div id="hours" class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"></div>
-          <p class="text-xs text-slate-500">
-            🔴 Zajęte (potwierdzone) · 🟡 Wstępne (czeka na akceptację) · brak koloru = dostępne
-          </p>
-          <p class="text-xs text-slate-500">
-            Doba rozliczeniowa liczona jest zgodnie z umową i zależy od rodzaju wynajmu. Przekroczenie doby może wiązać się z dodatkową opłatą.
-            Szczegóły w cenniku danego obiektu.
-          </p>
         </div>
       </div>
 
       <div id="booking" class="hidden ${CARD_BASE_CLASSES}">
-        <div class="flow-space space-y-6 p-6">
-          <div class="flex items-center gap-3">
-            <h3 class="text-lg font-semibold tracking-tight text-black">
-              <span class="${HEADING_ACCENT_CLASSES}">Nowa rezerwacja</span>
-            </h3>
-            <span class="${HEADING_DIVIDER_CLASSES}"></span>
+        <div class="flow-space space-y-6 p-6 lg:p-8">
+          <div class="flex flex-wrap items-start justify-between gap-4">
+            <div class="space-y-1">
+              <p class="text-xs font-semibold uppercase tracking-[0.2em] text-[#003580]/70">Krok 2 z 2</p>
+              <h3 class="text-2xl font-semibold text-slate-900">
+                <span class="${HEADING_ACCENT_CLASSES}">Złóż rezerwację</span>
+              </h3>
+              <p class="text-sm text-slate-600">Uzupełnij dane rezerwującego i potwierdź zgłoszenie.</p>
+            </div>
+            <div class="flex flex-wrap items-center gap-3 justify-end">
+              <div class="wizard-step-dots" aria-hidden="true">
+                <span class="wizard-step-dot is-complete" data-wizard-dot="1">1</span>
+                <span class="wizard-step-dot" data-wizard-dot="2">2</span>
+              </div>
+              <button
+                id="backToDates"
+                type="button"
+                class="inline-flex items-center justify-center rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-[#003580] hover:text-[#003580]"
+              >
+                ← Wróć do wyboru terminu
+              </button>
+            </div>
           </div>
-          <form id="bookingForm" class="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <form id="bookingForm" class="grid grid-cols-1 gap-5 md:grid-cols-2">
             <div>
               <label class="text-sm font-medium text-slate-600">Rodzaj</label>
-              <select name="event_type_id" class="mt-1 w-full rounded-2xl border border-white/60 bg-white/60 px-3 py-2 text-sm text-slate-900 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-300/60"></select>
+              <select name="event_type_id" class="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-[#003580] focus:ring-2 focus:ring-[#003580]/40 focus:outline-none"></select>
             </div>
             <div>
               <label class="text-sm font-medium text-slate-600">Tytuł wydarzenia</label>
-              <input name="title" required readonly class="mt-1 w-full rounded-2xl border border-white/60 bg-white/50 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-300/60" placeholder="Uzupełni się automatycznie" />
+              <input name="title" required readonly class="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-[#003580] focus:ring-2 focus:ring-[#003580]/30 focus:outline-none" placeholder="Uzupełni się automatycznie" />
             </div>
 
             <div data-day-fields>
               <label class="text-sm font-medium text-slate-600">Dzień rezerwacji</label>
-              <input name="day_only" type="date" class="mt-1 w-full rounded-2xl border border-white/60 bg-white/60 px-3 py-2 text-sm text-slate-900 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-300/60" />
+              <input name="day_only" type="date" class="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-[#003580] focus:ring-2 focus:ring-[#003580]/40 focus:outline-none" />
             </div>
 
             <div data-hour-fields class="hidden">
               <label class="text-sm font-medium text-slate-600">Początek (godzina)</label>
-              <input name="start_time" type="datetime-local" class="mt-1 w-full rounded-2xl border border-white/60 bg-white/60 px-3 py-2 text-sm text-slate-900 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-300/60" />
+              <input name="start_time" type="datetime-local" class="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-[#003580] focus:ring-2 focus:ring-[#003580]/40 focus:outline-none" />
             </div>
             <div data-hour-fields class="hidden">
               <label class="text-sm font-medium text-slate-600">Koniec (godzina)</label>
-              <input name="end_time" type="datetime-local" class="mt-1 w-full rounded-2xl border border-white/60 bg-white/60 px-3 py-2 text-sm text-slate-900 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-300/60" />
+              <input name="end_time" type="datetime-local" class="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-[#003580] focus:ring-2 focus:ring-[#003580]/40 focus:outline-none" />
             </div>
 
             <div>
               <label class="text-sm font-medium text-slate-600">Imię i nazwisko</label>
-              <input name="renter_name" required class="mt-1 w-full rounded-2xl border border-white/60 bg-white/60 px-3 py-2 text-sm text-slate-900 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-300/60" />
+              <input name="renter_name" required class="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-[#003580] focus:ring-2 focus:ring-[#003580]/40 focus:outline-none" />
             </div>
             <div>
               <label class="text-sm font-medium text-slate-600">E-mail</label>
-              <input name="renter_email" type="email" required class="mt-1 w-full rounded-2xl border border-white/60 bg-white/60 px-3 py-2 text-sm text-slate-900 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-300/60" />
+              <input name="renter_email" type="email" required class="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-[#003580] focus:ring-2 focus:ring-[#003580]/40 focus:outline-none" />
             </div>
 
             <div class="md:col-span-2">
               <label class="text-sm font-medium text-slate-600">Krótka zagadka matematyczna</label>
               <div class="mt-2 flex flex-wrap items-center gap-3">
-                <span id="mathPuzzleQuestion" class="rounded-2xl bg-white/70 px-3 py-2 text-sm font-medium text-slate-700 shadow-sm shadow-amber-500/15"></span>
+                <span id="mathPuzzleQuestion" class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700 shadow-sm"></span>
                 <input
                   name="math_answer"
                   type="number"
@@ -268,13 +323,13 @@ export function renderMain() {
                   min="0"
                   step="1"
                   required
-                  class="w-32 rounded-2xl border border-white/60 bg-white/60 px-3 py-2 text-sm text-slate-900 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-300/60"
+                  class="w-32 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-[#003580] focus:ring-2 focus:ring-[#003580]/40 focus:outline-none"
                   placeholder="Wynik"
                 />
                 <button
                   id="mathPuzzleRefresh"
                   type="button"
-                  class="rounded-2xl border border-white/60 bg-white/70 px-3 py-2 text-xs font-medium uppercase tracking-wide text-slate-600 shadow-sm shadow-amber-500/15 transition hover:border-amber-300/80 hover:text-amber-700"
+                  class="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-600 transition hover:border-[#003580] hover:text-[#003580]"
                 >
                   Inna zagadka
                 </button>
@@ -284,14 +339,14 @@ export function renderMain() {
 
             <div class="md:col-span-2">
               <label class="text-sm font-medium text-slate-600">Uwagi (opcjonalnie)</label>
-              <textarea name="notes" class="mt-1 w-full rounded-2xl border border-white/60 bg-white/60 px-3 py-2 text-sm text-slate-900 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-300/60" rows="2"></textarea>
+              <textarea name="notes" class="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-[#003580] focus:ring-2 focus:ring-[#003580]/40 focus:outline-none" rows="3"></textarea>
             </div>
 
-            <div class="md:col-span-2 flex flex-wrap items-center gap-3">
-              <button class="rounded-2xl bg-gradient-to-r from-amber-400 via-rose-300 to-amber-300 px-5 py-2 text-sm font-semibold text-white shadow-lg shadow-amber-500/20 focus:outline-none focus:ring-2 focus:ring-amber-300/60" type="submit">
+            <div class="md:col-span-2 flex flex-wrap items-center gap-4">
+              <button class="inline-flex items-center justify-center gap-2 rounded-xl bg-[#003580] px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-[#003580]/30 transition hover:bg-[#00245c]" type="submit">
                 Złóż wstępną rezerwację
               </button>
-              <button id="cancelThisBooking" type="button" class="no-print hidden rounded-2xl border border-white/60 bg-white/70 px-4 py-2 text-sm font-medium text-slate-600 shadow-sm shadow-amber-500/15">Anuluj tę rezerwację</button>
+              <button id="cancelThisBooking" type="button" class="no-print hidden rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-600 transition hover:border-[#003580] hover:text-[#003580]">Anuluj tę rezerwację</button>
               <div id="formMsg" class="hidden"></div>
             </div>
 

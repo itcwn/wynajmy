@@ -3,6 +3,20 @@ export function createDayView({ state, supabase, domUtils, formatUtils }) {
   const { pad2, fmtDateLabel, ymd, escapeHtml } = formatUtils;
 
   let listenersAttached = false;
+  const dateChangeListeners = new Set();
+
+  function notifyDateChange(date = state.currentDate) {
+    const safeDate = date instanceof Date ? new Date(date) : new Date(state.currentDate);
+    dateChangeListeners.forEach((listener) => {
+      if (typeof listener === 'function') {
+        try {
+          listener(new Date(safeDate));
+        } catch (error) {
+          console.warn('Błąd listenera zmiany daty:', error);
+        }
+      }
+    });
+  }
 
   function setDayPickerFromCurrent() {
     const d = state.currentDate;
@@ -19,6 +33,7 @@ export function createDayView({ state, supabase, domUtils, formatUtils }) {
     if (label) {
       label.textContent = fmtDateLabel(d);
     }
+    notifyDateChange(state.currentDate);
   }
 
   function getVisibleHourRange() {
@@ -173,6 +188,8 @@ export function createDayView({ state, supabase, domUtils, formatUtils }) {
     if (!hoursEl) {
       return;
     }
+    hoursEl.classList.toggle('hours--compact', state.mode === 'hour');
+    hoursEl.dataset.mode = state.mode;
     hoursEl.innerHTML = '';
     const bookings = await fetchBookingsForDay(state.selectedFacility.id, d);
     if (mySeq !== state.renderSeq) {
@@ -239,16 +256,16 @@ export function createDayView({ state, supabase, domUtils, formatUtils }) {
       const labelHour = `${pad2(h)}:00`;
       const info = busy[h];
       const cell = document.createElement('div');
-      let cls = 'rounded-xl p-3 border ';
-      let html = `<div class="font-mono text-sm">${labelHour}</div>`;
+      let cls = 'rounded-lg border p-2.5 ';
+      let html = `<div class="font-mono text-[11px] text-slate-600">${labelHour}</div>`;
       if (info) {
         const C = statusClasses(info.status);
         cls += `${C.bg} ${C.border} ${C.text} shadow-sm`;
-        html += `<div class="text-xs">${escapeHtml(info.title)}</div>`;
-        html += `<div class="text-[11px] mt-1 inline-block px-2 py-0.5 rounded ${C.chipBg} ${C.chipText} border ${C.chipBorder}">${info.status === 'active' ? 'zajęte' : 'wstępna'}</div>`;
+        html += `<div class="text-[11px] leading-snug">${escapeHtml(info.title)}</div>`;
+        html += `<div class="text-[10px] mt-1 inline-flex items-center gap-1 rounded px-2 py-0.5 ${C.chipBg} ${C.chipText} border ${C.chipBorder}">${info.status === 'active' ? 'zajęte' : 'wstępna'}</div>`;
       } else {
         cls += 'bg-emerald-50 border-emerald-200 text-emerald-700';
-        html += '<div class="text-xs font-semibold text-emerald-700">Termin dostępny</div>';
+        html += '<div class="text-[11px] font-semibold text-emerald-700">Termin dostępny</div>';
       }
       cell.className = cls;
       cell.innerHTML = html;
@@ -296,23 +313,65 @@ export function createDayView({ state, supabase, domUtils, formatUtils }) {
         const d = new Date(`${value}T00:00`);
         if (!Number.isNaN(d.getTime())) {
           state.currentDate = d;
+          setDayPickerFromCurrent();
           updateHourLabels(false);
           void renderDay();
         }
       });
     }
-    $$('input[name="mode"]').forEach((el) => {
-      el.addEventListener('change', (event) => {
-        state.mode = event.target.value;
-        $$('[data-hour-fields]').forEach((node) => node.classList.toggle('hidden', state.mode === 'day'));
-        $$('[data-day-fields]').forEach((node) => node.classList.toggle('hidden', state.mode !== 'day'));
-        const wrap = $('#hourSliderWrap');
-        if (wrap) {
-          wrap.classList.toggle('hidden', state.mode !== 'hour');
-        }
-        void renderDay();
+    const modeSwitch = $('#modeSwitch');
+    const syncModeDependentElements = () => {
+      $$('[data-hour-fields]').forEach((node) => node.classList.toggle('hidden', state.mode === 'day'));
+      $$('[data-day-fields]').forEach((node) => node.classList.toggle('hidden', state.mode !== 'day'));
+      const wrap = $('#hourSliderWrap');
+      if (wrap) {
+        wrap.classList.toggle('hidden', state.mode !== 'hour');
+      }
+      const calendarCard = $('#calendar');
+      if (calendarCard) {
+        calendarCard.classList.toggle('hidden', state.mode !== 'hour');
+      }
+      if (modeSwitch) {
+        const isHour = state.mode === 'hour';
+        modeSwitch.dataset.mode = state.mode;
+        modeSwitch.setAttribute('aria-checked', isHour ? 'true' : 'false');
+      }
+    };
+
+    const setMode = (mode) => {
+      const nextMode = mode === 'hour' ? 'hour' : 'day';
+      if (state.mode === nextMode) {
+        syncModeDependentElements();
+        return;
+      }
+      state.mode = nextMode;
+      syncModeDependentElements();
+      void renderDay();
+    };
+
+    if (modeSwitch) {
+      modeSwitch.addEventListener('click', () => {
+        const nextMode = state.mode === 'hour' ? 'day' : 'hour';
+        setMode(nextMode);
       });
-    });
+      modeSwitch.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ' || event.key === 'Spacebar') {
+          event.preventDefault();
+          const nextMode = state.mode === 'hour' ? 'day' : 'hour';
+          setMode(nextMode);
+          return;
+        }
+        if (event.key === 'ArrowLeft') {
+          event.preventDefault();
+          setMode('day');
+        } else if (event.key === 'ArrowRight') {
+          event.preventDefault();
+          setMode('hour');
+        }
+      });
+    }
+
+    syncModeDependentElements();
     const startEl = $('#hourStart');
     if (startEl) {
       startEl.addEventListener('input', () => updateHourLabels());
@@ -332,5 +391,12 @@ export function createDayView({ state, supabase, domUtils, formatUtils }) {
     renderDay,
     setDayPickerFromCurrent,
     statusClasses,
+    onDateChange: (listener) => {
+      if (typeof listener === 'function') {
+        dateChangeListeners.add(listener);
+        return () => dateChangeListeners.delete(listener);
+      }
+      return () => {};
+    },
   };
 }

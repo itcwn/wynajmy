@@ -8,10 +8,12 @@ Ten pakiet zawiera działające MVP:
 
 ## Szybki start
 1. W Supabase wykonaj `schema.sql` (SQL Editor).
-2. W `index.html` podmień `SUPABASE_URL` oraz `SUPABASE_ANON_KEY`.
-3. Wgraj `index.html` do GitHub i włącz Pages.
-4. Wybierz świetlicę, utwórz rezerwację — po zapisie pojawi się sekcja generowania dokumentów.
-5. Wybierz szablon i drukuj (PDF z przeglądarki).
+2. W Supabase Storage utwórz publiczny bucket (np. `facility-images`) na zdjęcia świetlic i zanotuj jego nazwę.
+3. W `index.html` podmień `SUPABASE_URL` oraz `SUPABASE_ANON_KEY`.
+4. Jeśli korzystasz z innej nazwy bucketa, ustaw ją w `supabase-config.js` pod kluczem `STORAGE_BUCKET_FACILITY_IMAGES`.
+5. Wgraj `index.html` do GitHub i włącz Pages.
+6. Wybierz świetlicę, utwórz rezerwację — po zapisie pojawi się sekcja generowania dokumentów.
+7. Wybierz szablon i drukuj (PDF z przeglądarki).
 
 ## Szablony dokumentów
 - Tabela `document_templates` przechowuje HTML z placeholderami.
@@ -27,13 +29,20 @@ Ten pakiet zawiera działające MVP:
 
 ## Powiadomienia e-mail o rezerwacjach
 - W katalogu `supabase/functions/send-booking-notifications` znajduje się funkcja Edge odpowiedzialna za wysyłkę powiadomień do
-  rezerwującego oraz opiekunów.
-- Konfiguracja wymaga ustawienia w Supabase zmiennych środowiskowych (np. `APP_BASE_URL`, `SMTP_HOST`, `SMTP_PORT`,
-  `SMTP_USERNAME`, `SMTP_PASSWORD`/hasło aplikacji Gmail, `NOTIFY_FROM_EMAIL`, opcjonalnie `NOTIFY_FROM_NAME`).
-- Po wdrożeniu funkcji należy uruchomić skrypt SQL `SQL_Updates/2024-10-03_booking_notifications.sql`, który dodaje funkcję
-  `get_booking_notification_payload` wykorzystywaną przez powiadomienia.
-- Aplikacja frontowa automatycznie wywołuje funkcję Edge po utworzeniu rezerwacji, zmianie decyzji opiekuna oraz anulowaniu przez
-  rezerwującego.
+  rezerwującego oraz opiekunów. Treści wiadomości (tematy, akapity, linki) opisane są w funkcjach `buildCaretakerMessage` oraz
+  `buildRenterMessage` – tam można dopisać własne fragmenty.
+- W katalogu `SQL_Updates` znajdują się dwa skrypty konfiguracyjne: `2024-10-03_booking_notifications.sql` (dodaje funkcję
+  `get_booking_notification_payload`) oraz `2024-10-11_booking_notification_queue.sql` (definiuje kolejkę zdarzeń i funkcje
+  `enqueue_booking_notification` oraz `dequeue_booking_notification_events`). Uruchom oba w edytorze SQL Supabase.
+- Konfiguracja wymaga ustawienia w Supabase zmiennych środowiskowych (np. `APP_BASE_URL`, `BOOKING_PAGE_PATH`, `RESEND_API_KEY`,
+  `NOTIFY_FROM_EMAIL`, opcjonalnie `NOTIFY_FROM_NAME`). Jeśli chcesz testować bez wysyłki, ustaw `NOTIFY_DRY_RUN=true`.
+- Link do rezerwacji w e-mailu prowadzi na stronę główną aplikacji z parametrem `?booking=TOKEN`. Frontend (`index.html`) wykrywa
+  taki parametr i automatycznie wczytuje dane rezerwacji, dlatego ważne jest ustawienie `APP_BASE_URL`/`BOOKING_PAGE_PATH` na prawidłowy
+  adres frontendu.
+- Frontend zapisuje zdarzenia do kolejki poprzez funkcję RPC `enqueue_booking_notification`. Przetwarzaniem kolejki zajmuje się
+  funkcja Edge `dispatch-notification-queue`, która co 3 minuty uruchamiana jest przez harmonogram (plik
+  `supabase/functions/_schedule/dispatch-notification-queue.json`) i w razie potrzeby wywołuje funkcję
+  `send-booking-notifications`.
 
 ## Rejestracja opiekuna
 - W nagłówku aplikacji dostępny jest link „Zarejestruj opiekuna”, który prowadzi do formularza `registerCaretaker.html`.

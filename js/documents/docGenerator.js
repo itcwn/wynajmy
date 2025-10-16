@@ -90,7 +90,7 @@ export function createDocGenerator({ state, supabase, domUtils, formatUtils }) {
     html = html.replace(/\{\{\s*time\s+booking\.start_time\s*\}\}/g, formatTime(booking.start_time));
     html = html.replace(/\{\{\s*time\s+booking\.end_time\s*\}\}/g, formatTime(booking.end_time));
     html = html.replace(/\{\{\s*date\s+booking\.request_date\s*\}\}/g, formatDate(booking.request_date));
-    html = html.replace(/\{\{booking\.extra\.([a-zA-Z0-9_]+)\}\}/g, (_, key) => {
+    html = html.replace(/\{\{\s*booking\.extra\.([a-zA-Z0-9_]+)(?:\s*\|\s*[^}]+)?\s*\}\}/g, (_, key) => {
       const val = state.docFormValues?.[key];
       return val == null ? '' : escapeHtml(String(val));
     });
@@ -116,6 +116,65 @@ export function createDocGenerator({ state, supabase, domUtils, formatUtils }) {
     if (print) {
       w.print();
     }
+  }
+
+  function downloadPdf(html, filename) {
+    const parser = new DOMParser();
+    const parsed = parser.parseFromString(html, 'text/html');
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.top = '-10000px';
+    iframe.style.left = '-10000px';
+    iframe.style.width = '210mm';
+    iframe.style.minHeight = '297mm';
+    iframe.style.height = 'auto';
+    iframe.style.opacity = '0';
+    iframe.style.pointerEvents = 'none';
+    iframe.style.visibility = 'hidden';
+    iframe.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(iframe);
+
+    const cleanup = () => {
+      if (iframe.parentNode) {
+        iframe.parentNode.removeChild(iframe);
+      }
+    };
+
+    const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+    if (!iframeDoc) {
+      cleanup();
+      throw new Error('Nie udało się przygotować dokumentu PDF.');
+    }
+
+    iframeDoc.open();
+    iframeDoc.write(parsed.documentElement.outerHTML);
+    iframeDoc.close();
+
+    const sourceElement = iframeDoc.body;
+    if (!sourceElement) {
+      cleanup();
+      throw new Error('Nie udało się przygotować zawartości PDF.');
+    }
+
+    const worker = window
+      .html2pdf()
+      .set({
+        margin: 15,
+        filename,
+        html2canvas: { scale: 2 },
+        jsPDF: { format: 'a4', unit: 'mm' },
+      })
+      .from(sourceElement)
+      .save();
+
+    return worker
+      .then(() => {
+        cleanup();
+      })
+      .catch((error) => {
+        cleanup();
+        throw error;
+      });
   }
 
   async function showTemplateSelectorLive(bookingRow, mountEl) {
@@ -158,15 +217,27 @@ export function createDocGenerator({ state, supabase, domUtils, formatUtils }) {
 
     function renderLiveFields(tpl) {
       fieldsWrap.innerHTML = '';
-      const matches = [...tpl.html.matchAll(/\{\{booking\.extra\.([a-zA-Z0-9_]+)\}\}/g)];
-      const keys = [...new Set(matches.map((m) => m[1]))];
+      const matches = [
+        ...tpl.html.matchAll(/\{\{\s*booking\.extra\.([a-zA-Z0-9_]+)(?:\s*\|\s*([^}]*))?\s*\}\}/g),
+      ];
+      const uniqueFields = new Map();
+      matches.forEach((match) => {
+        const [, key, label] = match;
+        if (!uniqueFields.has(key)) {
+          uniqueFields.set(key, {
+            key,
+            label: label?.trim() || '',
+          });
+        }
+      });
+      const fields = [...uniqueFields.values()];
       const head = document.createElement('div');
       head.className = 'mb-2 text-sm text-gray-700';
-      head.textContent = keys.length
+      head.textContent = fields.length
         ? 'Uzupełnij pola dla wybranego szablonu:'
         : 'Ten szablon nie ma dodatkowych pól do uzupełnienia.';
       fieldsWrap.appendChild(head);
-      if (keys.length) {
+      if (fields.length) {
         const table = document.createElement('table');
         table.className = 'table-auto w-full border rounded bg-white';
         table.innerHTML = `
@@ -179,10 +250,18 @@ export function createDocGenerator({ state, supabase, domUtils, formatUtils }) {
           <tbody></tbody>
         `;
         const tbody = table.querySelector('tbody');
-        keys.forEach((key) => {
+        fields.forEach(({ key, label }) => {
+          const trimmedLabel = label?.trim() || '';
+          const displayLabel = trimmedLabel || key;
+          const codeHint = trimmedLabel
+            ? ''
+            : `<div class="text-xs text-gray-500"><code>${escapeHtml(key)}</code></div>`;
           const row = document.createElement('tr');
           row.innerHTML = `
-            <td class="border p-2 align-top"><code>${escapeHtml(key)}</code></td>
+            <td class="border p-2 align-top">
+              <div class="font-medium">${escapeHtml(displayLabel)}</div>
+              ${codeHint}
+            </td>
             <td class="border p-2">
               <input type="text" class="w-full border rounded px-2 py-1" data-extra="${escapeHtml(key)}" value="${escapeHtml(state.docFormValues[key] ?? '')}">
             </td>
@@ -202,6 +281,7 @@ export function createDocGenerator({ state, supabase, domUtils, formatUtils }) {
       actions.innerHTML = `
         <button type="button" id="previewDoc" class="px-3 py-2 rounded border">👁️ Podgląd</button>
         <button type="button" id="printDoc" class="px-3 py-2 rounded border">🖨️ Drukuj</button>
+        <button type="button" id="downloadDoc" class="px-3 py-2 rounded border">⬇️ Pobierz PDF</button>
       `;
       fieldsWrap.appendChild(actions);
       fieldsWrap.querySelector('#previewDoc')?.addEventListener('click', () => {
@@ -211,6 +291,30 @@ export function createDocGenerator({ state, supabase, domUtils, formatUtils }) {
       fieldsWrap.querySelector('#printDoc')?.addEventListener('click', () => {
         const html = applyTemplate(tpl.html, bookingRow);
         openPreviewWindow(html, true);
+      });
+      fieldsWrap.querySelector('#downloadDoc')?.addEventListener('click', async () => {
+        if (!window.html2pdf) {
+          window.alert('Funkcja pobierania PDF jest niedostępna. Odśwież stronę i spróbuj ponownie.');
+          return;
+        }
+
+        const html = applyTemplate(tpl.html, bookingRow);
+        const baseName = String(tpl.code || bookingRow?.title || state.lastBooking?.title || 'dokument').trim();
+        const sanitized = baseName
+          .toLowerCase()
+          .replace(/\s+/g, '-')
+          .replace(/[^a-z0-9_.-]+/g, '')
+          .replace(/^-+/, '')
+          .replace(/-+$/, '');
+        const filenameBase = sanitized || 'dokument';
+        const filename = filenameBase.endsWith('.pdf') ? filenameBase : `${filenameBase}.pdf`;
+
+        try {
+          await downloadPdf(html, filename);
+        } catch (error) {
+          console.error('Nie udało się wygenerować PDF', error);
+          window.alert('Nie udało się wygenerować pliku PDF. Spróbuj ponownie później.');
+        }
       });
     }
   }

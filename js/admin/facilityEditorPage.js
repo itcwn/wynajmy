@@ -1,6 +1,7 @@
 import { clearCaretakerSession, requireCaretakerSession } from '../caretakers/session.js';
 import { clearMyFacilitiesCache, loadMyFacilities } from '../caretakers/myFacilities.js';
 import { INSTRUCTION_FIELDS, findInstructionInfo } from '../utils/instructions.js';
+import { uploadFacilityImages, getStorageBucketName } from '../utils/storage.js';
 
 const titleEl = document.getElementById('facilityTitle');
 const facilityStateMessage = document.getElementById('facilityStateMessage');
@@ -13,6 +14,9 @@ const facilityForm = document.getElementById('facilityDetailsForm');
 const facilityFormSubmit = document.getElementById('facilityDetailsSubmit');
 const facilityFormMessage = document.getElementById('facilityDetailsMessage');
 const facilityIdInput = document.getElementById('facilityIdDisplay');
+const facilityImagesTextarea = document.getElementById('facilityImagesInput');
+const facilityImagesUploadInput = document.getElementById('facilityImagesUploadInput');
+const facilityImagesUploadMessage = document.getElementById('facilityImagesUploadMessage');
 
 const amenitiesContainer = document.getElementById('amenitiesContainer');
 const saveAmenitiesBtn = document.getElementById('saveAmenities');
@@ -23,12 +27,16 @@ const checklistMessage = document.getElementById('checklistMessage');
 const addChecklistItemBtn = document.getElementById('addChecklistItem');
 const saveChecklistBtn = document.getElementById('saveChecklist');
 
+const tabButtons = document.querySelectorAll('[data-tab-target]');
+const tabPanels = document.querySelectorAll('[data-tab-panel]');
+
 const logoutBtn = document.getElementById('caretakerLogout');
 
 const PHASE_OPTIONS = [
   { value: 'handover', label: 'Odbiór obiektu' },
   { value: 'return', label: 'Zdanie obiektu' },
 ];
+
 
 if (facilityFormSubmit) {
   facilityFormSubmit.dataset.originalLabel = facilityFormSubmit.textContent || '';
@@ -137,6 +145,45 @@ function normalizeImageList(value) {
   return parts.join(';');
 }
 
+function splitImageList(value) {
+  if (!value) {
+    return [];
+  }
+  return String(value)
+    .split(';')
+    .map((part) => part.trim())
+    .filter((part) => part && part.toLowerCase() !== 'null' && part.toLowerCase() !== 'undefined');
+}
+
+function collectSelectedFiles(input) {
+  if (!input || !input.files) {
+    return [];
+  }
+  return Array.from(input.files).filter((file) => file && file.size);
+}
+
+function appendUploadedUrlsToTextarea(urls) {
+  if (!facilityImagesTextarea || !Array.isArray(urls) || !urls.length) {
+    return;
+  }
+  const currentNormalized = normalizeImageList(facilityImagesTextarea.value || '');
+  const currentList = currentNormalized ? splitImageList(currentNormalized) : [];
+  const unique = new Map();
+  currentList.forEach((url) => {
+    unique.set(url, url);
+  });
+  urls.forEach((url) => {
+    if (url) {
+      unique.set(url, url);
+    }
+  });
+  const merged = Array.from(unique.values());
+  facilityImagesTextarea.value = merged.join('\n');
+  if (selectedFacility) {
+    selectedFacility.image_urls = merged.length ? merged.join(';') : null;
+  }
+}
+
 const FACILITY_FIELD_CONFIG = [
   { name: 'name', label: 'Nazwa świetlicy', type: 'text', required: true },
   { name: 'postal_code', label: 'Kod pocztowy', type: 'text' },
@@ -171,6 +218,9 @@ function refreshFacilityFormState() {
     }
     element.disabled = disableInputs;
   });
+  if (facilityImagesUploadInput) {
+    facilityImagesUploadInput.disabled = disableInputs;
+  }
   if (facilityFormSubmit) {
     facilityFormSubmit.disabled = disableInputs;
     if (isSavingFacilityDetails) {
@@ -184,6 +234,9 @@ function refreshFacilityFormState() {
 function populateFacilityForm(facility) {
   if (facilityIdInput) {
     facilityIdInput.value = facility?.id ? String(facility.id) : '';
+  }
+  if (facilityImagesUploadMessage) {
+    setStatus(facilityImagesUploadMessage, '', 'info');
   }
   if (!facilityForm) {
     return;
@@ -203,6 +256,9 @@ function populateFacilityForm(facility) {
       element.value = String(value);
     }
   });
+  if (facilityImagesUploadInput) {
+    facilityImagesUploadInput.value = '';
+  }
   refreshFacilityFormState();
 }
 
@@ -288,15 +344,75 @@ async function bootstrap() {
     });
   }
 
-  const supa = session?.supabase || session?.baseSupabase || null;
+  const caretakerSupabase = session?.supabase || null;
+  const baseSupabase = session?.baseSupabase || null;
+  const supa = caretakerSupabase || baseSupabase || null;
+  const storageSupabase = baseSupabase || caretakerSupabase || null;
   const caretakerId = session?.caretakerId || null;
-  if (!supa || !caretakerId) {
+  if (!supa || !caretakerId || !storageSupabase) {
     setStatus(facilityStateMessage, 'Brak konfiguracji Supabase lub identyfikatora opiekuna.', 'error');
     setFacilityFormMessage('Brak konfiguracji Supabase lub identyfikatora opiekuna.', 'error');
+    setStatus(facilityImagesUploadMessage, 'Brak konfiguracji Supabase.', 'error');
     selectedFacility = null;
     populateFacilityForm(null);
     refreshFacilityFormState();
     return;
+  }
+
+  async function handleFacilityImagesUpload() {
+    if (!facilityImagesUploadInput) {
+      return;
+    }
+    const files = collectSelectedFiles(facilityImagesUploadInput);
+    if (!files.length) {
+      setStatus(facilityImagesUploadMessage, 'Nie wybrano plików do przesłania.', 'info');
+      facilityImagesUploadInput.value = '';
+      return;
+    }
+    if (!selectedFacility) {
+      setStatus(facilityImagesUploadMessage, 'Wybierz świetlicę przed przesłaniem zdjęć.', 'error');
+      facilityImagesUploadInput.value = '';
+      return;
+    }
+    facilityImagesUploadInput.disabled = true;
+    setStatus(facilityImagesUploadMessage, 'Przesyłanie zdjęć...', 'info');
+    try {
+      const prefix = `facility-${selectedFacility.id}`;
+      const uploadedUrls = await uploadFacilityImages({
+        supabase: storageSupabase,
+        files,
+        bucket: getStorageBucketName(),
+        prefix,
+      });
+      if (uploadedUrls.length) {
+        appendUploadedUrlsToTextarea(uploadedUrls);
+        setStatus(
+          facilityImagesUploadMessage,
+          uploadedUrls.length === 1
+            ? 'Dodano nowe zdjęcie. Zapisz formularz, aby opublikować zmiany.'
+            : `Dodano ${uploadedUrls.length} zdjęcia. Zapisz formularz, aby opublikować zmiany.`,
+          'success',
+        );
+      } else {
+        setStatus(facilityImagesUploadMessage, 'Nie udało się przesłać zdjęć.', 'error');
+      }
+    } catch (error) {
+      console.error('Nie udało się przesłać zdjęć świetlicy:', error);
+      setStatus(
+        facilityImagesUploadMessage,
+        error?.message || 'Nie udało się przesłać zdjęć świetlicy.',
+        'error',
+      );
+    } finally {
+      facilityImagesUploadInput.value = '';
+      facilityImagesUploadInput.disabled = !selectedFacility || isSavingFacilityDetails;
+    }
+  }
+
+  if (facilityImagesUploadInput) {
+    facilityImagesUploadInput.addEventListener('change', () => {
+      void handleFacilityImagesUpload();
+    });
   }
 
   const params = new URLSearchParams(window.location.search);
@@ -631,67 +747,93 @@ async function bootstrap() {
       setStatus(checklistMessage, '', 'info');
       return;
     }
-    if (!checklistItems.length) {
-      checklistContainer.innerHTML = '<p class="text-sm text-gray-500">Brak elementów. Dodaj pierwszy element listy kontrolnej.</p>';
-    } else {
-      const rows = checklistItems
-        .map((item, index) => {
-          const key = ensureChecklistDomKey(item);
-          const options = PHASE_OPTIONS.map(
-            (option) =>
-              `<option value="${option.value}" ${item.phase === option.value ? 'selected' : ''}>${option.label}</option>`,
-          ).join('');
-          return `
-            <article class="border rounded-2xl p-4 space-y-3 bg-gray-50" data-key="${key}">
-              <div class="flex items-start justify-between gap-3 flex-wrap">
-                <div class="flex items-center gap-3 flex-wrap text-sm">
-                  <span class="font-semibold text-base">#${index + 1}</span>
-                  <label class="flex items-center gap-2 text-xs bg-slate-100 border border-slate-200 rounded-lg px-2 py-1">
-                    <span>Etap:</span>
-                    <select data-role="phase" class="border rounded-lg px-2 py-1 text-sm bg-white">
-                      ${options}
-                    </select>
-                  </label>
-                  <label class="flex items-center gap-2 text-xs">
-                    <input type="checkbox" data-role="required" ${item.is_required !== false ? 'checked' : ''} />
-                    <span>Wymagane</span>
-                  </label>
-                </div>
-                <div class="flex items-center gap-2 text-xs">
-                  <button type="button" class="text-blue-600 hover:underline disabled:opacity-40" data-action="move-up" ${
-                    index === 0 ? 'disabled' : ''
-                  }>↑ do góry</button>
-                  <button type="button" class="text-blue-600 hover:underline disabled:opacity-40" data-action="move-down" ${
-                    index === checklistItems.length - 1 ? 'disabled' : ''
-                  }>↓ w dół</button>
-                  <button type="button" class="text-red-600 hover:underline" data-action="delete">Usuń</button>
-                </div>
+    const hasItems = checklistItems.length > 0;
+    const columns = {};
+    PHASE_OPTIONS.forEach((option) => {
+      columns[option.value] = [];
+    });
+
+    if (hasItems) {
+      checklistItems.forEach((item, index) => {
+        const key = ensureChecklistDomKey(item);
+        const itemPhase = PHASE_OPTIONS.some((option) => option.value === item.phase) ? item.phase : 'handover';
+        const options = PHASE_OPTIONS.map(
+          (option) => `<option value="${option.value}" ${itemPhase === option.value ? 'selected' : ''}>${option.label}</option>`,
+        ).join('');
+        const row = `
+          <article class="border rounded-2xl p-4 space-y-3 bg-gray-50" data-key="${key}">
+            <div class="flex items-start justify-between gap-3 flex-wrap">
+              <div class="flex items-center gap-3 flex-wrap text-sm">
+                <span class="font-semibold text-base">#${index + 1}</span>
+                <label class="flex items-center gap-2 text-xs bg-slate-100 border border-slate-200 rounded-lg px-2 py-1">
+                  <span>Etap:</span>
+                  <select data-role="phase" class="border rounded-lg px-2 py-1 text-sm bg-white">
+                    ${options}
+                  </select>
+                </label>
+                <label class="flex items-center gap-2 text-xs">
+                  <input type="checkbox" data-role="required" ${item.is_required !== false ? 'checked' : ''} />
+                  <span>Wymagane</span>
+                </label>
               </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-700">Tytuł elementu</label>
-                <input
-                  type="text"
-                  data-role="title"
-                  class="mt-1 w-full border rounded-xl px-3 py-2 text-sm"
-                  placeholder="np. Sprawdź stan liczników"
-                  value="${escapeHtml(item.title || '')}"
-                />
+              <div class="flex items-center gap-2 text-xs">
+                <button type="button" class="text-blue-600 hover:underline disabled:opacity-40" data-action="move-up" ${
+                  index === 0 ? 'disabled' : ''
+                }>↑ do góry</button>
+                <button type="button" class="text-blue-600 hover:underline disabled:opacity-40" data-action="move-down" ${
+                  index === checklistItems.length - 1 ? 'disabled' : ''
+                }>↓ w dół</button>
+                <button type="button" class="text-red-600 hover:underline" data-action="delete">Usuń</button>
               </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-700">Opis szczegółowy (opcjonalnie)</label>
-                <textarea
-                  data-role="description"
-                  class="mt-1 w-full border rounded-xl px-3 py-2 text-sm"
-                  rows="3"
-                  placeholder="Dodaj dodatkowe instrukcje lub kontekst."
-                >${escapeHtml(item.description || '')}</textarea>
-              </div>
-            </article>
-          `;
-        })
-        .join('');
-      checklistContainer.innerHTML = rows;
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700">Tytuł elementu</label>
+              <input
+                type="text"
+                data-role="title"
+                class="mt-1 w-full border rounded-xl px-3 py-2 text-sm"
+                placeholder="np. Sprawdź stan liczników"
+                value="${escapeHtml(item.title || '')}"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700">Opis szczegółowy (opcjonalnie)</label>
+              <textarea
+                data-role="description"
+                class="mt-1 w-full border rounded-xl px-3 py-2 text-sm"
+                rows="3"
+                placeholder="Dodaj dodatkowe instrukcje lub kontekst."
+              >${escapeHtml(item.description || '')}</textarea>
+            </div>
+          </article>
+        `;
+        columns[itemPhase].push(row);
+      });
     }
+
+    const columnMarkup = PHASE_OPTIONS.map((option) => {
+      const rows = columns[option.value];
+      let content = '';
+      if (!hasItems) {
+        content = '<p class="text-sm text-gray-500">Brak elementów. Dodaj pierwszy element listy kontrolnej.</p>';
+      } else if (!rows.length) {
+        content = '<p class="text-sm text-gray-500">Brak elementów dla tego etapu.</p>';
+      } else {
+        content = rows.join('');
+      }
+      return `
+        <section class="space-y-3" data-phase-wrapper="${option.value}">
+          <div class="flex items-center justify-between">
+            <h3 class="text-base font-semibold">${option.label}</h3>
+          </div>
+          <div class="space-y-3" data-phase-list="${option.value}">
+            ${content}
+          </div>
+        </section>
+      `;
+    }).join('');
+
+    checklistContainer.innerHTML = `<div class="grid gap-4 md:grid-cols-2">${columnMarkup}</div>`;
     if (addChecklistItemBtn) {
       addChecklistItemBtn.disabled = false;
     }
@@ -1107,3 +1249,43 @@ async function bootstrap() {
 }
 
 void bootstrap();
+function activateTab(tabId) {
+  if (!tabId) {
+    return;
+  }
+  tabButtons.forEach((button) => {
+    const isActive = button.dataset.tabTarget === tabId;
+    button.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    button.setAttribute('tabindex', isActive ? '0' : '-1');
+    button.classList.toggle('bg-blue-600', isActive);
+    button.classList.toggle('text-white', isActive);
+    button.classList.toggle('shadow', isActive);
+    button.classList.toggle('bg-slate-100', !isActive);
+    button.classList.toggle('text-slate-600', !isActive);
+  });
+  tabPanels.forEach((panel) => {
+    const isActive = panel.dataset.tabPanel === tabId;
+    panel.hidden = !isActive;
+    panel.setAttribute('aria-hidden', isActive ? 'false' : 'true');
+  });
+}
+
+if (tabButtons.length && tabPanels.length) {
+  tabPanels.forEach((panel) => {
+    panel.setAttribute('role', 'tabpanel');
+  });
+  tabButtons.forEach((button, index) => {
+    button.setAttribute('role', 'tab');
+    button.addEventListener('click', () => {
+      activateTab(button.dataset.tabTarget);
+    });
+    if (index === 0) {
+      activateTab(button.dataset.tabTarget);
+    }
+  });
+  const tablist = tabButtons[0]?.closest('[role="tablist"]');
+  if (tablist) {
+    tablist.setAttribute('aria-orientation', 'horizontal');
+  }
+}
+

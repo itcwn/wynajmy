@@ -4,20 +4,27 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Rezerwacje świetlic gminnych — WERSJA TESTOWA</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+    rel="stylesheet"
+  />
   <!-- Tailwind (CDN) -->
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js" defer></script>
 
   <!-- Style własne -->
   <link rel="stylesheet" href="./styles.css">
 </head>
-<body class="bg-[#f1f3ef] text-gray-900" data-intro-video-src="./assets/intro.mp4">
+<body class="bg-[#eef3ff] text-slate-900 font-sans">
   <!-- Nagłówek -->
-  <header class="p-4 bg-white shadow">
-    <div class="max-w-6xl mx-auto flex items-center justify-between gap-4 flex-wrap">
+  <header class="border-b border-slate-200 bg-white/95 backdrop-blur">
+    <div class="max-w-7xl mx-auto flex items-center justify-between gap-4 px-6 py-4 flex-wrap">
       <div>
-        <h1 class="text-2xl font-bold">Świetlice gminne — rezerwacje</h1>
+        <h1 class="text-2xl font-semibold text-[#003580]">Świetlice gminne — rezerwacje</h1>
       </div>
       <div class="flex items-center gap-3 flex-wrap text-sm">
         <div class="text-gray-500">🦉 SOWA System Online do Wsparcia Automatycznej rezerwacji świetlic</div>
@@ -46,7 +53,7 @@
   </header>
 
   <!-- Layout -->
-  <main class="main-shell mx-auto my-8 grid max-w-6xl grid-cols-1 gap-8 p-6 sm:p-8 items-start lg:grid-cols-3">
+  <main class="main-shell mx-auto my-10 grid max-w-7xl grid-cols-1 gap-8 p-6 sm:p-10 items-start lg:grid-cols-3">
     <!-- Lewa kolumna -->
     <section class="lg:col-span-1 lg:self-start">
       <div id="sidebar"></div>
@@ -58,8 +65,8 @@
     </section>
   </main>
 
-  <footer class="border-t border-gray-200 bg-white/70">
-    <div class="mx-auto flex max-w-6xl flex-col gap-6 px-6 py-8 text-sm text-gray-600 sm:px-8">
+  <footer class="border-t border-slate-200 bg-white/95">
+    <div class="mx-auto flex max-w-7xl flex-col gap-6 px-6 py-8 text-sm text-gray-600 sm:px-8">
       <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div class="space-y-1">
           <p class="text-base font-semibold text-gray-800">
