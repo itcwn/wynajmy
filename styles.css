@@ -401,7 +401,14 @@ input[type="range"] {
 }
 
 .availability-tile--active {
-  box-shadow: 0 0 0 3px rgba(0, 53, 128, 0.18);
+  border-color: #0f4c81;
+  box-shadow:
+    inset 0 0 0 3px rgba(15, 76, 129, 0.7),
+    0 10px 24px rgba(15, 76, 129, 0.18);
+}
+
+.availability-tile--active .availability-tile__badge {
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.45);
 }
 
 .hours--compact {
