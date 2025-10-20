@@ -15,5 +15,4 @@ export const state = {
   docFormValues: {},
   docSelectedTemplate: null,
   renderSeq: 0,
-  facilitiesView: 'list',
 };

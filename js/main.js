@@ -9,7 +9,7 @@ import {
   formatDate,
   formatTime,
 } from './utils/format.js';
-import { renderSidebar, renderMain } from './ui/layout.js';
+import { renderMain } from './ui/layout.js';
 import { createFacilitiesModule } from './data/facilities.js';
 import { getCaretakerSession, getCaretakerDisplayName } from './caretakers/session.js';
 import { createDayView } from './calendar/dayView.js';
@@ -133,14 +133,7 @@ if (!supabase) {
 
   async function init() {
     void setupCaretakerNavigation();
-    renderSidebar({
-      onSearch: facilities.renderFacilityList,
-    });
-    renderMain({
-      onViewChange: (view) => facilities.setViewMode(view),
-      currentView: state.facilitiesView,
-    });
-    facilities.setViewMode(state.facilitiesView, { silent: true });
+    renderMain();
     bookingWizard.init();
     availabilityPreview.init();
     dayView.attachDayViewListeners();
