@@ -28,6 +28,73 @@ body {
   z-index: 1;
 }
 
+.view-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem;
+  border-radius: 9999px;
+  background: #f3f6ff;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+}
+
+.view-switch__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.85rem;
+  border-radius: 9999px;
+  border: none;
+  background: transparent;
+  color: #475569;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.view-switch__btn:hover,
+.view-switch__btn:focus-visible {
+  color: #003580;
+  background: rgba(0, 53, 128, 0.08);
+  outline: none;
+  box-shadow: 0 8px 18px rgba(0, 53, 128, 0.15);
+}
+
+.view-switch__btn.is-active {
+  background: #003580;
+  color: #fff;
+  box-shadow: 0 10px 24px rgba(0, 53, 128, 0.25);
+}
+
+.view-switch__btn.is-active:hover,
+.view-switch__btn.is-active:focus-visible {
+  color: #fff;
+  background: #00245c;
+}
+
+.facility-list {
+  width: 100%;
+}
+
+.facility-list--list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.facility-list--tiles {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+}
+
+.facility-list--tiles > button {
+  height: 100%;
+}
+
 @media (max-width: 768px) {
   .main-shell {
     border-radius: 20px;

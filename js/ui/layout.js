@@ -26,15 +26,6 @@ export function renderSidebar({ onSearch } = {}) {
           placeholder="Szukaj po nazwie lub miejscowości"
         />
       </div>
-      <div class="${CARD_BASE_CLASSES} overflow-hidden">
-        <div class="flex items-center justify-between gap-3 border-b border-slate-200 px-6 py-4">
-          <h2 class="text-lg font-semibold text-slate-900">
-            <span class="${HEADING_ACCENT_CLASSES}">Świetlice</span>
-            <span class="ml-2 text-sm font-medium text-slate-500">(<span id="count">0</span>)</span>
-          </h2>
-        </div>
-        <ul id="facilities" class="space-y-1 px-2 py-3"></ul>
-      </div>
       <div id="mapCard" class="hidden ${CARD_BASE_CLASSES} overflow-hidden">
         <div class="flex items-center justify-between gap-3 border-b border-slate-200 px-6 py-4">
           <h3 class="text-lg font-semibold text-slate-900">
@@ -51,14 +42,53 @@ export function renderSidebar({ onSearch } = {}) {
   }
 }
 
-export function renderMain() {
+export function renderMain({ onViewChange, currentView } = {}) {
   const root = $('#main');
   if (!root) {
     console.warn('#main not found');
     return;
   }
+  const activeView = currentView === 'tiles' ? 'tiles' : 'list';
   root.innerHTML = `
     <div id="mainInner" class="relative z-10 space-y-6">
+      <div id="facilityBrowser" class="${CARD_BASE_CLASSES} overflow-hidden">
+        <div class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 px-6 py-4">
+          <div>
+            <p class="text-xs font-semibold uppercase tracking-[0.2em] text-[#003580]/70">Lista obiektów</p>
+            <h2 class="text-lg font-semibold text-slate-900">
+              <span class="${HEADING_ACCENT_CLASSES}">Świetlice</span>
+              <span class="ml-2 text-sm font-medium text-slate-500">(<span id="count">0</span>)</span>
+            </h2>
+          </div>
+          <div
+            class="view-switch"
+            data-role="facility-view-switch"
+            data-view-active="${activeView}"
+            role="group"
+            aria-label="Przełącz widok listy świetlic"
+          >
+            <button
+              type="button"
+              class="view-switch__btn ${activeView === 'list' ? 'is-active' : ''}"
+              data-view-toggle="list"
+              aria-pressed="${activeView === 'list'}"
+            >
+              <span class="hidden sm:inline">Lista</span>
+              <span class="sm:hidden" aria-hidden="true">☰</span>
+            </button>
+            <button
+              type="button"
+              class="view-switch__btn ${activeView === 'tiles' ? 'is-active' : ''}"
+              data-view-toggle="tiles"
+              aria-pressed="${activeView === 'tiles'}"
+            >
+              <span class="hidden sm:inline">Kafelki</span>
+              <span class="sm:hidden" aria-hidden="true">⬚</span>
+            </button>
+          </div>
+        </div>
+        <div id="facilities" class="facility-list facility-list--list px-2 py-3" data-view-mode="${activeView}"></div>
+      </div>
       <div
         id="facilityPlaceholder"
         class="${CARD_BASE_CLASSES} flex flex-col items-center gap-6 px-6 py-12 text-center"
@@ -74,7 +104,7 @@ export function renderMain() {
             Wybierz świetlicę, aby rozpocząć
           </h2>
           <p class="text-sm text-slate-600">
-            Skorzystaj z listy po lewej stronie, aby zobaczyć szczegóły, dostępność oraz formularz rezerwacji
+            Skorzystaj z listy lub kafelków powyżej, aby zobaczyć szczegóły, dostępność oraz formularz rezerwacji
             wybranej świetlicy.
           </p>
         </div>
@@ -429,6 +459,20 @@ export function renderMain() {
       </div>
     </div>
   `;
+  const switcher = root.querySelector('[data-role="facility-view-switch"]');
+  if (switcher && typeof onViewChange === 'function') {
+    switcher.addEventListener('click', (event) => {
+      const target = event.target.closest('button[data-view-toggle]');
+      if (!target) {
+        return;
+      }
+      const view = target.dataset.viewToggle;
+      if (!view) {
+        return;
+      }
+      onViewChange(view);
+    });
+  }
   initLayoutAlignment();
 }
 
@@ -470,12 +514,19 @@ function applySearchAlignment() {
     return;
   }
 
+  const browserCard = document.getElementById('facilityBrowser');
   const target = getActiveFacilityPanel();
-  if (!target) {
-    return;
+
+  let height = 0;
+  if (browserCard) {
+    const browserRect = browserCard.getBoundingClientRect();
+    height += browserRect.height;
+  }
+  if (target) {
+    const targetRect = target.getBoundingClientRect();
+    height += targetRect.height;
   }
 
-  const { height } = target.getBoundingClientRect();
   if (height > 0) {
     searchCard.style.minHeight = `${Math.ceil(height)}px`;
   }
