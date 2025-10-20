@@ -2,53 +2,17 @@
 import { $ } from '../utils/dom.js';
 
 const CARD_BASE_CLASSES =
-  'rounded-2xl border border-slate-200 bg-white shadow-[0_18px_48px_rgba(15,23,42,0.08)]';
+  'border border-slate-200 bg-white shadow-[0_18px_48px_rgba(15,23,42,0.08)]';
 const HEADING_ACCENT_CLASSES = 'text-[#003580]';
 const HEADING_DIVIDER_CLASSES =
   'hidden lg:flex lg:h-px lg:flex-1 lg:bg-slate-200';
 
-export function renderSidebar({ onSearch } = {}) {
-  const root = $('#sidebar');
-  if (!root) {
-    console.warn('#sidebar not found');
-    return;
-  }
-  root.innerHTML = `
-    <div class="space-y-6">
-      <div id="searchCard" class="${CARD_BASE_CLASSES} flex flex-col gap-4 p-6 lg:p-7">
-        <div>
-          <p class="text-xs font-semibold uppercase tracking-[0.2em] text-[#003580]/70">Znajdź obiekt</p>
-          <h2 class="mt-1 text-xl font-semibold text-slate-900">Wyszukaj świetlicę</h2>
-        </div>
-        <input
-          id="q"
-          class="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-[#003580] focus:ring-2 focus:ring-[#003580]/40 focus:outline-none"
-          placeholder="Szukaj po nazwie lub miejscowości"
-        />
-      </div>
-      <div id="mapCard" class="hidden ${CARD_BASE_CLASSES} overflow-hidden">
-        <div class="flex items-center justify-between gap-3 border-b border-slate-200 px-6 py-4">
-          <h3 class="text-lg font-semibold text-slate-900">
-            <span class="${HEADING_ACCENT_CLASSES}">Mapa</span>
-          </h3>
-        </div>
-        <div id="map" class="h-[280px] w-full"></div>
-      </div>
-    </div>
-  `;
-  const search = $('#q');
-  if (search && typeof onSearch === 'function') {
-    search.addEventListener('input', () => onSearch(search.value));
-  }
-}
-
-export function renderMain({ onViewChange, currentView } = {}) {
+export function renderMain() {
   const root = $('#main');
   if (!root) {
     console.warn('#main not found');
     return;
   }
-  const activeView = currentView === 'tiles' ? 'tiles' : 'list';
   root.innerHTML = `
     <div id="mainInner" class="relative z-10 space-y-6">
       <div id="facilityBrowser" class="${CARD_BASE_CLASSES} overflow-hidden">
@@ -56,60 +20,72 @@ export function renderMain({ onViewChange, currentView } = {}) {
           <div>
             <p class="text-xs font-semibold uppercase tracking-[0.2em] text-[#003580]/70">Lista obiektów</p>
             <h2 class="text-lg font-semibold text-slate-900">
-              <span class="${HEADING_ACCENT_CLASSES}">Świetlice</span>
+              <span class="${HEADING_ACCENT_CLASSES}">Lista obiektów</span>
               <span class="ml-2 text-sm font-medium text-slate-500">(<span id="count">0</span>)</span>
             </h2>
           </div>
-          <div
-            class="view-switch"
-            data-role="facility-view-switch"
-            data-view-active="${activeView}"
-            role="group"
-            aria-label="Przełącz widok listy świetlic"
-          >
+        </div>
+        <div class="border-b border-slate-200 bg-slate-50/60 px-6 py-4">
+          <label for="facilitySearch" class="block text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+            Szukaj po nazwie lub miejscowości
+          </label>
+          <div class="mt-2 flex items-center gap-2">
+            <div class="relative flex-1">
+              <span class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-slate-400" aria-hidden="true">🔍</span>
+              <input
+                id="facilitySearch"
+                type="search"
+                inputmode="search"
+                placeholder="Wpisz nazwę obiektu lub miejscowość"
+                class="w-full border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm text-slate-800 shadow-sm focus:border-[#003580] focus:outline-none focus:ring-2 focus:ring-[#003580]/40"
+                autocomplete="off"
+              />
+            </div>
             <button
               type="button"
-              class="view-switch__btn ${activeView === 'list' ? 'is-active' : ''}"
-              data-view-toggle="list"
-              aria-pressed="${activeView === 'list'}"
+              id="facilitySearchClear"
+              class="hidden whitespace-nowrap rounded border border-slate-300 px-3 py-2 text-xs font-medium text-slate-600 transition hover:border-[#003580] hover:text-[#003580]"
             >
-              <span class="hidden sm:inline">Lista</span>
-              <span class="sm:hidden" aria-hidden="true">☰</span>
-            </button>
-            <button
-              type="button"
-              class="view-switch__btn ${activeView === 'tiles' ? 'is-active' : ''}"
-              data-view-toggle="tiles"
-              aria-pressed="${activeView === 'tiles'}"
-            >
-              <span class="hidden sm:inline">Kafelki</span>
-              <span class="sm:hidden" aria-hidden="true">⬚</span>
+              Wyczyść
             </button>
           </div>
         </div>
-        <div id="facilities" class="facility-list facility-list--list px-2 py-3" data-view-mode="${activeView}"></div>
-      </div>
-      <div
-        id="facilityPlaceholder"
-        class="${CARD_BASE_CLASSES} flex flex-col items-center gap-6 px-6 py-12 text-center"
-      >
-        <img
-          src="./assets/placeholder-facility.svg"
-          alt="Ilustracja świetlicy"
-          class="w-full max-w-sm"
-          loading="lazy"
-        />
-        <div class="space-y-2">
-          <h2 class="text-2xl font-semibold tracking-tight text-slate-900">
-            Wybierz świetlicę, aby rozpocząć
-          </h2>
-          <p class="text-sm text-slate-600">
-            Skorzystaj z listy lub kafelków powyżej, aby zobaczyć szczegóły, dostępność oraz formularz rezerwacji
-            wybranej świetlicy.
-          </p>
+        <div id="facilities" class="facility-grid px-6 pb-6 pt-4"></div>
+        <div class="border-t border-slate-200 bg-slate-50/60 px-6 py-4">
+          <button
+            id="openReservationCta"
+            type="button"
+            disabled
+            aria-disabled="true"
+            class="inline-flex w-full items-center justify-center gap-2 rounded bg-[#003580] px-4 py-3 text-sm font-semibold uppercase tracking-[0.12em] text-white shadow-md shadow-[#003580]/20 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#00245c] disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500"
+          >
+            Wybierz obiekt, aby przejść do rezerwacji
+          </button>
         </div>
       </div>
-      <div id="facilityCard" class="hidden ${CARD_BASE_CLASSES}">
+      <section id="mapCard" class="hidden ${CARD_BASE_CLASSES}">
+        <div class="flex items-center justify-between gap-3 border-b border-slate-200 px-6 py-4">
+          <h3 class="text-lg font-semibold text-slate-900">
+            <span class="${HEADING_ACCENT_CLASSES}">Mapa</span>
+          </h3>
+        </div>
+        <div id="map" class="map-panel h-[18rem] w-full"></div>
+      </section>
+      <section id="reservationSection" class="space-y-6">
+        <div
+          id="facilityPlaceholder"
+          class="${CARD_BASE_CLASSES} px-6 py-12 text-center"
+        >
+          <div class="space-y-3">
+            <h2 class="text-2xl font-semibold tracking-tight text-slate-900">
+              Wybierz świetlicę, aby rozpocząć
+            </h2>
+            <p class="text-sm text-slate-600">
+              Skorzystaj z kafelków powyżej, aby zobaczyć szczegóły, dostępność oraz formularz rezerwacji wybranej świetlicy.
+            </p>
+          </div>
+        </div>
+        <div id="facilityCard" class="hidden ${CARD_BASE_CLASSES}">
         <div class="flow-space space-y-6 p-6">
           <div class="flex items-center gap-3">
             <h2 class="text-lg font-semibold tracking-tight text-slate-900">
@@ -388,6 +364,7 @@ export function renderMain({ onViewChange, currentView } = {}) {
           <div id="docGen" class="pt-2"></div>
         </div>
       </div>
+      </section>
     </div>
 
     <div id="galleryModal" class="fixed inset-0 z-50 hidden">
@@ -459,115 +436,9 @@ export function renderMain({ onViewChange, currentView } = {}) {
       </div>
     </div>
   `;
-  const switcher = root.querySelector('[data-role="facility-view-switch"]');
-  if (switcher && typeof onViewChange === 'function') {
-    switcher.addEventListener('click', (event) => {
-      const target = event.target.closest('button[data-view-toggle]');
-      if (!target) {
-        return;
-      }
-      const view = target.dataset.viewToggle;
-      if (!view) {
-        return;
-      }
-      onViewChange(view);
-    });
-  }
-  initLayoutAlignment();
-}
-
-const DESKTOP_MEDIA_QUERY = '(min-width: 1024px)';
-let alignmentInitialized = false;
-let mediaQueryList;
-let alignFrame;
-
-function isElementHidden(element) {
-  return element?.classList?.contains('hidden');
-}
-
-function getSearchCard() {
-  return document.getElementById('searchCard');
-}
-
-function getActiveFacilityPanel() {
-  const facilityCard = document.getElementById('facilityCard');
-  if (facilityCard && !isElementHidden(facilityCard)) {
-    return facilityCard;
-  }
-  const placeholder = document.getElementById('facilityPlaceholder');
-  if (placeholder && !isElementHidden(placeholder)) {
-    return placeholder;
-  }
-  return null;
-}
-
-function applySearchAlignment() {
-  const searchCard = getSearchCard();
-  if (!searchCard) {
-    return;
-  }
-
-  searchCard.style.minHeight = '';
-
-  const matchesDesktop = mediaQueryList?.matches ?? window.matchMedia?.(DESKTOP_MEDIA_QUERY)?.matches;
-  if (!matchesDesktop) {
-    return;
-  }
-
-  const browserCard = document.getElementById('facilityBrowser');
-  const target = getActiveFacilityPanel();
-
-  let height = 0;
-  if (browserCard) {
-    const browserRect = browserCard.getBoundingClientRect();
-    height += browserRect.height;
-  }
-  if (target) {
-    const targetRect = target.getBoundingClientRect();
-    height += targetRect.height;
-  }
-
-  if (height > 0) {
-    searchCard.style.minHeight = `${Math.ceil(height)}px`;
-  }
-}
-
-function scheduleSearchAlignment() {
-  if (typeof window === 'undefined') {
-    return;
-  }
-  if (alignFrame) {
-    cancelAnimationFrame(alignFrame);
-  }
-  alignFrame = requestAnimationFrame(() => {
-    alignFrame = null;
-    applySearchAlignment();
-  });
-}
-
-function handleResize() {
-  scheduleSearchAlignment();
-}
-
-export function initLayoutAlignment() {
-  if (typeof window === 'undefined') {
-    return;
-  }
-  if (!alignmentInitialized) {
-    alignmentInitialized = true;
-    mediaQueryList = window.matchMedia ? window.matchMedia(DESKTOP_MEDIA_QUERY) : undefined;
-    if (mediaQueryList) {
-      if (typeof mediaQueryList.addEventListener === 'function') {
-        mediaQueryList.addEventListener('change', handleResize);
-      } else if (typeof mediaQueryList.addListener === 'function') {
-        mediaQueryList.addListener(handleResize);
-      }
-    }
-    window.addEventListener('resize', handleResize, { passive: true });
-  }
-  scheduleSearchAlignment();
 }
 
 export function refreshLayoutAlignment() {
-  scheduleSearchAlignment();
+  // layout alignment no longer required in the simplified view
 }
+
