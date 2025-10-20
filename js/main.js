@@ -133,8 +133,14 @@ if (!supabase) {
 
   async function init() {
     void setupCaretakerNavigation();
-    renderSidebar({ onSearch: facilities.renderFacilityList });
-    renderMain();
+    renderSidebar({
+      onSearch: facilities.renderFacilityList,
+    });
+    renderMain({
+      onViewChange: (view) => facilities.setViewMode(view),
+      currentView: state.facilitiesView,
+    });
+    facilities.setViewMode(state.facilitiesView, { silent: true });
     bookingWizard.init();
     availabilityPreview.init();
     dayView.attachDayViewListeners();

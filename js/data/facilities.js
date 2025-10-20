@@ -18,6 +18,25 @@ export function createFacilitiesModule({
   const PLACEHOLDER_IMAGE = 'https://picsum.photos/800/400';
   let galleryListenersAttached = false;
 
+  function applyViewModeToDom(view) {
+    const normalized = view === 'tiles' ? 'tiles' : 'list';
+    const container = $('#facilities');
+    if (container) {
+      container.dataset.viewMode = normalized;
+      container.classList.toggle('facility-list--tiles', normalized === 'tiles');
+      container.classList.toggle('facility-list--list', normalized !== 'tiles');
+    }
+    const switcher = document.querySelector('[data-role="facility-view-switch"]');
+    if (switcher) {
+      switcher.dataset.viewActive = normalized;
+      switcher.querySelectorAll('button[data-view-toggle]').forEach((button) => {
+        const isActive = button.dataset.viewToggle === normalized;
+        button.classList.toggle('is-active', isActive);
+        button.setAttribute('aria-pressed', String(isActive));
+      });
+    }
+  }
+
   function logQueryError(scope, error) {
     if (!error) {
       return;
@@ -88,6 +107,8 @@ export function createFacilitiesModule({
   }
 
   function renderFacilityList(searchTerm) {
+    const view = state.facilitiesView === 'tiles' ? 'tiles' : 'list';
+    applyViewModeToDom(view);
     const querySource =
       typeof searchTerm === 'string' ? searchTerm : $('#q')?.value;
     const query = querySource ? querySource.trim().toLowerCase() : '';
@@ -103,28 +124,9 @@ export function createFacilitiesModule({
     if (!container) {
       return;
     }
+    const isTileView = view === 'tiles';
     container.innerHTML = list
-      .map(
-        (facility) => `
-      <li>
-        <button data-id="${facility.id}" class="w-full text-left rounded-xl border border-transparent px-4 py-3 transition hover:border-[#003580] hover:bg-[#003580]/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#003580]/40">
-          <div class="flex items-center gap-3">
-            <div class="relative h-16 w-24 flex-shrink-0 overflow-hidden rounded-xl bg-slate-100">
-              <img
-                src="${escapeHtml(parseImageUrls(facility)[0] || PLACEHOLDER_IMAGE)}"
-                alt="${escapeHtml(facility.name ? `Zdjęcie obiektu ${facility.name}` : 'Zdjęcie świetlicy')}"
-                class="h-full w-full object-cover"
-                loading="lazy"
-              />
-            </div>
-            <div class="min-w-0">
-              <div class="font-semibold text-slate-900">${escapeHtml(facility.name || '')}</div>
-              <div class="text-sm text-slate-500">${formatFacilityLocation(facility)}</div>
-            </div>
-          </div>
-        </button>
-      </li>`
-      )
+      .map((facility) => (isTileView ? renderFacilityTile(facility) : renderFacilityRow(facility)))
       .join('');
     container.querySelectorAll('button[data-id]').forEach((btn) => {
       btn.addEventListener('click', () => {
@@ -134,6 +136,78 @@ export function createFacilitiesModule({
         }
       });
     });
+    refreshLayoutAlignment();
+  }
+
+  function renderFacilityRow(facility) {
+    const imageSrc = escapeHtml(parseImageUrls(facility)[0] || PLACEHOLDER_IMAGE);
+    const alt = escapeHtml(
+      facility.name ? `Zdjęcie obiektu ${facility.name}` : 'Zdjęcie świetlicy',
+    );
+    return `
+      <button data-id="${facility.id}" class="w-full text-left rounded-xl border border-transparent px-4 py-3 transition hover:border-[#003580] hover:bg-[#003580]/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#003580]/40">
+        <div class="flex items-center gap-3">
+          <div class="relative h-16 w-24 flex-shrink-0 overflow-hidden rounded-xl bg-slate-100">
+            <img
+              src="${imageSrc}"
+              alt="${alt}"
+              class="h-full w-full object-cover"
+              loading="lazy"
+            />
+          </div>
+          <div class="min-w-0">
+            <div class="font-semibold text-slate-900">${escapeHtml(facility.name || '')}</div>
+            <div class="text-sm text-slate-500">${formatFacilityLocation(facility)}</div>
+          </div>
+        </div>
+      </button>
+    `;
+  }
+
+  function renderFacilityTile(facility) {
+    const imageSrc = escapeHtml(parseImageUrls(facility)[0] || PLACEHOLDER_IMAGE);
+    const alt = escapeHtml(
+      facility.name ? `Zdjęcie obiektu ${facility.name}` : 'Zdjęcie świetlicy',
+    );
+    const location = formatFacilityLocation(facility);
+    const badges = [];
+    if (facility.capacity) {
+      badges.push(
+        `<span class="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">👥 ${escapeHtml(String(facility.capacity))} osób</span>`,
+      );
+    }
+    const priceInfo = formatPrices(facility);
+    if (priceInfo) {
+      priceInfo
+        .split('·')
+        .map((part) => part.trim())
+        .filter(Boolean)
+        .forEach((part) => {
+          badges.push(
+            `<span class="inline-flex items-center gap-1 rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">${escapeHtml(part)}</span>`,
+          );
+        });
+    }
+    const badgesHtml = badges.join('');
+    return `
+      <button data-id="${facility.id}" class="group flex h-full w-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[#003580] hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-[#003580]/40">
+        <div class="relative aspect-[4/3] w-full overflow-hidden bg-slate-100">
+          <img
+            src="${imageSrc}"
+            alt="${alt}"
+            class="h-full w-full object-cover transition duration-300 ease-out group-hover:scale-[1.03]"
+            loading="lazy"
+          />
+        </div>
+        <div class="flex flex-1 flex-col gap-3 px-4 pb-4 pt-3">
+          <div class="text-base font-semibold text-slate-900">${escapeHtml(facility.name || '')}</div>
+          ${location
+            ? `<p class="flex items-center gap-2 text-sm text-slate-500"><span aria-hidden="true">📍</span><span>${location}</span></p>`
+            : ''}
+          ${badgesHtml ? `<div class="flex flex-wrap gap-2">${badgesHtml}</div>` : ''}
+        </div>
+      </button>
+    `;
   }
 
   function formatFacilityLocation(facility) {
@@ -485,6 +559,16 @@ export function createFacilitiesModule({
     renderMap();
   }
 
+  function setViewMode(view, { silent = false } = {}) {
+    const normalized = view === 'tiles' ? 'tiles' : 'list';
+    state.facilitiesView = normalized;
+    applyViewModeToDom(normalized);
+    if (!silent) {
+      renderFacilityList();
+    }
+    return normalized;
+  }
+
   const module = {
     initMapsApi,
     loadDictionaries,
@@ -493,6 +577,7 @@ export function createFacilitiesModule({
     renderFacilityList,
     renderMap,
     selectFacility,
+    setViewMode,
   };
 
   state.facilitiesModule = module;
