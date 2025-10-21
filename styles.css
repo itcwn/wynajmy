@@ -438,24 +438,63 @@ input[type="range"] {
   font-size: 0.65rem;
 }
 
+.date-picker-control {
+  width: 100%;
+  min-width: 210px;
+  padding: 0.65rem 0.95rem;
+  font-size: 0.95rem;
+  font-weight: 500;
+  line-height: 1.35;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.date-picker-control::-webkit-calendar-picker-indicator {
+  margin-left: 0.4rem;
+}
+
+@media (max-width: 640px) {
+  .date-picker-control {
+    min-width: 0;
+  }
+}
+
 .availability-legend {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem;
-  font-size: 0.75rem;
-  color: #475569;
-}
-
-.availability-legend span {
-  display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.65rem;
+  padding: 0.15rem 0;
 }
 
 .availability-legend-dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 999px;
+  display: inline-flex;
+  width: 0.9rem;
+  height: 0.9rem;
+  border-radius: 9999px;
+  box-shadow: 0 0 0 2px rgba(148, 163, 184, 0.25);
+  cursor: default;
+}
+
+.availability-legend-dot--available {
+  background: linear-gradient(135deg, #21a35f, #108c4b);
+}
+
+.availability-legend-dot--pending {
+  background: linear-gradient(135deg, #f4b632, #f29e0c);
+}
+
+.availability-legend-dot--busy {
+  background: linear-gradient(135deg, #e64a4a, #c53333);
+}
+
+.availability-legend--hours {
+  gap: 0.5rem;
+}
+
+.availability-legend--hours .availability-legend-dot {
+  width: 0.75rem;
+  height: 0.75rem;
+  box-shadow: 0 0 0 1px rgba(148, 163, 184, 0.3);
 }
 
 .step-validation-message {

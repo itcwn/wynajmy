@@ -169,22 +169,25 @@ export function renderMain() {
               </div>
               <div class="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm">
                 <div class="flex flex-wrap items-center justify-between gap-3">
-                  <div class="flex items-center gap-2">
-                    <button id="prevDay" class="rounded-full border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-[#003580] hover:text-[#003580]">◀</button>
-                    <button id="todayBtn" class="rounded-full border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-[#003580] hover:text-[#003580]">Dziś</button>
-                    <button id="nextDay" class="rounded-full border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-[#003580] hover:text-[#003580]">▶</button>
-                  </div>
-                  <div class="flex flex-wrap items-center gap-2 sm:flex-nowrap">
+                  <div class="flex flex-wrap items-center gap-3 sm:flex-nowrap sm:gap-4">
+                    <div class="flex items-center gap-2">
+                      <button id="prevDay" class="rounded-full border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-[#003580] hover:text-[#003580]">◀</button>
+                      <button id="todayBtn" class="rounded-full border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-[#003580] hover:text-[#003580]">Dziś</button>
+                      <button id="nextDay" class="rounded-full border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-[#003580] hover:text-[#003580]">▶</button>
+                    </div>
                     <input
                       id="dayPicker"
                       type="date"
-                      class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-[#003580] focus:ring-2 focus:ring-[#003580]/40 focus:outline-none"
+                      aria-label="Wybierz datę rezerwacji"
+                      class="date-picker-control w-full rounded-xl border border-slate-300 text-slate-900 focus:border-[#003580] focus:ring-2 focus:ring-[#003580]/40 focus:outline-none sm:w-auto"
                     />
+                  </div>
+                  <div class="flex flex-wrap items-center gap-2 sm:flex-nowrap sm:justify-end">
                     <button
                       id="openMonthPreview"
-                      class="inline-flex items-center justify-center gap-2 rounded-xl bg-[#003580] px-4 py-2 text-sm font-semibold text-white shadow-md shadow-[#003580]/30 transition hover:bg-[#00245c]"
+                      class="inline-flex items-center justify-center gap-2 rounded-xl bg-[#003580] px-4 py-2 text-sm font-semibold text-white shadow-md shadow-[#003580]/30 transition hover:bg-[#00245c] whitespace-nowrap"
                     >
-                      Kalendarz terminów
+                      Kalendarz obiektu
                     </button>
                     <button
                       id="openFacilityInstructions"
@@ -228,10 +231,25 @@ export function renderMain() {
               <p class="text-[11px] leading-snug text-slate-500">
                 Doba rozliczeniowa liczona jest zgodnie z umową i zależy od rodzaju wynajmu. Przekroczenie doby może wiązać się z dodatkową opłatą. Szczegóły w cenniku danego obiektu.
               </p>
-              <div class="availability-legend">
-                <span><span class="availability-legend-dot" style="background:#21a35f"></span>Dostępny</span>
-                <span><span class="availability-legend-dot" style="background:#f4b632"></span>Wstępnie zajęty</span>
-                <span><span class="availability-legend-dot" style="background:#e64a4a"></span>Zajęty</span>
+              <div class="availability-legend" aria-label="Legenda kalendarza dostępności">
+                <span
+                  class="availability-legend-dot availability-legend-dot--available"
+                  role="img"
+                  aria-label="Termin dostępny"
+                  title="Termin dostępny"
+                ></span>
+                <span
+                  class="availability-legend-dot availability-legend-dot--pending"
+                  role="img"
+                  aria-label="Termin wstępnie zajęty"
+                  title="Termin wstępnie zajęty"
+                ></span>
+                <span
+                  class="availability-legend-dot availability-legend-dot--busy"
+                  role="img"
+                  aria-label="Termin zajęty"
+                  title="Termin zajęty"
+                ></span>
               </div>
               <div
                 id="calendar"
@@ -242,9 +260,26 @@ export function renderMain() {
                   <span class="text-xs uppercase tracking-[0.18em] text-slate-400">Tryb godzinowy</span>
                 </div>
                 <div id="hours" class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"></div>
-                <p class="text-[11px] leading-snug text-slate-500">
-                  🔴 Zajęte (potwierdzone) · 🟡 Wstępne (czeka na akceptację) · brak koloru = dostępne
-                </p>
+                <div class="availability-legend availability-legend--hours" aria-label="Legenda dostępnych godzin">
+                  <span
+                    class="availability-legend-dot availability-legend-dot--busy"
+                    role="img"
+                    aria-label="Godziny zajęte (potwierdzone)"
+                    title="Godziny zajęte (potwierdzone)"
+                  ></span>
+                  <span
+                    class="availability-legend-dot availability-legend-dot--pending"
+                    role="img"
+                    aria-label="Godziny wstępne (czekają na akceptację)"
+                    title="Godziny wstępne (czekają na akceptację)"
+                  ></span>
+                  <span
+                    class="availability-legend-dot availability-legend-dot--available"
+                    role="img"
+                    aria-label="Godziny dostępne"
+                    title="Godziny dostępne"
+                  ></span>
+                </div>
               </div>
               <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div id="stepValidationMessage" class="step-validation-message hidden"></div>
