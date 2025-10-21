@@ -21,13 +21,16 @@
 </head>
 <body class="bg-[#eef3ff] text-slate-900 font-sans">
   <!-- Nagłówek -->
-  <header class="border-b border-slate-200 bg-white/95 backdrop-blur">
+  <header class="border-b border-slate-200 bg-[#fbfbfc]">
     <div class="max-w-7xl mx-auto flex items-center justify-between gap-4 px-6 py-4 flex-wrap">
-      <div>
-        <h1 class="text-2xl font-semibold text-[#003580]">Świetlice gminne — rezerwacje</h1>
-      </div>
+      <a href="./index.html" class="inline-flex items-center">
+        <img
+          src="./assets/logo_www.png"
+          alt="SOWA — system rezerwacji obiektów"
+          class="h-14 w-auto"
+        />
+      </a>
       <div class="flex items-center gap-3 flex-wrap text-sm">
-        <div class="text-gray-500">🦉 SOWA System Online do Wsparcia Automatycznej rezerwacji świetlic</div>
         <span
           id="caretakerLoggedInfo"
           class="hidden items-center gap-1 rounded-md bg-emerald-50 px-3 py-1 text-sm text-emerald-700"
@@ -38,13 +41,13 @@
         <a
           id="caretakerPanelLink"
           href="./caretakerLogin.html"
-          class="inline-flex items-center gap-1 rounded-md border border-indigo-200 px-3 py-1 font-medium text-indigo-700 hover:bg-indigo-50"
+          class="inline-flex items-center gap-2 rounded-full bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/60"
         >
           Panel opiekuna
         </a>
         <a
           href="./registerCaretaker.html"
-          class="inline-flex items-center gap-1 rounded-md border border-amber-200 px-3 py-1 font-medium text-amber-700 hover:bg-amber-50"
+          class="inline-flex items-center gap-2 rounded-full bg-amber-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-amber-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60"
         >
           Zarejestruj opiekuna
         </a>
@@ -53,7 +56,7 @@
   </header>
 
   <!-- Layout -->
-  <main class="main-shell mx-auto my-10 max-w-7xl p-6 sm:p-10">
+  <main class="main-shell mx-auto my-10 max-w-7xl p-5 sm:p-5">
     <div id="main"></div>
   </main>
 
