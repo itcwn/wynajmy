@@ -1,18 +1,18 @@
-# MVP Rezerwacje świetlic — HTML print dokumentów
+# MVP Rezerwacje obiektów — HTML print dokumentów
 
 Ten pakiet zawiera działające MVP:
 - statyczny frontend `index.html` (GitHub Pages),
-- kompletny schemat bazy `schema.sql` (Supabase) z tabelami, checklistą oraz politykami RLS dla opiekunów i świetlic,
+- kompletny schemat bazy `schema.sql` (Supabase) z tabelami, checklistą oraz politykami RLS dla opiekunów i obiektów,
 - proste drukowanie dokumentów jako HTML (okno podglądu + `window.print()`),
-- przykładowe 2 szablony: **Wniosek o wynajem** oraz **Protokół** — przypisane do wybranej świetlicy oraz szablony globalne (fallback).
+- przykładowe 2 szablony: **Wniosek o wynajem** oraz **Protokół** — przypisane do wybranego obiektu oraz szablony globalne (fallback).
 
 ## Szybki start
 1. W Supabase wykonaj `schema.sql` (SQL Editor).
-2. W Supabase Storage utwórz publiczny bucket (np. `facility-images`) na zdjęcia świetlic i zanotuj jego nazwę.
+2. W Supabase Storage utwórz publiczny bucket (np. `facility-images`) na zdjęcia obiektów i zanotuj jego nazwę.
 3. W `index.html` podmień `SUPABASE_URL` oraz `SUPABASE_ANON_KEY`.
 4. Jeśli korzystasz z innej nazwy bucketa, ustaw ją w `supabase-config.js` pod kluczem `STORAGE_BUCKET_FACILITY_IMAGES`.
 5. Wgraj `index.html` do GitHub i włącz Pages.
-6. Wybierz świetlicę, utwórz rezerwację — po zapisie pojawi się sekcja generowania dokumentów.
+6. Wybierz obiekt, utwórz rezerwację — po zapisie pojawi się sekcja generowania dokumentów.
 7. Wybierz szablon i drukuj (PDF z przeglądarki).
 
 ## Szablony dokumentów
@@ -21,7 +21,7 @@ Ten pakiet zawiera działające MVP:
   - `booking.title`, `booking.start_time`, `booking.end_time`, `booking.renter_name`, `booking.renter_email`, `booking.notes`
   - `facility.name`, `facility.address`, `facility.city`, `facility.postal_code`, `facility.capacity`, `facility.price_per_hour`, `facility.price_per_day`
 - Filtrowanie dat: `{{date booking.start_time}}` i `{{time booking.start_time}}`.
-- Jeśli istnieje szablon przypisany do świetlicy (`facility_id`), ma on priorytet nad globalnym (`facility_id` = NULL).
+- Jeśli istnieje szablon przypisany do obiektu (`facility_id`), ma on priorytet nad globalnym (`facility_id` = NULL).
 
 ## Modyfikacje
 - Dodaj nowe szablony w `document_templates` (INSERT) lub stwórz prosty panel w UI.

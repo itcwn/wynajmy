@@ -195,7 +195,7 @@ export function createDocGenerator({ state, supabase, domUtils, formatUtils }) {
     const fieldsWrap = mountEl.querySelector('#tplFields');
     const templates = await loadTemplatesForFacility(bookingRow?.facility_id ?? state.selectedFacility?.id);
     if (!templates.length) {
-      list.innerHTML = '<div class="p-3 border rounded bg-white text-gray-600">Brak dostępnych szablonów dla tej świetlicy.</div>';
+      list.innerHTML = '<div class="p-3 border rounded bg-white text-gray-600">Brak dostępnych szablonów dla tego obiektu.</div>';
       return;
     }
     templates.forEach((tpl) => {

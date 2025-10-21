@@ -1,4 +1,4 @@
--- Dodaje listę kontrolną przekazania i zdania dla świetlicy 04dd5f13-f1ae-4342-9649-3159d3176112.
+-- Dodaje listę kontrolną przekazania i zdania dla obiektu 04dd5f13-f1ae-4342-9649-3159d3176112.
 -- Uruchom po utworzeniu tabeli facility_checklist_items.
 
 set search_path = public;

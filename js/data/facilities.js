@@ -138,7 +138,7 @@ export function createFacilitiesModule({
   function renderFacilityTile(facility) {
     const imageSrc = escapeHtml(parseImageUrls(facility)[0] || PLACEHOLDER_IMAGE);
     const alt = escapeHtml(
-      facility.name ? `Zdjęcie obiektu ${facility.name}` : 'Zdjęcie świetlicy',
+      facility.name ? `Zdjęcie obiektu ${facility.name}` : 'Zdjęcie obiektu',
     );
     const location = formatFacilityLocation(facility);
     const badges = [];
@@ -444,7 +444,7 @@ export function createFacilitiesModule({
       if (facility?.name) {
         mainImg.alt = `Zdjęcie obiektu ${facility.name}`;
       } else {
-        mainImg.alt = 'Zdjęcie świetlicy';
+        mainImg.alt = 'Zdjęcie obiektu';
       }
       const handleImageEvent = () => {
         refreshLayoutAlignment();

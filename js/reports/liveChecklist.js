@@ -452,12 +452,12 @@ export function initLiveChecklistReport(initialConfig = {}) {
       return;
     }
     if (!state.selectedFacility) {
-      dom.progressIndicator.textContent = 'Wybierz świetlicę, aby rozpocząć raport.';
+      dom.progressIndicator.textContent = 'Wybierz obiekt, aby rozpocząć raport.';
       return;
     }
     const total = state.checklistItems.length;
     if (!total) {
-      dom.progressIndicator.textContent = 'Brak zdefiniowanej listy kontrolnej dla tej świetlicy.';
+      dom.progressIndicator.textContent = 'Brak zdefiniowanej listy kontrolnej dla tego obiektu.';
       return;
     }
     let done = 0;
@@ -474,7 +474,7 @@ export function initLiveChecklistReport(initialConfig = {}) {
 
   function generateReportText() {
     const lines = [];
-    lines.push('Raport przekazania / zdania świetlicy');
+    lines.push('Raport przekazania / zdania obiektu');
     lines.push(`ID raportu: ${state.sessionId}`);
     if (state.selectedFacility) {
       lines.push(`Świetlica: ${state.selectedFacility.name || '—'}`);
@@ -655,7 +655,7 @@ export function initLiveChecklistReport(initialConfig = {}) {
 <html lang="pl">
 <head>
   <meta charset="utf-8" />
-  <title>Raport przekazania świetlicy</title>
+  <title>Raport przekazania obiektu</title>
   <style>
     body { font-family: 'Inter', Arial, sans-serif; line-height: 1.5; padding: 32px; background: #f5f5f5; color: #1f2937; }
     h1 { font-size: 1.75rem; margin-bottom: 0.5rem; }
@@ -679,7 +679,7 @@ export function initLiveChecklistReport(initialConfig = {}) {
   </style>
 </head>
 <body>
-  <h1>Raport przekazania / zdania świetlicy</h1>
+  <h1>Raport przekazania / zdania obiektu</h1>
   <table class="meta">${headerRows.join('')}</table>
   ${sections.join('\n')} ${generalHtml}
 </body>
@@ -879,7 +879,7 @@ export function initLiveChecklistReport(initialConfig = {}) {
     });
     dom.sendEmail?.addEventListener('click', () => {
       const recipient = state.sessionData.caretakerEmail || '';
-      const subjectParts = ['Raport świetlicy'];
+      const subjectParts = ['Raport obiektu'];
       if (state.selectedFacility?.name) {
         subjectParts.push(state.selectedFacility.name);
       }
@@ -901,7 +901,7 @@ export function initLiveChecklistReport(initialConfig = {}) {
       return;
     }
     const previousValue = dom.facilitySelect.value;
-    dom.facilitySelect.innerHTML = '<option value="">— wybierz świetlicę —</option>';
+    dom.facilitySelect.innerHTML = '<option value="">— wybierz obiekt —</option>';
     const sorted = [...state.facilities].sort((a, b) => {
       const left = (a.name || '').toLocaleLowerCase('pl');
       const right = (b.name || '').toLocaleLowerCase('pl');
@@ -944,13 +944,13 @@ export function initLiveChecklistReport(initialConfig = {}) {
         }
       }
       if (!state.facilities.length) {
-        setStatus(dom.checklistMessage, 'Brak dostępnych świetlic.', 'error');
+        setStatus(dom.checklistMessage, 'Brak dostępnych obiektów.', 'error');
       } else {
-        setStatus(dom.checklistMessage, 'Wybierz świetlicę, aby rozpocząć raport.', 'info');
+        setStatus(dom.checklistMessage, 'Wybierz obiekt, aby rozpocząć raport.', 'info');
       }
     } catch (error) {
       console.error(error);
-      setStatus(dom.checklistMessage, 'Nie udało się pobrać listy świetlic.', 'error');
+      setStatus(dom.checklistMessage, 'Nie udało się pobrać listy obiektów.', 'error');
     }
   }
 
@@ -1016,7 +1016,7 @@ export function initLiveChecklistReport(initialConfig = {}) {
     dom.handoverList.innerHTML = '';
     dom.returnList.innerHTML = '';
     if (!state.selectedFacility) {
-      const placeholder = '<p class="text-sm text-gray-500">Wybierz świetlicę, aby rozpocząć.</p>';
+      const placeholder = '<p class="text-sm text-gray-500">Wybierz obiekt, aby rozpocząć.</p>';
       dom.handoverList.innerHTML = placeholder;
       dom.returnList.innerHTML = placeholder;
       updateProgressIndicator();
@@ -1206,7 +1206,7 @@ export function initLiveChecklistReport(initialConfig = {}) {
         return entry.done || (entry.remarks && entry.remarks.trim()) || (entry.attachments && entry.attachments.length);
       });
       if (hasProgress) {
-        const confirmed = window.confirm('Zmiana świetlicy spowoduje usunięcie bieżącego raportu. Kontynuować?');
+        const confirmed = window.confirm('Zmiana obiektu spowoduje usunięcie bieżącego raportu. Kontynuować?');
         if (!confirmed) {
           if (dom.facilitySelect) {
             dom.facilitySelect.value = previousId;
@@ -1241,7 +1241,7 @@ export function initLiveChecklistReport(initialConfig = {}) {
     updateReportPreview();
     setStatus(dom.saveStatus, stored ? 'Przywrócono zapisane dane raportu.' : 'Nowy raport został utworzony.', 'info');
     attachInputListeners();
-    setStatus(dom.checklistMessage, 'Wybierz świetlicę, aby rozpocząć raport.', 'info');
+    setStatus(dom.checklistMessage, 'Wybierz obiekt, aby rozpocząć raport.', 'info');
     await renderChecklist();
     updateProgressIndicator();
     await loadFacilities();

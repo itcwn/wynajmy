@@ -50,7 +50,7 @@ export function createInstructionsModal({ state, domUtils }) {
     } else {
       trigger.disabled = true;
       trigger.setAttribute('aria-disabled', 'true');
-      trigger.title = 'Wybierz świetlicę, aby zobaczyć instrukcję';
+      trigger.title = 'Wybierz obiekt, aby zobaczyć instrukcję';
       trigger.dataset.hasInstructions = '0';
       trigger.classList.add('bg-amber-500', 'text-white');
       trigger.classList.remove('bg-white', 'text-amber-700', 'border', 'border-amber-300');
@@ -79,7 +79,7 @@ export function createInstructionsModal({ state, domUtils }) {
       return;
     }
     if (!facility) {
-      content.textContent = 'Najpierw wybierz świetlicę z listy obok.';
+      content.textContent = 'Najpierw wybierz obiekt z listy obok.';
       content.classList.add('text-gray-500');
       return;
     }
@@ -88,7 +88,7 @@ export function createInstructionsModal({ state, domUtils }) {
       content.textContent = text;
       content.classList.remove('text-gray-500');
     } else {
-      content.textContent = 'Brak instrukcji dodanych przez opiekuna dla tej świetlicy.';
+      content.textContent = 'Brak instrukcji dodanych przez opiekuna dla tego obiektu.';
       content.classList.add('text-gray-500');
     }
   }

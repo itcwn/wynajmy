@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Edycja świetlicy</title>
+  <title>Edycja obiektu</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="./styles.css" />
 </head>
@@ -11,8 +11,8 @@
   <header class="p-4 bg-white shadow">
     <div class="max-w-4xl mx-auto flex items-center justify-between gap-3 flex-wrap">
       <div>
-        <p class="text-xs uppercase tracking-wide text-gray-400">Edycja świetlicy</p>
-        <h1 id="facilityTitle" class="text-xl font-bold">Ładowanie danych świetlicy...</h1>
+        <p class="text-xs uppercase tracking-wide text-gray-400">Edycja obiektu</p>
+        <h1 id="facilityTitle" class="text-xl font-bold">Ładowanie danych obiektu...</h1>
         <p class="text-sm text-gray-500">Zarządzaj informacjami prezentowanymi mieszkańcom.</p>
       </div>
       <nav class="flex items-center gap-3 text-sm">
@@ -24,7 +24,7 @@
 
   <main class="max-w-4xl mx-auto p-4 space-y-5">
     <div class="bg-white rounded-2xl shadow-md p-3">
-      <nav class="flex flex-wrap gap-2" role="tablist" aria-label="Sekcje edycji świetlicy">
+      <nav class="flex flex-wrap gap-2" role="tablist" aria-label="Sekcje edycji obiektu">
         <button
           type="button"
           class="px-4 py-2 rounded-xl text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -84,7 +84,7 @@
     >
       <div class="flex items-start justify-between gap-3 flex-wrap">
         <div class="space-y-1">
-          <h2 class="text-lg font-semibold">Informacje o świetlicy</h2>
+          <h2 class="text-lg font-semibold">Informacje o obiekcie</h2>
           <p class="text-sm text-gray-500">Podstawowe dane pobierane z systemu rezerwacyjnego.</p>
         </div>
       </div>
@@ -102,13 +102,13 @@
       hidden
     >
       <div class="space-y-1">
-        <h2 class="text-lg font-semibold">Edytuj dane świetlicy</h2>
+        <h2 class="text-lg font-semibold">Edytuj dane obiektu</h2>
         <p class="text-sm text-gray-500">Aktualizuj podstawowe informacje prezentowane mieszkańcom.</p>
       </div>
       <form id="facilityDetailsForm" class="space-y-4">
         <div class="grid gap-4 sm:grid-cols-2">
           <div class="sm:col-span-2">
-            <label for="facilityIdDisplay" class="block text-sm font-medium text-gray-700">Identyfikator świetlicy</label>
+            <label for="facilityIdDisplay" class="block text-sm font-medium text-gray-700">Identyfikator obiektu</label>
             <input
               id="facilityIdDisplay"
               type="text"
@@ -119,13 +119,13 @@
             />
           </div>
           <div class="sm:col-span-2">
-            <label for="facilityNameInput" class="block text-sm font-medium text-gray-700">Nazwa świetlicy</label>
+            <label for="facilityNameInput" class="block text-sm font-medium text-gray-700">Nazwa obiektu</label>
             <input
               id="facilityNameInput"
               name="name"
               type="text"
               class="mt-1 w-full border rounded-xl px-3 py-2"
-              placeholder="np. Świetlica osiedlowa przy ul. Kwiatowej"
+              placeholder="np. Sala wydarzeń przy ul. Kwiatowej"
               required
             />
           </div>
@@ -254,7 +254,7 @@
             id="facilityDescriptionInput"
             name="description"
             class="mt-1 w-full border rounded-xl px-3 py-2 h-32 resize-y"
-            placeholder="Opisz świetlicę, jej przeznaczenie oraz dodatkowe informacje dla mieszkańców."
+            placeholder="Opisz obiekt, jego przeznaczenie oraz dodatkowe informacje dla mieszkańców."
           ></textarea>
         </div>
         <div>
@@ -285,7 +285,7 @@
             type="submit"
             class="px-4 py-2 rounded-xl bg-blue-600 text-white disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            💾 Zapisz dane świetlicy
+            💾 Zapisz dane obiektu
           </button>
           <span id="facilityDetailsMessage" class="text-sm text-gray-500"></span>
         </div>
@@ -304,7 +304,7 @@
         <textarea
           id="instructionsInput"
           class="mt-1 w-full border rounded-xl px-3 py-2 h-64 resize-y"
-          placeholder="Opisz zasady korzystania ze świetlicy, np. sposób odbioru kluczy, wymagane dokumenty..."
+          placeholder="Opisz zasady korzystania z obiektu, np. sposób odbioru kluczy, wymagane dokumenty..."
           disabled
         ></textarea>
       </div>
@@ -325,8 +325,8 @@
     >
       <div class="flex items-start justify-between gap-3 flex-wrap">
         <div>
-          <h2 class="text-lg font-semibold">Wyposażenie świetlicy</h2>
-          <p class="text-sm text-gray-500">Zaznacz, jakie udogodnienia są dostępne w wybranej świetlicy.</p>
+          <h2 class="text-lg font-semibold">Wyposażenie obiektu</h2>
+          <p class="text-sm text-gray-500">Zaznacz, jakie udogodnienia są dostępne w wybranym obiekcie.</p>
         </div>
         <button
           id="saveAmenities"
@@ -354,7 +354,7 @@
       <div class="flex items-start justify-between gap-3 flex-wrap">
         <div>
           <h2 class="text-lg font-semibold">Lista kontrolna przekazania / zdania</h2>
-          <p class="text-sm text-gray-500">Dodaj kroki, które należy potwierdzić przy odbiorze lub zdaniu świetlicy.</p>
+          <p class="text-sm text-gray-500">Dodaj kroki, które należy potwierdzić przy odbiorze lub zdaniu obiektu.</p>
         </div>
         <div class="flex items-center gap-2 flex-wrap">
           <button

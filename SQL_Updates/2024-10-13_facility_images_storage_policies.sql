@@ -1,4 +1,4 @@
--- Polityki RLS dla bucketa Storage z obrazami świetlic.
+-- Polityki RLS dla bucketa Storage z obrazami obiektów.
 -- Uruchom po utworzeniu bucketa "RentalObjectsImages" w projekcie Supabase.
 
 set search_path = storage, public;

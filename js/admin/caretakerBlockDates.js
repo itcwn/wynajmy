@@ -181,13 +181,13 @@ function renderFacilityOptions(selectedId = '') {
   placeholder.disabled = true;
   placeholder.selected = true;
   placeholder.textContent = facilitiesCache.length
-    ? 'Wybierz świetlicę...'
-    : 'Brak dostępnych świetlic';
+    ? 'Wybierz obiekt...'
+    : 'Brak dostępnych obiektów';
   facilitySelect.appendChild(placeholder);
   facilitiesCache.forEach((facility) => {
     const option = document.createElement('option');
     option.value = facility.id;
-    option.textContent = facility.name || 'Świetlica';
+    option.textContent = facility.name || 'Obiekt';
     if (facility.id === previousValue) {
       option.selected = true;
       placeholder.selected = false;
@@ -311,10 +311,10 @@ async function loadFacilities() {
     })) : [];
     renderFacilityOptions();
   } catch (error) {
-    console.error('Nie udało się pobrać listy świetlic:', error);
+    console.error('Nie udało się pobrać listy obiektów:', error);
     facilitiesCache = [];
     renderFacilityOptions();
-    setStatus('Nie udało się pobrać listy świetlic.', 'error');
+    setStatus('Nie udało się pobrać listy obiektów.', 'error');
   }
 }
 
@@ -363,13 +363,13 @@ async function handleSubmit(event) {
     return;
   }
   if (!facilitiesCache.length) {
-    setStatus('Nie masz przypisanych świetlic.', 'error');
+    setStatus('Nie masz przypisanych obiektów.', 'error');
     return;
   }
 
   const facilityId = facilitySelect?.value || '';
   if (!facilityId) {
-    setStatus('Wybierz świetlicę.', 'error');
+    setStatus('Wybierz obiekt.', 'error');
     facilitySelect?.focus();
     return;
   }
@@ -489,7 +489,7 @@ function setupEventListeners() {
       await loadFacilities();
       renderFacilityOptions();
       if (!facilitiesCache.length) {
-        setStatus('Nie masz przypisanych świetlic.', 'error');
+        setStatus('Nie masz przypisanych obiektów.', 'error');
       }
       openModal();
     });

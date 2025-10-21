@@ -43,7 +43,7 @@
         </div>
         <div class="mt-3 grid grid-cols-2 gap-2">
           <select id="filterFacility" class="border rounded px-2 py-2">
-            <option value="">Wszystkie świetlice</option>
+            <option value="">Wszystkie obiekty</option>
           </select>
           <label class="inline-flex items-center gap-2 text-sm">
             <input id="onlyActive" type="checkbox" checked>
@@ -76,7 +76,7 @@
             <input name="code" required class="w-full border rounded px-3 py-2" />
           </div>
           <div>
-            <label class="text-sm">Przypisz do świetlicy (opcjonalnie)</label>
+            <label class="text-sm">Przypisz do obiektu (opcjonalnie)</label>
             <select name="facility_id" class="w-full border rounded px-3 py-2">
               <option value="">(globalny)</option>
             </select>
@@ -231,7 +231,7 @@
       const { data, error } = await supa.from('facilities').select('id,name').order('name');
       if (error) { console.error(error); return; }
       facilities = data || [];
-      filterFacility.innerHTML = '<option value="">Wszystkie świetlice</option>' + facilities.map(f=>`<option value="${f.id}">${f.name}</option>`).join('');
+      filterFacility.innerHTML = '<option value="">Wszystkie obiekty</option>' + facilities.map(f=>`<option value="${f.id}">${f.name}</option>`).join('');
       fFacility.innerHTML = '<option value="">(globalny)</option>' + facilities.map(f=>`<option value="${f.id}">${f.name}</option>`).join('');
     }
 

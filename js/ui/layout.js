@@ -78,10 +78,10 @@ export function renderMain() {
         >
           <div class="space-y-3">
             <h2 class="text-2xl font-semibold tracking-tight text-slate-900">
-              Wybierz świetlicę, aby rozpocząć
+              Wybierz obiekt, aby rozpocząć
             </h2>
             <p class="text-sm text-slate-600">
-              Skorzystaj z kafelków powyżej, aby zobaczyć szczegóły, dostępność oraz formularz rezerwacji wybranej świetlicy.
+              Skorzystaj z kafelków powyżej, aby zobaczyć szczegóły, dostępność oraz formularz rezerwacji wybranego obiektu.
             </p>
           </div>
         </div>
@@ -89,7 +89,7 @@ export function renderMain() {
         <div class="flow-space space-y-6 p-6">
           <div class="flex items-center gap-3">
             <h2 class="text-lg font-semibold tracking-tight text-slate-900">
-              <span class="${HEADING_ACCENT_CLASSES}">Wybrana świetlica</span>
+              <span class="${HEADING_ACCENT_CLASSES}">Wybrany obiekt</span>
             </h2>
             <span class="${HEADING_DIVIDER_CLASSES}"></span>
           </div>
@@ -97,7 +97,7 @@ export function renderMain() {
             <div class="md:col-span-1">
               <div id="facilityGallery" class="flex flex-col gap-4 md:h-full">
                 <div class="relative overflow-hidden rounded-2xl bg-stone-900/5">
-                  <img id="facilityImgMain" class="h-56 w-full object-cover" alt="Zdjęcie świetlicy" />
+                  <img id="facilityImgMain" class="h-56 w-full object-cover" alt="Zdjęcie obiektu" />
                   <button
                     id="openGalleryBtn"
                     type="button"
@@ -108,7 +108,7 @@ export function renderMain() {
                   </button>
                 </div>
                 <div id="galleryColumnInfo" class="text-xs leading-snug text-slate-500">
-                  Wybierz świetlicę, aby zobaczyć zdjęcia.
+                  Wybierz obiekt, aby zobaczyć zdjęcia.
                 </div>
               </div>
             </div>
@@ -396,7 +396,7 @@ export function renderMain() {
             &#10095;
           </button>
           <div id="galleryModalEmpty" class="absolute inset-0 hidden items-center justify-center px-6 text-center text-sm text-white/90">
-            Brak zdjęć dla tej świetlicy.
+            Brak zdjęć dla tego obiektu.
           </div>
         </div>
         <div id="galleryModalThumbs" class="hidden flex gap-2 overflow-x-auto p-3 bg-gray-50"></div>

@@ -152,7 +152,7 @@ export function createAvailabilityPreview({ state, dayView, domUtils, formatUtil
     setPreviewAnchor(baseDate);
     updateMonthHeading(baseDate);
     if (!currentFacilityId) {
-      ensureContainerMessage(container, 'Wybierz świetlicę, aby zobaczyć dostępność.');
+      ensureContainerMessage(container, 'Wybierz obiekt, aby zobaczyć dostępność.');
       return;
     }
     if (!(baseDate instanceof Date) || Number.isNaN(baseDate.getTime())) {
@@ -219,7 +219,7 @@ export function createAvailabilityPreview({ state, dayView, domUtils, formatUtil
   function init() {
     const container = $('#availabilityPreviewGrid');
     if (container) {
-      ensureContainerMessage(container, 'Wybierz świetlicę, aby zobaczyć dostępność.');
+      ensureContainerMessage(container, 'Wybierz obiekt, aby zobaczyć dostępność.');
     }
     updateMonthHeading(state.currentDate);
     if (typeof dayView.onDateChange === 'function') {
