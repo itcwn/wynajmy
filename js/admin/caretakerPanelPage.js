@@ -60,7 +60,7 @@ function renderFacilities(facilities) {
   if (!facilities || facilities.length === 0) {
     const emptyInfo = document.createElement('p');
     emptyInfo.className = 'text-sm text-gray-500';
-    emptyInfo.textContent = 'Nie masz jeszcze żadnych świetlic. Dodaj pierwszą, aby rozpocząć.';
+    emptyInfo.textContent = 'Nie masz jeszcze żadnych obiektów. Dodaj pierwszy, aby rozpocząć.';
     facilitiesList.appendChild(emptyInfo);
     return;
   }
@@ -74,7 +74,7 @@ function renderFacilities(facilities) {
 
     const title = document.createElement('h3');
     title.className = 'text-base font-semibold text-gray-900';
-    title.textContent = facility.name || 'Świetlica';
+    title.textContent = facility.name || 'Obiekt';
     header.appendChild(title);
 
     const cityLineParts = [];
@@ -125,7 +125,7 @@ function renderFacilities(facilities) {
     const editLink = document.createElement('a');
     editLink.className = 'inline-flex items-center gap-2 rounded-xl bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 focus:outline-none focus-visible:ring focus-visible:ring-blue-500/70';
     editLink.href = `./caretakerFacilityEdit.html?facility=${encodeURIComponent(facility.id)}`;
-    editLink.textContent = '✏️ Edytuj świetlicę';
+    editLink.textContent = '✏️ Edytuj obiekt';
     actions.appendChild(editLink);
 
     card.appendChild(actions);
@@ -176,7 +176,7 @@ async function bootstrap() {
     }
     isLoadingFacilities = true;
     setLoadingState(true);
-    setStatus(facilitiesMessage, forceRefresh ? 'Odświeżanie listy świetlic...' : 'Ładowanie listy świetlic...');
+    setStatus(facilitiesMessage, forceRefresh ? 'Odświeżanie listy obiektów...' : 'Ładowanie listy obiektów...');
 
     try {
       const facilities = await loadMyFacilities({
@@ -189,13 +189,13 @@ async function bootstrap() {
       setStatus(
         facilitiesMessage,
         facilitiesCache.length
-          ? 'Wybierz świetlicę, aby przejść do szczegółowej edycji.'
-          : 'Nie masz jeszcze żadnych świetlic przypisanych do konta.',
+          ? 'Wybierz obiekt, aby przejść do szczegółowej edycji.'
+          : 'Nie masz jeszcze żadnych obiektów przypisanych do konta.',
         facilitiesCache.length ? 'info' : 'info',
       );
     } catch (error) {
       console.error(error);
-      setStatus(facilitiesMessage, 'Nie udało się pobrać listy świetlic.', 'error');
+      setStatus(facilitiesMessage, 'Nie udało się pobrać listy obiektów.', 'error');
       if (!facilitiesCache.length) {
         renderFacilities([]);
       }
@@ -209,7 +209,7 @@ async function bootstrap() {
     session,
     onFacilityCreated: async () => {
       await loadFacilities({ forceRefresh: true });
-      setStatus(facilitiesMessage, 'Dodano nową świetlicę. Możesz teraz edytować jej szczegóły.', 'success');
+      setStatus(facilitiesMessage, 'Dodano nowy obiekt. Możesz teraz edytować jego szczegóły.', 'success');
       closeAddFacilityModalDialog({ restoreFocus: false, resetForm: true });
     },
   });

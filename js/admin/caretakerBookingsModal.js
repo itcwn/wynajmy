@@ -137,7 +137,7 @@ function renderBookings(bookings) {
     return;
   }
   if (!bookings.length) {
-    renderEmpty('Brak rezerwacji dla przypisanych świetlic.');
+    renderEmpty('Brak rezerwacji dla przypisanych obiektów.');
     return;
   }
   const items = bookings
@@ -218,8 +218,8 @@ async function loadBookings({ forceRefresh = false } = {}) {
       return;
     }
     if (!facilityIds.length) {
-      renderEmpty('Nie przypisano Ci żadnych świetlic.');
-      setStatus('Nie przypisano Ci żadnych świetlic.', 'info');
+      renderEmpty('Nie przypisano Ci żadnych obiektów.');
+      setStatus('Nie przypisano Ci żadnych obiektów.', 'info');
       return;
     }
     const client = getMyFacilitiesClient() || state.supabase;
@@ -248,12 +248,12 @@ async function loadBookings({ forceRefresh = false } = {}) {
     }));
     renderBookings(bookings);
     if (!bookings.length) {
-      setStatus('Brak rezerwacji dla przypisanych świetlic.', 'info');
+      setStatus('Brak rezerwacji dla przypisanych obiektów.', 'info');
     } else {
       const countText =
         bookings.length === 1
-          ? 'Znaleziono 1 rezerwację przypisaną do Twoich świetlic.'
-          : `Znaleziono ${bookings.length} rezerwacje przypisane do Twoich świetlic.`;
+          ? 'Znaleziono 1 rezerwację przypisaną do Twoich obiektów.'
+          : `Znaleziono ${bookings.length} rezerwacje przypisane do Twoich obiektów.`;
       setStatus(countText, 'success');
     }
   } catch (error) {

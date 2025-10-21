@@ -1,4 +1,4 @@
--- Skrypt uzupełniający słowniki dla typów wydarzeń i wyposażenia świetlic.
+-- Skrypt uzupełniający słowniki dla typów wydarzeń i wyposażenia obiektów.
 -- Uruchom po podstawowym schema.sql.
 
 set search_path = public;

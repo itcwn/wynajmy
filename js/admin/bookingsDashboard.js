@@ -659,8 +659,8 @@ async function refreshBookings({ showLoading = false, forceFacilitiesRefresh = f
     }
     if (!facilityIds.length) {
       state.bookings = [];
-      renderBookings({ emptyMessage: 'Nie przypisano Ci żadnych świetlic.' });
-      setMessage('Nie przypisano Ci żadnych świetlic lub brak oczekujących zgłoszeń.', 'info');
+      renderBookings({ emptyMessage: 'Nie przypisano Ci żadnych obiektów.' });
+      setMessage('Nie przypisano Ci żadnych obiektów lub brak oczekujących zgłoszeń.', 'info');
       return;
     }
     await loadFacilitiesDetails(facilityIds);
@@ -686,12 +686,12 @@ async function refreshBookings({ showLoading = false, forceFacilitiesRefresh = f
     state.bookings = [];
     const permissionIssue = isPermissionError(error);
     const emptyMessage = permissionIssue
-      ? 'Brak uprawnień do pobrania rezerwacji przypisanych do Twoich świetlic.'
+      ? 'Brak uprawnień do pobrania rezerwacji przypisanych do Twoich obiektów.'
       : 'Wystąpił błąd podczas pobierania rezerwacji.';
     renderBookings({ emptyMessage });
     if (permissionIssue) {
       setMessage(
-        'Nie masz uprawnień do odczytu przypisań świetlic. Skontaktuj się z administratorem systemu, aby potwierdzić dostęp.',
+        'Nie masz uprawnień do odczytu przypisań obiektów. Skontaktuj się z administratorem systemu, aby potwierdzić dostęp.',
         'error',
       );
     } else {

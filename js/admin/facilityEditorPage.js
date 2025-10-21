@@ -185,7 +185,7 @@ function appendUploadedUrlsToTextarea(urls) {
 }
 
 const FACILITY_FIELD_CONFIG = [
-  { name: 'name', label: 'Nazwa świetlicy', type: 'text', required: true },
+  { name: 'name', label: 'Nazwa obiektu', type: 'text', required: true },
   { name: 'postal_code', label: 'Kod pocztowy', type: 'text' },
   { name: 'city', label: 'Miejscowość', type: 'text' },
   { name: 'address_line1', label: 'Adres — linia 1', type: 'text' },
@@ -318,7 +318,7 @@ function collectFacilityFormPayload() {
     payload[field.name] = value;
   }
   if (!payload.name || !String(payload.name).trim()) {
-    throw new Error('Uzupełnij nazwę świetlicy.');
+    throw new Error('Uzupełnij nazwę obiektu.');
   }
   return payload;
 }
@@ -370,7 +370,7 @@ async function bootstrap() {
       return;
     }
     if (!selectedFacility) {
-      setStatus(facilityImagesUploadMessage, 'Wybierz świetlicę przed przesłaniem zdjęć.', 'error');
+      setStatus(facilityImagesUploadMessage, 'Wybierz obiekt przed przesłaniem zdjęć.', 'error');
       facilityImagesUploadInput.value = '';
       return;
     }
@@ -397,10 +397,10 @@ async function bootstrap() {
         setStatus(facilityImagesUploadMessage, 'Nie udało się przesłać zdjęć.', 'error');
       }
     } catch (error) {
-      console.error('Nie udało się przesłać zdjęć świetlicy:', error);
+      console.error('Nie udało się przesłać zdjęć obiektu:', error);
       setStatus(
         facilityImagesUploadMessage,
-        error?.message || 'Nie udało się przesłać zdjęć świetlicy.',
+        error?.message || 'Nie udało się przesłać zdjęć obiektu.',
         'error',
       );
     } finally {
@@ -418,7 +418,7 @@ async function bootstrap() {
   const params = new URLSearchParams(window.location.search);
   const facilityIdParam = params.get('facility');
   if (!facilityIdParam) {
-    setStatus(facilityStateMessage, 'Nie wskazano świetlicy do edycji.', 'error');
+    setStatus(facilityStateMessage, 'Nie wskazano obiektu do edycji.', 'error');
     if (textarea) {
       textarea.disabled = true;
     }
@@ -428,14 +428,14 @@ async function bootstrap() {
     saveAmenitiesBtn?.setAttribute('disabled', 'disabled');
     addChecklistItemBtn?.setAttribute('disabled', 'disabled');
     saveChecklistBtn?.setAttribute('disabled', 'disabled');
-    setFacilityFormMessage('Nie wskazano świetlicy do edycji.', 'error');
+    setFacilityFormMessage('Nie wskazano obiektu do edycji.', 'error');
     selectedFacility = null;
     populateFacilityForm(null);
     refreshFacilityFormState();
     return;
   }
 
-  setFacilityFormMessage('Ładowanie danych świetlicy...', 'info');
+  setFacilityFormMessage('Ładowanie danych obiektu...', 'info');
   selectedFacility = null;
   populateFacilityForm(null);
   refreshFacilityFormState();
@@ -455,9 +455,9 @@ async function bootstrap() {
 
   function updateHeader(facility) {
     if (titleEl) {
-      titleEl.textContent = facility?.name || 'Świetlica';
+      titleEl.textContent = facility?.name || 'Obiekt';
     }
-    setStatus(facilityStateMessage, facility ? '' : 'Nie znaleziono świetlicy.', facility ? 'info' : 'error');
+    setStatus(facilityStateMessage, facility ? '' : 'Nie znaleziono obiektu.', facility ? 'info' : 'error');
   }
 
   function updateMeta(facility) {
@@ -518,7 +518,7 @@ async function bootstrap() {
     event?.preventDefault();
     if (!selectedFacility || isSavingFacilityDetails) {
       if (!selectedFacility) {
-        setFacilityFormMessage('Brak danych świetlicy do zapisania.', 'error');
+        setFacilityFormMessage('Brak danych obiektu do zapisania.', 'error');
       }
       return;
     }
@@ -535,7 +535,7 @@ async function bootstrap() {
     }
     isSavingFacilityDetails = true;
     refreshFacilityFormState();
-    setFacilityFormMessage('Zapisywanie danych świetlicy...', 'info');
+    setFacilityFormMessage('Zapisywanie danych obiektu...', 'info');
     try {
       const facilityId = selectedFacility.id;
       const { error } = await supa.from('facilities').update(payload).eq('id', facilityId);
@@ -547,10 +547,10 @@ async function bootstrap() {
       updateHeader(selectedFacility);
       updateMeta(selectedFacility);
       populateFacilityForm(selectedFacility);
-      setFacilityFormMessage('Dane świetlicy zostały zapisane.', 'success');
+      setFacilityFormMessage('Dane obiektu zostały zapisane.', 'success');
     } catch (error) {
       console.error(error);
-      setFacilityFormMessage(error?.message || 'Nie udało się zapisać danych świetlicy.', 'error');
+      setFacilityFormMessage(error?.message || 'Nie udało się zapisać danych obiektu.', 'error');
     } finally {
       isSavingFacilityDetails = false;
       refreshFacilityFormState();
@@ -566,7 +566,7 @@ async function bootstrap() {
       return;
     }
     if (!selectedFacility) {
-      amenitiesContainer.innerHTML = '<p class="text-sm text-gray-500">Brak danych świetlicy.</p>';
+      amenitiesContainer.innerHTML = '<p class="text-sm text-gray-500">Brak danych obiektu.</p>';
       saveAmenitiesBtn?.setAttribute('disabled', 'disabled');
       return;
     }
@@ -641,13 +641,13 @@ async function bootstrap() {
     if (!facilityId) {
       selectedAmenityIds = new Set();
       renderAmenitiesList();
-      setStatus(amenitiesMessage, 'Brak danych świetlicy.', 'info');
+      setStatus(amenitiesMessage, 'Brak danych obiektu.', 'info');
       return;
     }
     if (amenitiesContainer) {
       amenitiesContainer.innerHTML = '<p class="text-sm text-gray-500">Ładowanie przypisań...</p>';
     }
-    setStatus(amenitiesMessage, 'Ładowanie udogodnień świetlicy...', 'info');
+    setStatus(amenitiesMessage, 'Ładowanie udogodnień obiektu...', 'info');
     selectedAmenityIds = new Set();
     try {
       const { data, error } = await supa
@@ -741,7 +741,7 @@ async function bootstrap() {
       return;
     }
     if (!selectedFacility) {
-      checklistContainer.innerHTML = '<p class="text-sm text-gray-500">Brak danych świetlicy.</p>';
+      checklistContainer.innerHTML = '<p class="text-sm text-gray-500">Brak danych obiektu.</p>';
       addChecklistItemBtn?.setAttribute('disabled', 'disabled');
       saveChecklistBtn?.setAttribute('disabled', 'disabled');
       setStatus(checklistMessage, '', 'info');
@@ -1087,7 +1087,7 @@ async function bootstrap() {
       }
     }
     if (!savedColumn) {
-      throw blockingError || new Error('Nie udało się zapisać instrukcji dla tej świetlicy.');
+      throw blockingError || new Error('Nie udało się zapisać instrukcji dla tego obiektu.');
     }
     selectedFacility.__instructionsColumn = savedColumn;
     selectedFacility[savedColumn] = newValue;
@@ -1130,7 +1130,7 @@ async function bootstrap() {
       if (saveBtn) {
         saveBtn.disabled = true;
       }
-      showMessage('Brak danych świetlicy do edycji.', 'info');
+      showMessage('Brak danych obiektu do edycji.', 'info');
       return;
     }
     if (textarea) {
@@ -1144,8 +1144,8 @@ async function bootstrap() {
   }
 
   async function loadFacilityDetails({ forceRefresh = false } = {}) {
-    setStatus(facilityStateMessage, 'Ładowanie danych świetlicy...', 'info');
-    setFacilityFormMessage('Ładowanie danych świetlicy...', 'info');
+    setStatus(facilityStateMessage, 'Ładowanie danych obiektu...', 'info');
+    setFacilityFormMessage('Ładowanie danych obiektu...', 'info');
     refreshFacilityFormState();
     try {
       const columns = [
@@ -1172,15 +1172,15 @@ async function bootstrap() {
         selectedFacility = null;
         updateHeader(null);
         updateMeta(null);
-        showMessage('Nie znaleziono świetlicy powiązanej z Twoim kontem.', 'error');
-        setStatus(amenitiesMessage, 'Nie znaleziono świetlicy.', 'error');
-        setStatus(checklistMessage, 'Nie znaleziono świetlicy.', 'error');
+        showMessage('Nie znaleziono obiektu powiązanego z Twoim kontem.', 'error');
+        setStatus(amenitiesMessage, 'Nie znaleziono obiektu.', 'error');
+        setStatus(checklistMessage, 'Nie znaleziono obiektu.', 'error');
         renderAmenitiesList();
         renderChecklist();
         textarea?.setAttribute('disabled', 'disabled');
         saveBtn?.setAttribute('disabled', 'disabled');
         populateFacilityForm(null);
-        setFacilityFormMessage('Nie znaleziono świetlicy powiązanej z Twoim kontem.', 'error');
+        setFacilityFormMessage('Nie znaleziono obiektu powiązanego z Twoim kontem.', 'error');
         refreshFacilityFormState();
         saveAmenitiesBtn?.setAttribute('disabled', 'disabled');
         addChecklistItemBtn?.setAttribute('disabled', 'disabled');
@@ -1194,7 +1194,7 @@ async function bootstrap() {
       setFacilityFormMessage('', 'info');
       updateInstructionsForm();
       renderAmenitiesList();
-      setStatus(amenitiesMessage, 'Ładowanie udogodnień świetlicy...', 'info');
+      setStatus(amenitiesMessage, 'Ładowanie udogodnień obiektu...', 'info');
       void loadFacilityAmenities(selectedFacility.id);
       resetChecklistState();
       renderChecklist();
@@ -1202,12 +1202,12 @@ async function bootstrap() {
       void loadChecklistForFacility(selectedFacility.id);
     } catch (error) {
       console.error(error);
-      setStatus(facilityStateMessage, 'Nie udało się pobrać danych świetlicy.', 'error');
-      showMessage('Nie udało się pobrać danych świetlicy.', 'error');
-      setStatus(amenitiesMessage, 'Nie udało się pobrać danych świetlicy.', 'error');
-      setStatus(checklistMessage, 'Nie udało się pobrać danych świetlicy.', 'error');
+      setStatus(facilityStateMessage, 'Nie udało się pobrać danych obiektu.', 'error');
+      showMessage('Nie udało się pobrać danych obiektu.', 'error');
+      setStatus(amenitiesMessage, 'Nie udało się pobrać danych obiektu.', 'error');
+      setStatus(checklistMessage, 'Nie udało się pobrać danych obiektu.', 'error');
       populateFacilityForm(null);
-      setFacilityFormMessage('Nie udało się pobrać danych świetlicy.', 'error');
+      setFacilityFormMessage('Nie udało się pobrać danych obiektu.', 'error');
       refreshFacilityFormState();
     }
   }

@@ -88,14 +88,14 @@ export function createBookingForm({
       try {
         const { data, error } = await build();
         if (error) {
-          console.warn('Błąd wczytywania świetlicy (źródło publiczne):', error);
+          console.warn('Błąd wczytywania obiektu (źródło publiczne):', error);
           continue;
         }
         if (data) {
           return data;
         }
       } catch (error) {
-        console.warn('Wyjątek wczytywania świetlicy:', error);
+        console.warn('Wyjątek wczytywania obiektu:', error);
       }
     }
     return null;
@@ -239,7 +239,7 @@ export function createBookingForm({
   async function handleSubmit(event) {
     event.preventDefault();
     if (!state.selectedFacility) {
-      alert('Najpierw wybierz świetlicę.');
+      alert('Najpierw wybierz obiekt.');
       return;
     }
     const form = event.target;
@@ -506,7 +506,7 @@ export function createBookingForm({
     }
     const facilityLoaded = await ensureFacilitySelected(bookingRow.facility_id);
     if (!facilityLoaded) {
-      alert('Nie udało się wczytać świetlicy powiązanej z rezerwacją.');
+      alert('Nie udało się wczytać obiektu powiązanego z rezerwacją.');
       return null;
     }
     state.bookingsCache.clear();
@@ -596,7 +596,7 @@ export function createBookingForm({
     if (looksLikeFacilityId) {
       handledAsFacility = await showDocumentsForFacility(trimmedBooking);
       if (handledAsFacility) {
-        setFormMessage('Wczytano dane świetlicy z linku. Możesz wygenerować dokumenty.', 'info');
+        setFormMessage('Wczytano dane obiektu z linku. Możesz wygenerować dokumenty.', 'info');
         return;
       }
     }

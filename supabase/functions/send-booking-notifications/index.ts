@@ -59,7 +59,7 @@ const supabaseUrl = Deno.env.get('SUPABASE_URL');
 const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 const resendApiKey = Deno.env.get('RESEND_API_KEY') ?? '';
 const senderEmail = Deno.env.get('NOTIFY_FROM_EMAIL') ?? 'onboarding@resend.dev';
-const senderName = Deno.env.get('NOTIFY_FROM_NAME') ?? 'System rezerwacji świetlic';
+const senderName = Deno.env.get('NOTIFY_FROM_NAME') ?? 'System rezerwacji obiektów';
 const appBaseUrlRaw = Deno.env.get('APP_BASE_URL') ?? '';
 const caretakerPanelPath = Deno.env.get('CARETAKER_PANEL_PATH') ?? '/caretakerPanel.html';
 const bookingPagePath = Deno.env.get('BOOKING_PAGE_PATH') ?? '/';
@@ -259,7 +259,7 @@ function buildCaretakerMessage(payload: BookingPayload, event: NotificationEvent
     lines.unshift('Status: nowe zgłoszenie rezerwacji oczekuje na decyzję.');
   }
 
-  const subjectBase = payload.facility?.name ?? 'świetlica';
+  const subjectBase = payload.facility?.name ?? 'obiekt';
   let subject = `Rezerwacja – ${subjectBase}`;
   if (event === 'booking_created') {
     subject = `Nowa rezerwacja oczekuje na decyzję – ${subjectBase}`;
@@ -289,7 +289,7 @@ function buildRenterMessage(payload: BookingPayload, event: NotificationEvent, t
   const caretakerEmails = getCaretakerEmails(payload);
   const caretakerNames = formatCaretakerNames(payload);
   const lines = buildCommonLines(payload, timeZone);
-  const facilityName = payload.facility?.name ?? 'świetlica';
+  const facilityName = payload.facility?.name ?? 'obiekt';
   if (event === 'booking_created') {
     lines.unshift('Twoje zgłoszenie zostało zapisane i oczekuje na potwierdzenie opiekuna obiektu.');
     if (caretakerNames || caretakerEmails.length) {

@@ -109,7 +109,7 @@ function collectSelectedFiles(input) {
 }
 
 const FIELD_CONFIG = [
-  { name: 'name', label: 'Nazwa świetlicy', type: 'text', required: true },
+  { name: 'name', label: 'Nazwa obiektu', type: 'text', required: true },
   { name: 'postal_code', label: 'Kod pocztowy', type: 'text' },
   { name: 'city', label: 'Miejscowość', type: 'text' },
   { name: 'address_line1', label: 'Adres — linia 1', type: 'text' },
@@ -180,7 +180,7 @@ function collectPayload(form) {
   }
 
   if (!payload.name || !payload.name.trim()) {
-    throw new Error('Uzupełnij nazwę świetlicy.');
+    throw new Error('Uzupełnij nazwę obiektu.');
   }
 
   return payload;
@@ -274,7 +274,7 @@ export function initFacilityForm({
         toggleFormDisabled(form, false);
         return;
       }
-      setMessage(messageElement, 'Przesyłanie zdjęć świetlicy...', 'info');
+      setMessage(messageElement, 'Przesyłanie zdjęć obiektu...', 'info');
       const prefix = `new/${Date.now().toString(36)}`;
       try {
         uploadedImageUrls = await uploadFacilityImages({
@@ -284,10 +284,10 @@ export function initFacilityForm({
           prefix,
         });
       } catch (uploadError) {
-        console.error('Nie udało się przesłać zdjęć świetlicy:', uploadError);
+        console.error('Nie udało się przesłać zdjęć obiektu:', uploadError);
         setMessage(
           messageElement,
-          uploadError?.message || 'Nie udało się przesłać zdjęć świetlicy. Spróbuj ponownie.',
+          uploadError?.message || 'Nie udało się przesłać zdjęć obiektu. Spróbuj ponownie.',
           'error',
         );
         state.isSaving = false;
@@ -299,7 +299,7 @@ export function initFacilityForm({
       }
     }
 
-    setMessage(messageElement, 'Zapisywanie nowej świetlicy...', 'info');
+    setMessage(messageElement, 'Zapisywanie nowego obiektu...', 'info');
 
     if (uploadedImageUrls.length) {
       const existing = splitImageList(payload.image_urls);
@@ -344,9 +344,9 @@ export function initFacilityForm({
             }
             assignmentMessage = ' Świetlica została przypisana do Twojego konta.';
           } catch (assignError) {
-            console.error('Nie udało się przypisać świetlicy do opiekuna:', assignError);
+            console.error('Nie udało się przypisać obiektu do opiekuna:', assignError);
             assignmentMessage =
-              ' Nie udało się automatycznie przypisać świetlicy do opiekuna. Możesz spróbować ponownie później w panelu.';
+              ' Nie udało się automatycznie przypisać obiektu do opiekuna. Możesz spróbować ponownie później w panelu.';
           }
         }
       }
@@ -360,7 +360,7 @@ export function initFacilityForm({
         try {
           await onFacilityCreated(insertedFacility);
         } catch (callbackError) {
-          console.error('Błąd podczas odświeżania listy świetlic:', callbackError);
+          console.error('Błąd podczas odświeżania listy obiektów:', callbackError);
         }
       }
       document.dispatchEvent(
@@ -369,8 +369,8 @@ export function initFacilityForm({
         }),
       );
     } catch (error) {
-      console.error('Nie udało się dodać świetlicy:', error);
-      setMessage(messageElement, error?.message || 'Nie udało się dodać świetlicy.', 'error');
+      console.error('Nie udało się dodać obiektu:', error);
+      setMessage(messageElement, error?.message || 'Nie udało się dodać obiektu.', 'error');
     } finally {
       state.isSaving = false;
       toggleFormDisabled(form, false);

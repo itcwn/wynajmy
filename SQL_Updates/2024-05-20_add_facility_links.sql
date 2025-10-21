@@ -1,4 +1,4 @@
--- Aktualizacja dodająca linki do cennika i regulaminu wynajmu świetlicy.
+-- Aktualizacja dodająca linki do cennika i regulaminu wynajmu obiektu.
 -- Uruchom w środowisku produkcyjnym po wdrożeniu zmian w aplikacji.
 
 set search_path = public;
