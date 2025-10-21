@@ -412,6 +412,35 @@ create policy "Caretaker update facilities"
     )
   );
 
+-- Polityki RLS dla bucketa przechowującego zdjęcia świetlic.
+alter table storage.objects enable row level security;
+
+drop policy if exists "Caretaker upload facility images" on storage.objects;
+create policy "Caretaker upload facility images"
+  on storage.objects
+  for insert
+  to authenticated
+  with check (
+    lower(bucket_id) = lower('RentalObjectsImages')
+    and (
+      coalesce(storage.foldername(name), '') like 'facility-%'
+      or coalesce(storage.foldername(name), '') = 'new'
+    )
+  );
+
+drop policy if exists "Caretaker delete facility images" on storage.objects;
+create policy "Caretaker delete facility images"
+  on storage.objects
+  for delete
+  to authenticated
+  using (
+    lower(bucket_id) = lower('RentalObjectsImages')
+    and (
+      coalesce(storage.foldername(name), '') like 'facility-%'
+      or coalesce(storage.foldername(name), '') = 'new'
+    )
+  );
+
 -- Automatyczne przypisanie nowej świetlicy do bieżącego opiekuna.
 drop trigger if exists facilities_assign_caretaker on public.facilities;
 
