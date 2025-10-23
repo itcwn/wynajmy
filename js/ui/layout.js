@@ -25,31 +25,7 @@ export function renderMain() {
             </h2>
           </div>
         </div>
-        <div class="border-b border-slate-200 bg-slate-50/60 px-6 py-4">
-          <label for="facilitySearch" class="block text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-            Szukaj po nazwie lub miejscowości
-          </label>
-          <div class="mt-2 flex items-center gap-2">
-            <div class="relative flex-1">
-              <span class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-slate-400" aria-hidden="true">🔍</span>
-              <input
-                id="facilitySearch"
-                type="search"
-                inputmode="search"
-                placeholder="Wpisz nazwę obiektu lub miejscowość"
-                class="w-full border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm text-slate-800 shadow-sm focus:border-[#003580] focus:outline-none focus:ring-2 focus:ring-[#003580]/40"
-                autocomplete="off"
-              />
-            </div>
-            <button
-              type="button"
-              id="facilitySearchClear"
-              class="hidden whitespace-nowrap rounded border border-slate-300 px-3 py-2 text-xs font-medium text-slate-600 transition hover:border-[#003580] hover:text-[#003580]"
-            >
-              Wyczyść
-            </button>
-          </div>
-        </div>
+        
         <div id="facilities" class="facility-grid px-6 pb-6 pt-4"></div>
         <div class="border-t border-slate-200 bg-slate-50/60 px-6 py-4">
           <button
