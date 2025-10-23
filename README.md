@@ -45,8 +45,8 @@ Ten pakiet zawiera działające MVP:
   `send-booking-notifications`.
 
 ## Rejestracja opiekuna
-- W nagłówku aplikacji dostępny jest link „Zarejestruj opiekuna”, który prowadzi do formularza `registerCaretaker.html`.
-- Formularz zapisuje dane do tabeli `caretakers` oraz przypisania w tabeli `facility_caretakers`.
+- W nagłówku aplikacji dostępny jest link „Dodaj obiekt”, który kieruje na stronę `marketing.html` opisującą ofertę wdrożenia.
+- Formularz rejestracji opiekuna pozostaje dostępny pod adresem `registerCaretaker.html`; zapisuje dane do tabeli `caretakers` oraz przypisania w tabeli `facility_caretakers`.
 - Wszystkie funkcje pomocnicze i polityki RLS wymagane do obsługi opiekunów są częścią `schema.sql`.
 
 ## Test środowiska Supabase

@@ -3,429 +3,367 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>SOWA — platforma rezerwacji przestrzeni i zasobów</title>
+  <title>SOWA — dodaj obiekt i zarządzaj rezerwacjami</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+    rel="stylesheet"
+  />
   <style>
-    body { font-family: 'Inter', sans-serif; }
-    .bg-grid {
-      background-image: radial-gradient(circle at 1px 1px, rgba(79, 70, 229, 0.12) 1px, transparent 0);
-      background-size: 18px 18px;
+    body {
+      font-family: 'Inter', sans-serif;
     }
   </style>
 </head>
-<body class="bg-slate-950 text-slate-100">
-  <header class="relative overflow-hidden">
-    <div class="absolute inset-0 bg-gradient-to-br from-indigo-500/20 via-violet-500/10 to-transparent"></div>
-    <div class="relative mx-auto flex max-w-6xl items-center justify-between px-6 py-6 lg:px-10">
-      <div class="flex items-center gap-3">
-        <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-500/20 backdrop-blur">
-          <span class="text-2xl">🦉</span>
-        </div>
-        <div>
-          <p class="text-sm uppercase tracking-[0.25em] text-indigo-200">Platforma rezerwacji</p>
-          <h1 class="text-2xl font-semibold text-white">SOWA — inteligentne zarządzanie przestrzeniami</h1>
-        </div>
-      </div>
-      <nav class="hidden items-center gap-6 text-sm text-indigo-100/80 lg:flex">
-        <a href="#industries" class="transition hover:text-white">Dla kogo</a>
-        <a href="#features" class="transition hover:text-white">Moduły</a>
-        <a href="#outcomes" class="transition hover:text-white">Korzyści</a>
-        <a href="#pricing" class="transition hover:text-white">Pakiety</a>
-        <a href="#contact" class="transition hover:text-white">Kontakt</a>
+<body class="bg-[#eef3ff] text-slate-900 font-sans">
+  <header class="border-b border-slate-200 bg-[#fbfbfc]">
+    <div class="mx-auto flex max-w-7xl items-center justify-between gap-6 px-6 py-4 flex-wrap">
+      <a href="./index.html" class="inline-flex items-center">
+        <img
+          src="./assets/logo_www.png"
+          alt="SOWA — system rezerwacji obiektów"
+          class="h-[5.6rem] w-auto"
+        />
+      </a>
+      <nav class="flex flex-wrap items-center gap-5 text-sm text-slate-600">
+        <a href="#industries" class="transition hover:text-slate-900">Dla kogo</a>
+        <a href="#features" class="transition hover:text-slate-900">Moduły</a>
+        <a href="#outcomes" class="transition hover:text-slate-900">Korzyści</a>
+        <a href="#pricing" class="transition hover:text-slate-900">Pakiety</a>
+        <a href="#contact" class="transition hover:text-slate-900">Kontakt</a>
       </nav>
       <a
-        href="#contact"
-        class="hidden rounded-full bg-white px-5 py-2 text-sm font-semibold text-slate-900 shadow-lg shadow-indigo-500/25 transition hover:bg-indigo-100 lg:inline-flex"
+        href="./index.html"
+        class="inline-flex items-center gap-2 rounded-full bg-[#003580] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#00245c]"
       >
-        Umów prezentację
+        Wróć do kalendarza
       </a>
     </div>
-    <section class="relative mx-auto max-w-5xl px-6 pb-16 pt-10 text-center lg:px-10 lg:pb-24 lg:pt-16">
-      <div class="mx-auto max-w-3xl space-y-6">
-        <span class="inline-flex items-center gap-2 rounded-full bg-indigo-500/20 px-4 py-1 text-sm font-medium text-indigo-100">
-          Rezerwacje obiektów • Zarządzanie zasobami • Komunikacja z klientami
-        </span>
-        <h2 class="text-4xl font-semibold leading-tight text-white sm:text-5xl">
-          Jedna platforma dla gmin, centrów kultury, uczelni i firm udostępniających przestrzenie.
-        </h2>
-        <p class="text-lg text-indigo-100/80">
-          SOWA automatyzuje przyjmowanie rezerwacji, obsługę płatności i rozliczeń oraz przekazuje zespołom aktualny obraz wykorzystania przestrzeni.
-          Sprawdzi się w urzędach, instytucjach kultury, obiektach sportowych, biurach elastycznych i kampusach akademickich.
-        </p>
-        <div class="flex flex-col items-center justify-center gap-4 sm:flex-row">
-          <a
-            href="#pricing"
-            class="inline-flex items-center gap-3 rounded-full bg-indigo-400 px-6 py-3 text-base font-semibold text-slate-900 shadow-lg shadow-indigo-500/30 transition hover:bg-indigo-300"
-          >
-            Zobacz pakiety
-            <span aria-hidden="true">→</span>
-          </a>
-          <a
-            href="#contact"
-            class="inline-flex items-center gap-3 rounded-full border border-indigo-400/50 px-6 py-3 text-base font-semibold text-indigo-100 transition hover:border-indigo-200 hover:text-white"
-          >
-            Porozmawiaj z konsultantem
-          </a>
-        </div>
-      </div>
-    </section>
   </header>
 
-  <main class="bg-slate-950">
-    <section id="industries" class="mx-auto max-w-6xl px-6 py-16 lg:px-10 lg:py-20">
-      <div class="mx-auto max-w-2xl text-center">
-        <p class="text-sm uppercase tracking-[0.3em] text-indigo-200">Dla kogo pracuje SOWA</p>
-        <h3 class="mt-4 text-3xl font-semibold text-white sm:text-4xl">Elastyczny system dla wielu typów organizacji</h3>
-        <p class="mt-4 text-indigo-100/80">
-          Łączymy potrzeby jednostek samorządowych, organizacji społecznych i biznesu. Każda jednostka otrzymuje własne szablony procesów i poziomy uprawnień.
-        </p>
-      </div>
-      <div class="mt-12 grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-        <article class="rounded-3xl border border-indigo-500/10 bg-slate-900/50 p-7">
-          <h4 class="text-lg font-semibold text-white">Administracja publiczna</h4>
-          <p class="mt-3 text-sm text-indigo-100/80">
-            Gminy, powiaty i urzędy marszałkowskie zarządzają salami, boiskami i sprzętem komunalnym. SOWA wspiera publikację kalendarzy i transparentne rozliczenia.
-          </p>
-        </article>
-        <article class="rounded-3xl border border-indigo-500/10 bg-slate-900/50 p-7">
-          <h4 class="text-lg font-semibold text-white">Centra kultury i domy kultury</h4>
-          <p class="mt-3 text-sm text-indigo-100/80">
-            Harmonogramy wydarzeń, wynajem sal prób i obsługa wolontariuszy w jednym miejscu. Automatyczne checklisty pomagają zespołom technicznym.
-          </p>
-        </article>
-        <article class="rounded-3xl border border-indigo-500/10 bg-slate-900/50 p-7">
-          <h4 class="text-lg font-semibold text-white">Uczelnie i szkoły</h4>
-          <p class="mt-3 text-sm text-indigo-100/80">
-            Rezerwacje sal wykładowych, laboratoriów, sprzętu audiowizualnego i miejsc noclegowych. Zintegrowane rozliczenia na podstawie kart studenckich.
-          </p>
-        </article>
-        <article class="rounded-3xl border border-indigo-500/10 bg-slate-900/50 p-7">
-          <h4 class="text-lg font-semibold text-white">Operatorzy sportowi</h4>
-          <p class="mt-3 text-sm text-indigo-100/80">
-            Grafik dla hal sportowych, stadionów i lodowisk. Dynamiczne cenniki, sprzedaż online i limity wejść na wydarzenia.
-          </p>
-        </article>
-        <article class="rounded-3xl border border-indigo-500/10 bg-slate-900/50 p-7">
-          <h4 class="text-lg font-semibold text-white">Coworkingi i biura elastyczne</h4>
-          <p class="mt-3 text-sm text-indigo-100/80">
-            Zarządzanie salami konferencyjnymi, biurkami i zasobami wspólnymi. Integracja z systemami kontroli dostępu i fakturowaniem.
-          </p>
-        </article>
-        <article class="rounded-3xl border border-indigo-500/10 bg-slate-900/50 p-7">
-          <h4 class="text-lg font-semibold text-white">Organizacje społeczne i eventowe</h4>
-          <p class="mt-3 text-sm text-indigo-100/80">
-            Procesy zgłoszeń, wynajem sprzętu, sprzedaż biletów i raportowanie dotacji. Idealne dla fundacji, stowarzyszeń i agencji eventowych.
-          </p>
-        </article>
-      </div>
-    </section>
-
-    <section id="features" class="border-t border-indigo-500/10 bg-slate-900/60">
-      <div class="mx-auto max-w-6xl space-y-10 px-6 py-16 lg:px-10 lg:py-20">
-        <div class="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-          <h3 class="text-3xl font-semibold text-white lg:max-w-xl">
-            Moduły, które porządkują rezerwacje i operacje w złożonych organizacjach.
-          </h3>
-          <p class="max-w-xl text-indigo-100/80">
-            Wybierasz tylko te komponenty, które są potrzebne w Twoim procesie. Każdy moduł można aktywować w ramach innego pakietu lub dodać później.
-          </p>
-        </div>
-        <div class="grid gap-6 md:grid-cols-2">
-          <article class="rounded-3xl border border-indigo-500/10 bg-slate-900/50 p-8">
-            <h4 class="text-xl font-semibold text-white">Harmonogramy i kalendarze</h4>
-            <p class="mt-3 text-sm text-indigo-100/80">
-              Publiczne widoki dla klientów, widoki wewnętrzne dla zespołów oraz blokady kolizji. Integracja z Outlookiem, Google i stronami WWW.
-            </p>
-          </article>
-          <article class="rounded-3xl border border-indigo-500/10 bg-slate-900/50 p-8">
-            <h4 class="text-xl font-semibold text-white">Rozliczenia i płatności</h4>
-            <p class="mt-3 text-sm text-indigo-100/80">
-              Płatności online, kaucje, faktury i raporty budżetowe. Możliwość podpięcia własnych cenników lub taryf sezonowych.
-            </p>
-          </article>
-          <article class="rounded-3xl border border-indigo-500/10 bg-slate-900/50 p-8">
-            <h4 class="text-xl font-semibold text-white">Obsługa zasobów i checklist</h4>
-            <p class="mt-3 text-sm text-indigo-100/80">
-              Zarządzanie sprzętem, protokoły zdawczo-odbiorcze, check-in/out oraz checklisty dla techników i opiekunów.
-            </p>
-          </article>
-          <article class="rounded-3xl border border-indigo-500/10 bg-slate-900/50 p-8">
-            <h4 class="text-xl font-semibold text-white">Komunikacja i zgody</h4>
-            <p class="mt-3 text-sm text-indigo-100/80">
-              Powiadomienia SMS, e-mail i web push, formularze zgód RODO, integracje z usługami newsletterowymi i CRM.
-            </p>
-          </article>
-        </div>
-      </div>
-    </section>
-
-    <section id="outcomes" class="mx-auto max-w-6xl px-6 py-16 lg:px-10 lg:py-20">
-      <div class="grid gap-10 lg:grid-cols-[0.9fr_1.1fr]">
+  <main class="space-y-24 py-16 sm:py-20">
+    <section class="px-6">
+      <div class="mx-auto grid max-w-7xl items-center gap-12 rounded-3xl bg-gradient-to-br from-white via-[#f0f5ff] to-[#d9e6ff] p-10 shadow-xl shadow-[#003580]/10 lg:grid-cols-[1.05fr_0.95fr] lg:p-16">
         <div class="space-y-6">
-          <span class="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-200">
-            Dla zespołów operacyjnych i zarządzających
+          <span class="inline-flex items-center gap-2 rounded-full bg-[#003580]/10 px-4 py-1 text-sm font-medium text-[#003580]">
+            Dodaj nowy obiekt do SOWY
           </span>
-          <h3 class="text-3xl font-semibold text-white">Zobacz, jakie wyniki osiągają organizacje</h3>
-          <p class="text-indigo-100/80">
-            Wdrożenia SOWY skracają czas obsługi pojedynczego zgłoszenia nawet o 50%. Zespoły podejmują decyzje na podstawie danych, a klienci otrzymują spójne doświadczenie niezależnie od kanału kontaktu.
+          <h1 class="text-4xl font-semibold leading-tight text-slate-900 sm:text-5xl">
+            Uporządkuj rezerwacje i udostępnianie przestrzeni dzięki platformie SOWA.
+          </h1>
+          <p class="text-lg text-slate-600">
+            Automatyzujemy przyjmowanie zgłoszeń, zarządzanie kalendarzami i rozliczenia. Otrzymujesz narzędzia, które prowadzą Twoich klientów od pierwszego kontaktu aż po finalne potwierdzenie rezerwacji.
           </p>
-          <ul class="space-y-3 text-sm text-indigo-100/80">
+          <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <a
+              href="#contact"
+              class="inline-flex items-center justify-center gap-3 rounded-full bg-[#003580] px-6 py-3 text-base font-semibold text-white shadow-lg shadow-[#003580]/30 transition hover:bg-[#00245c]"
+            >
+              Porozmawiaj z zespołem
+            </a>
+            <a
+              href="#pricing"
+              class="inline-flex items-center justify-center gap-3 rounded-full border border-[#003580]/30 px-6 py-3 text-base font-semibold text-[#003580] transition hover:border-[#003580] hover:text-[#00245c]"
+            >
+              Poznaj pakiety
+            </a>
+          </div>
+          <dl class="grid gap-6 rounded-2xl bg-white/90 p-6 shadow-inner shadow-[#003580]/5 sm:grid-cols-3">
+            <div>
+              <dt class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Zespoły</dt>
+              <dd class="mt-1 text-2xl font-semibold text-slate-900">50+ jednostek</dd>
+            </div>
+            <div>
+              <dt class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Rezerwacje</dt>
+              <dd class="mt-1 text-2xl font-semibold text-slate-900">1000+ miesięcznie</dd>
+            </div>
+            <div>
+              <dt class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Czas wdrożenia</dt>
+              <dd class="mt-1 text-2xl font-semibold text-slate-900">od 14 dni</dd>
+            </div>
+          </dl>
+        </div>
+        <div class="space-y-5 rounded-3xl bg-white/80 p-8 shadow-xl shadow-[#003580]/15 backdrop-blur">
+          <h2 class="text-2xl font-semibold text-slate-900">Dlaczego warto</h2>
+          <ul class="space-y-4 text-sm text-slate-600">
             <li class="flex items-start gap-3">
-              <span class="mt-1 text-emerald-400">✔</span>
-              <span>Automatyczny monitoring obłożenia i prognozy na kolejne miesiące.</span>
+              <span class="mt-1 inline-flex h-6 w-6 flex-none items-center justify-center rounded-full bg-[#003580]/10 text-[#003580]">✔</span>
+              Automatyczne kalendarze i publikacja dostępności na stronie gminy, szkoły lub instytucji.
             </li>
             <li class="flex items-start gap-3">
-              <span class="mt-1 text-emerald-400">✔</span>
-              <span>Eksport danych do systemów finansowych oraz narzędzi Business Intelligence.</span>
+              <span class="mt-1 inline-flex h-6 w-6 flex-none items-center justify-center rounded-full bg-[#003580]/10 text-[#003580]">✔</span>
+              Powiadomienia e-mail i SMS dla opiekunów oraz klientów w kluczowych momentach procesu.
             </li>
             <li class="flex items-start gap-3">
-              <span class="mt-1 text-emerald-400">✔</span>
-              <span>Pełna historia rezerwacji, umów i rozliczeń w jednym repozytorium.</span>
+              <span class="mt-1 inline-flex h-6 w-6 flex-none items-center justify-center rounded-full bg-[#003580]/10 text-[#003580]">✔</span>
+              Rozliczenia, faktury i kaucje w jednym narzędziu z możliwością integracji z systemami finansowymi.
+            </li>
+            <li class="flex items-start gap-3">
+              <span class="mt-1 inline-flex h-6 w-6 flex-none items-center justify-center rounded-full bg-[#003580]/10 text-[#003580]">✔</span>
+              Baza wiedzy i checklisty przekazywane technikom przygotowującym obiekt na wydarzenie.
             </li>
           </ul>
         </div>
-        <div class="rounded-3xl border border-emerald-500/10 bg-emerald-500/5 p-10 shadow-2xl shadow-emerald-900/20">
-          <h4 class="text-xl font-semibold text-white">Jak przebiega wdrożenie</h4>
-          <ol class="mt-6 space-y-5 text-sm text-indigo-100/80">
+      </div>
+    </section>
+
+    <section id="industries" class="px-6">
+      <div class="mx-auto max-w-7xl space-y-10">
+        <div class="mx-auto max-w-2xl text-center">
+          <p class="text-xs font-semibold uppercase tracking-[0.3em] text-[#003580]/70">Dla kogo pracuje SOWA</p>
+          <h3 class="mt-4 text-3xl font-semibold text-slate-900 sm:text-4xl">Elastyczny system dla wielu typów organizacji</h3>
+          <p class="mt-4 text-base text-slate-600">
+            Łączymy potrzeby jednostek samorządowych, instytucji kultury oraz firm. Każdy partner otrzymuje własne procesy, widoki i poziomy uprawnień.
+          </p>
+        </div>
+        <div class="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+          <article class="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm">
+            <h4 class="text-lg font-semibold text-slate-900">Administracja publiczna</h4>
+            <p class="mt-3 text-sm text-slate-600">
+              Zarządzanie salami, boiskami i sprzętem komunalnym. Transparentne rozliczenia i jasne zasady udostępniania.
+            </p>
+          </article>
+          <article class="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm">
+            <h4 class="text-lg font-semibold text-slate-900">Centra i domy kultury</h4>
+            <p class="mt-3 text-sm text-slate-600">
+              Harmonogramy wydarzeń, obsługa wolontariuszy i checklisty techniczne w jednym narzędziu.
+            </p>
+          </article>
+          <article class="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm">
+            <h4 class="text-lg font-semibold text-slate-900">Uczelnie i szkoły</h4>
+            <p class="mt-3 text-sm text-slate-600">
+              Rezerwacje sal wykładowych, laboratoriów i miejsc noclegowych wraz z rozliczeniami.</p>
+          </article>
+          <article class="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm">
+            <h4 class="text-lg font-semibold text-slate-900">Operatorzy sportowi</h4>
+            <p class="mt-3 text-sm text-slate-600">
+              Grafiki dla hal, stadionów i basenów, sprzedaż online oraz dynamiczne cenniki.
+            </p>
+          </article>
+          <article class="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm">
+            <h4 class="text-lg font-semibold text-slate-900">Coworkingi i biura</h4>
+            <p class="mt-3 text-sm text-slate-600">
+              Zarządzanie salami konferencyjnymi i zasobami wspólnymi wraz z integracją kontroli dostępu.
+            </p>
+          </article>
+          <article class="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm">
+            <h4 class="text-lg font-semibold text-slate-900">Organizacje społeczne</h4>
+            <p class="mt-3 text-sm text-slate-600">
+              Zgłoszenia wolontariuszy, wynajem sprzętu i raportowanie dotacji w jednym panelu.
+            </p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="features" class="px-6">
+      <div class="mx-auto max-w-7xl rounded-3xl bg-white p-10 shadow-xl shadow-slate-200/60">
+        <div class="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+          <h3 class="text-3xl font-semibold text-slate-900 lg:max-w-xl">
+            Moduły, które porządkują rezerwacje i procesy operacyjne.
+          </h3>
+          <p class="max-w-xl text-base text-slate-600">
+            Włączasz tylko te komponenty, które są potrzebne Twojemu zespołowi. Każdy moduł można aktywować wraz z rozwojem organizacji.
+          </p>
+        </div>
+        <div class="mt-10 grid gap-6 md:grid-cols-2">
+          <article class="rounded-3xl border border-slate-200 bg-[#f7f9ff] p-8">
+            <h4 class="text-xl font-semibold text-slate-900">Kalendarze i harmonogramy</h4>
+            <p class="mt-3 text-sm text-slate-600">
+              Publiczne widoki dla klientów i wewnętrzne dla zespołów, blokady kolizji oraz integracje z Outlook, Google i stronami WWW.
+            </p>
+          </article>
+          <article class="rounded-3xl border border-slate-200 bg-[#f7f9ff] p-8">
+            <h4 class="text-xl font-semibold text-slate-900">Rozliczenia i płatności</h4>
+            <p class="mt-3 text-sm text-slate-600">
+              Płatności online, kaucje i faktury z raportami budżetowymi oraz integracją z systemami finansowymi.
+            </p>
+          </article>
+          <article class="rounded-3xl border border-slate-200 bg-[#f7f9ff] p-8">
+            <h4 class="text-xl font-semibold text-slate-900">Zasoby i checklisty</h4>
+            <p class="mt-3 text-sm text-slate-600">
+              Zarządzanie sprzętem, protokoły zdawczo-odbiorcze oraz checklisty dla techników i opiekunów.
+            </p>
+          </article>
+          <article class="rounded-3xl border border-slate-200 bg-[#f7f9ff] p-8">
+            <h4 class="text-xl font-semibold text-slate-900">Komunikacja i zgody</h4>
+            <p class="mt-3 text-sm text-slate-600">
+              Powiadomienia SMS, e-mail i web push, formularze zgód RODO oraz integracje z systemami newsletterowymi.
+            </p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="outcomes" class="px-6">
+      <div class="mx-auto max-w-7xl grid gap-10 rounded-3xl border border-slate-200 bg-white p-10 shadow-xl shadow-slate-200/60 lg:grid-cols-[0.9fr_1.1fr]">
+        <div class="space-y-6">
+          <span class="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-600">
+            Dla zespołów operacyjnych i zarządzających
+          </span>
+          <h3 class="text-3xl font-semibold text-slate-900">Zobacz, jakie wyniki osiągają organizacje</h3>
+          <p class="text-base text-slate-600">
+            Wdrożenia SOWY skracają czas obsługi pojedynczego zgłoszenia nawet o 50%. Zespoły podejmują decyzje na podstawie danych, a klienci otrzymują spójne doświadczenie niezależnie od kanału kontaktu.
+          </p>
+          <ul class="space-y-3 text-sm text-slate-600">
+            <li class="flex items-start gap-3">
+              <span class="mt-1 text-emerald-500">✔</span>
+              Automatyczny monitoring obłożenia i prognozy na kolejne miesiące.
+            </li>
+            <li class="flex items-start gap-3">
+              <span class="mt-1 text-emerald-500">✔</span>
+              Eksport danych do systemów finansowych oraz narzędzi Business Intelligence.
+            </li>
+            <li class="flex items-start gap-3">
+              <span class="mt-1 text-emerald-500">✔</span>
+              Pełna historia rezerwacji, umów i rozliczeń w jednym repozytorium.
+            </li>
+          </ul>
+        </div>
+        <div class="space-y-6 rounded-3xl bg-[#f3fbf7] p-10 shadow-inner shadow-emerald-200/40">
+          <h4 class="text-xl font-semibold text-slate-900">Jak przebiega wdrożenie</h4>
+          <ol class="mt-4 space-y-5 text-sm text-slate-600">
             <li class="flex gap-4">
-              <span class="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-emerald-400/20 text-emerald-200">1</span>
-              <span>Diagnoza procesów rezerwacyjnych oraz plan migracji danych historycznych.</span>
+              <span class="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-emerald-500/15 text-emerald-600">1</span>
+              Diagnoza procesów rezerwacyjnych oraz plan migracji danych historycznych.
             </li>
             <li class="flex gap-4">
-              <span class="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-emerald-400/20 text-emerald-200">2</span>
-              <span>Konfiguracja modułów, integracje z systemami płatności, SSO i stronami WWW.</span>
+              <span class="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-emerald-500/15 text-emerald-600">2</span>
+              Konfiguracja modułów, integracje z systemami płatności, SSO i stronami WWW.
             </li>
             <li class="flex gap-4">
-              <span class="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-emerald-400/20 text-emerald-200">3</span>
-              <span>Szkolenia dla administratorów i komunikacja z użytkownikami końcowymi. Start produkcyjny z opieką Customer Success.</span>
+              <span class="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-emerald-500/15 text-emerald-600">3</span>
+              Szkolenia dla zespołu, uruchomienie kanałów komunikacji i wsparcie powdrożeniowe.
             </li>
           </ol>
         </div>
       </div>
     </section>
 
-    <section id="pricing" class="border-t border-indigo-500/10 bg-slate-900/70">
-      <div class="mx-auto max-w-6xl px-6 py-16 lg:px-10 lg:py-20">
-        <div class="mx-auto max-w-2xl text-center">
-          <p class="text-sm uppercase tracking-[0.3em] text-indigo-200">Pakiety abonamentowe</p>
-          <h3 class="mt-4 text-3xl font-semibold text-white sm:text-4xl">Skaluj rozwiązanie w tempie rozwoju organizacji</h3>
-          <p class="mt-4 text-indigo-100/80">
-            Rozpocznij od darmowego planu i aktywuj kolejne moduły wraz ze wzrostem zespołu. W każdej chwili możesz przełączyć pakiet lub dodać integracje premium.
+    <section id="pricing" class="px-6">
+      <div class="mx-auto max-w-7xl space-y-10">
+        <div class="flex flex-col gap-4 text-center">
+          <p class="text-xs font-semibold uppercase tracking-[0.3em] text-[#003580]/70">Pakiety wdrożeniowe</p>
+          <h3 class="text-3xl font-semibold text-slate-900 sm:text-4xl">Wybierz zakres dopasowany do potrzeb</h3>
+          <p class="text-base text-slate-600">
+            Koszt wdrożenia zależy od liczby obiektów, integracji i wsparcia po uruchomieniu. Poniższe pakiety pomagają rozpocząć rozmowę.
           </p>
         </div>
-        <div class="mt-12 grid gap-6 md:grid-cols-2 xl:grid-cols-4">
-          <article class="flex flex-col rounded-3xl border border-indigo-500/10 bg-slate-950/50 p-8">
-            <h4 class="text-sm font-semibold uppercase tracking-[0.3em] text-indigo-200">Start</h4>
-            <p class="mt-2 text-3xl font-semibold text-white">0 zł</p>
-            <p class="mt-3 text-sm text-indigo-100/80">Dla zespołów stawiających pierwsze kroki w digitalizacji rezerwacji.</p>
-            <ul class="mt-6 space-y-3 text-sm text-indigo-100/80">
-              <li class="flex gap-3"><span class="text-emerald-400">✔</span>Publiczny kalendarz z limitem 5 zasobów</li>
-              <li class="flex gap-3"><span class="text-emerald-400">✔</span>Obsługa wniosków i powiadomienia e-mail</li>
-              <li class="flex gap-3"><span class="text-emerald-400">✔</span>Panel klienta z historią rezerwacji</li>
-              <li class="flex gap-3"><span class="text-emerald-400">✔</span>Wsparcie mailowe w godzinach biurowych</li>
-            </ul>
-            <a
-              href="#contact"
-              class="mt-8 inline-flex items-center justify-center rounded-full border border-indigo-400/40 px-6 py-3 text-sm font-semibold text-indigo-100 transition hover:border-indigo-200 hover:text-white"
-            >
-              Aktywuj plan Start
-            </a>
-          </article>
-          <article class="flex flex-col rounded-3xl border border-indigo-500/10 bg-slate-950/50 p-8">
-            <h4 class="text-sm font-semibold uppercase tracking-[0.3em] text-indigo-200">Rozwój</h4>
-            <p class="mt-2 text-3xl font-semibold text-white">249 zł / mies.</p>
-            <p class="mt-3 text-sm text-indigo-100/80">Dla organizacji prowadzących kilka lokalizacji lub grup zasobów.</p>
-            <ul class="mt-6 space-y-3 text-sm text-indigo-100/80">
-              <li class="flex gap-3"><span class="text-emerald-400">✔</span>Do 20 zasobów i nieograniczona liczba użytkowników</li>
-              <li class="flex gap-3"><span class="text-emerald-400">✔</span>Automatyczne raporty PDF i eksporty CSV</li>
-              <li class="flex gap-3"><span class="text-emerald-400">✔</span>Check-in/out oraz checklisty dla zespołów</li>
-              <li class="flex gap-3"><span class="text-emerald-400">✔</span>Chat i konsultacje online w 48h</li>
-            </ul>
-            <a
-              href="#contact"
-              class="mt-8 inline-flex items-center justify-center rounded-full border border-indigo-400/40 px-6 py-3 text-sm font-semibold text-indigo-100 transition hover:border-indigo-200 hover:text-white"
-            >
-              Zamów prezentację Rozwój
-            </a>
-          </article>
-          <article class="flex flex-col rounded-3xl border border-indigo-400/40 bg-indigo-500/10 p-8 shadow-2xl shadow-indigo-900/40">
-            <div class="mb-4 inline-flex items-center gap-2 self-start rounded-full bg-amber-400/20 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-amber-200">
-              Najczęściej wybierany
+        <div class="grid gap-6 md:grid-cols-3">
+          <article class="flex flex-col gap-6 rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
+            <div>
+              <h4 class="text-lg font-semibold text-slate-900">Start</h4>
+              <p class="mt-2 text-sm text-slate-600">Dla pojedynczych obiektów i mniejszych jednostek.</p>
             </div>
-            <h4 class="text-sm font-semibold uppercase tracking-[0.3em] text-indigo-200">Pro</h4>
-            <p class="mt-2 text-3xl font-semibold text-white">449 zł / mies.</p>
-            <p class="mt-3 text-sm text-indigo-100/80">Dla sieci obiektów i operatorów złożonych procesów.</p>
-            <ul class="mt-6 space-y-3 text-sm text-indigo-100/80">
-              <li class="flex gap-3"><span class="text-emerald-400">✔</span>Nielimitowane zasoby, harmonogramy i wydarzenia</li>
-              <li class="flex gap-3"><span class="text-emerald-400">✔</span>Powiadomienia SMS i integracje z systemami płatności</li>
-              <li class="flex gap-3"><span class="text-emerald-400">✔</span>Zaawansowane reguły cenowe oraz rozliczenia z partnerami</li>
-              <li class="flex gap-3"><span class="text-emerald-400">✔</span>Dedykowany opiekun wdrożenia i szkolenia live</li>
+            <ul class="space-y-3 text-sm text-slate-600">
+              <li>Konfiguracja kalendarzy i formularzy zgłoszeń.</li>
+              <li>Szablony dokumentów i automatyczne powiadomienia.</li>
+              <li>Podstawowe raporty oraz eksport danych.</li>
             </ul>
-            <a
-              href="#contact"
-              class="mt-8 inline-flex items-center justify-center rounded-full bg-indigo-400 px-6 py-3 text-sm font-semibold text-slate-900 transition hover:bg-indigo-300"
-            >
-              Umów demo Pro
-            </a>
+            <p class="text-sm font-semibold text-[#003580]">od 4 900 PLN netto</p>
           </article>
-          <article class="flex flex-col rounded-3xl border border-indigo-500/10 bg-slate-950/50 p-8">
-            <h4 class="text-sm font-semibold uppercase tracking-[0.3em] text-indigo-200">Enterprise</h4>
-            <p class="mt-2 text-3xl font-semibold text-white">Wycena indywidualna</p>
-            <p class="mt-3 text-sm text-indigo-100/80">Dla podmiotów z wymaganiami compliance, integracją ERP i wsparciem 24/7.</p>
-            <ul class="mt-6 space-y-3 text-sm text-indigo-100/80">
-              <li class="flex gap-3"><span class="text-emerald-400">✔</span>Integracja z SSO, ERP, ePUAP i BI</li>
-              <li class="flex gap-3"><span class="text-emerald-400">✔</span>Modelowanie zaawansowanych procesów i obiegi dokumentów</li>
-              <li class="flex gap-3"><span class="text-emerald-400">✔</span>SLA 24/7, audyty bezpieczeństwa i testy wydajności</li>
-              <li class="flex gap-3"><span class="text-emerald-400">✔</span>Możliwość hostingu w chmurze prywatnej lub on-premise</li>
+          <article class="flex flex-col gap-6 rounded-3xl border border-[#003580]/40 bg-white p-8 shadow-lg shadow-[#003580]/10">
+            <div>
+              <span class="inline-flex items-center rounded-full bg-[#003580]/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-[#003580]">Najczęściej wybierany</span>
+              <h4 class="mt-3 text-lg font-semibold text-slate-900">Rozszerzony</h4>
+              <p class="mt-2 text-sm text-slate-600">Dla sieci obiektów lub instytucji z rozbudowanymi procesami.</p>
+            </div>
+            <ul class="space-y-3 text-sm text-slate-600">
+              <li>Integracje płatności online i moduł rozliczeń.</li>
+              <li>Check-listy operacyjne i zarządzanie zasobami.</li>
+              <li>Dedykowane szkolenia oraz opiekun wdrożenia.</li>
             </ul>
-            <a
-              href="#contact"
-              class="mt-8 inline-flex items-center justify-center rounded-full border border-indigo-400/40 px-6 py-3 text-sm font-semibold text-indigo-100 transition hover:border-indigo-200 hover:text-white"
-            >
-              Zaplanuj rozmowę o Enterprise
-            </a>
+            <p class="text-sm font-semibold text-[#003580]">od 9 900 PLN netto</p>
+          </article>
+          <article class="flex flex-col gap-6 rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
+            <div>
+              <h4 class="text-lg font-semibold text-slate-900">Enterprise</h4>
+              <p class="mt-2 text-sm text-slate-600">Dla miast, uczelni i firm wymagających niestandardowych integracji.</p>
+            </div>
+            <ul class="space-y-3 text-sm text-slate-600">
+              <li>Integracje SSO, ERP oraz dedykowane procesy akceptacji.</li>
+              <li>Rozszerzone SLA i wsparcie 24/7.</li>
+              <li>Indywidualne roadmapy rozwoju funkcji.</li>
+            </ul>
+            <p class="text-sm font-semibold text-[#003580]">wycena po analizie</p>
           </article>
         </div>
       </div>
     </section>
 
-    <section class="bg-grid">
-      <div class="mx-auto flex max-w-5xl flex-col gap-10 px-6 py-16 text-center lg:px-10 lg:py-20">
-        <h3 class="text-3xl font-semibold text-white">Zaufali nam operatorzy przestrzeni z całej Polski</h3>
-        <div class="grid gap-6 text-left md:grid-cols-3">
-          <blockquote class="rounded-3xl border border-indigo-500/10 bg-slate-900/70 p-6 text-sm text-indigo-100/80">
-            <p>„Po wdrożeniu SOWY obsługujemy rezerwacje miejskich obiektów w trzech dzielnicach. Zespoły terenowe otrzymują checklisty automatycznie.”</p>
-            <footer class="mt-4 text-xs text-indigo-200">Zastępca dyrektora zarządu infrastruktury komunalnej</footer>
-          </blockquote>
-          <blockquote class="rounded-3xl border border-indigo-500/10 bg-slate-900/70 p-6 text-sm text-indigo-100/80">
-            <p>„Platforma połączyła sprzedaż biletów, rezerwacje sal i wypożyczanie sprzętu. Dane trafiają bezpośrednio do naszego BI.”</p>
-            <footer class="mt-4 text-xs text-indigo-200">Kierowniczka ds. digitalizacji domu kultury</footer>
-          </blockquote>
-          <blockquote class="rounded-3xl border border-indigo-500/10 bg-slate-900/70 p-6 text-sm text-indigo-100/80">
-            <p>„Coworking funkcjonuje teraz na autopilocie. Klienci rezerwują sale, a my kontrolujemy dostęp i faktury bez dodatkowej pracy.”</p>
-            <footer class="mt-4 text-xs text-indigo-200">CEO operatora biur elastycznych</footer>
-          </blockquote>
-        </div>
-        <div class="flex flex-col items-center justify-center gap-4 sm:flex-row">
-          <a
-            href="#contact"
-            class="inline-flex items-center gap-3 rounded-full bg-indigo-400 px-6 py-3 text-base font-semibold text-slate-900 shadow-lg shadow-indigo-500/30 transition hover:bg-indigo-300"
-          >
-            Poproś o referencje branżowe
-          </a>
-          <span class="text-sm text-indigo-100/70">Wdrożenia produkcyjne w 30–45 dni.</span>
-        </div>
-      </div>
-    </section>
-
-    <section id="contact" class="border-t border-indigo-500/10 bg-slate-900/80">
-      <div class="mx-auto grid max-w-5xl gap-10 px-6 py-16 lg:grid-cols-[1.1fr_0.9fr] lg:px-10 lg:py-20">
-        <div class="space-y-6">
-          <span class="inline-flex items-center gap-2 rounded-full bg-indigo-500/20 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-indigo-100">
-            Skontaktuj się z nami
-          </span>
-          <h3 class="text-3xl font-semibold text-white">Opowiedz nam o swoich przestrzeniach i procesach</h3>
-          <p class="text-indigo-100/80">
-            Wypełnij formularz, a w ciągu jednego dnia roboczego otrzymasz propozycję terminu spotkania, demo dostosowane do Twojej branży oraz rekomendację pakietu.
-          </p>
-          <ul class="space-y-3 text-sm text-indigo-100/70">
-            <li class="flex gap-3"><span class="text-emerald-400">✔</span>Bezpłatna konsultacja z architektem rozwiązań</li>
-            <li class="flex gap-3"><span class="text-emerald-400">✔</span>Przykładowe scenariusze wdrożeń dla różnych organizacji</li>
-            <li class="flex gap-3"><span class="text-emerald-400">✔</span>Wsparcie w przygotowaniu danych i harmonogramu projektu</li>
-          </ul>
-        </div>
-        <form class="rounded-3xl border border-indigo-500/10 bg-slate-950/60 p-8 shadow-xl shadow-indigo-900/30">
-          <div class="grid gap-5">
-            <div>
-              <label for="contact-name" class="text-sm font-medium text-indigo-100">Imię i nazwisko</label>
-              <input
-                id="contact-name"
-                type="text"
-                name="name"
-                class="mt-2 w-full rounded-2xl border border-indigo-500/30 bg-slate-900/70 px-4 py-3 text-sm text-white placeholder:text-indigo-300/40 focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-400/40"
-                placeholder="Jan Kowalski"
-              />
-            </div>
-            <div class="grid gap-5 sm:grid-cols-2">
-              <div>
-                <label for="contact-email" class="text-sm font-medium text-indigo-100">Adres e-mail</label>
-                <input
-                  id="contact-email"
-                  type="email"
-                  name="email"
-                  class="mt-2 w-full rounded-2xl border border-indigo-500/30 bg-slate-900/70 px-4 py-3 text-sm text-white placeholder:text-indigo-300/40 focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-400/40"
-                  placeholder="kontakt@organizacja.pl"
-                />
-              </div>
-              <div>
-                <label for="contact-phone" class="text-sm font-medium text-indigo-100">Telefon kontaktowy</label>
-                <input
-                  id="contact-phone"
-                  type="tel"
-                  name="phone"
-                  class="mt-2 w-full rounded-2xl border border-indigo-500/30 bg-slate-900/70 px-4 py-3 text-sm text-white placeholder:text-indigo-300/40 focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-400/40"
-                  placeholder="+48 600 000 000"
-                />
-              </div>
-            </div>
-            <div>
-              <label for="contact-organization" class="text-sm font-medium text-indigo-100">Organizacja</label>
-              <input
-                id="contact-organization"
-                type="text"
-                name="organization"
-                class="mt-2 w-full rounded-2xl border border-indigo-500/30 bg-slate-900/70 px-4 py-3 text-sm text-white placeholder:text-indigo-300/40 focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-400/40"
-                placeholder="Centrum Kultury Miasto, Uniwersytet, Coworking..."
-              />
-            </div>
-            <div>
-              <label for="contact-plan" class="text-sm font-medium text-indigo-100">Interesujący pakiet</label>
-              <select
-                id="contact-plan"
-                name="plan"
-                class="mt-2 w-full rounded-2xl border border-indigo-500/30 bg-slate-900/70 px-4 py-3 text-sm text-white focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-400/40"
-              >
-                <option value="start">Start</option>
-                <option value="growth">Rozwój</option>
-                <option value="pro">Pro</option>
-                <option value="enterprise">Enterprise</option>
-              </select>
-            </div>
-            <div>
-              <label for="contact-message" class="text-sm font-medium text-indigo-100">Wiadomość</label>
-              <textarea
-                id="contact-message"
-                name="message"
-                rows="4"
-                class="mt-2 w-full rounded-2xl border border-indigo-500/30 bg-slate-900/70 px-4 py-3 text-sm text-white placeholder:text-indigo-300/40 focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-400/40"
-                placeholder="Opisz przestrzenie, którymi zarządzasz oraz oczekiwane integracje"
-              ></textarea>
-            </div>
-            <button
-              type="submit"
-              class="inline-flex items-center justify-center rounded-full bg-indigo-400 px-6 py-3 text-sm font-semibold text-slate-900 shadow-lg shadow-indigo-500/30 transition hover:bg-indigo-300"
-            >
-              Wyślij zgłoszenie
-            </button>
-            <p class="text-xs text-indigo-100/60">
-              Wysyłając formularz wyrażasz zgodę na kontakt w celu przedstawienia oferty. Dane przetwarzamy zgodnie z polityką prywatności.
+    <section id="contact" class="px-6">
+      <div class="mx-auto max-w-7xl rounded-3xl bg-[#003580] px-8 py-12 text-white shadow-xl shadow-[#003580]/25 sm:px-12">
+        <div class="grid gap-10 lg:grid-cols-[0.85fr_1.15fr] lg:items-center">
+          <div class="space-y-4">
+            <span class="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-white/80">Kontakt</span>
+            <h3 class="text-3xl font-semibold">Porozmawiajmy o Twoim obiekcie</h3>
+            <p class="text-sm text-white/80">
+              Prześlij podstawowe informacje o obiekcie i procesach rezerwacyjnych. Przygotujemy demo oraz propozycję wdrożenia dopasowaną do Twoich potrzeb.
             </p>
           </div>
-        </form>
+          <div class="flex flex-col gap-4 rounded-2xl bg-white/10 p-6 text-sm backdrop-blur">
+            <p>
+              <span class="font-semibold">E-mail:</span>
+              <a href="mailto:kontakt@sowa-system.pl" class="ml-1 underline decoration-white/40 underline-offset-2 hover:decoration-white">kontakt@sowa-system.pl</a>
+            </p>
+            <p>
+              <span class="font-semibold">Telefon:</span>
+              <a href="tel:+48600200300" class="ml-1 underline decoration-white/40 underline-offset-2 hover:decoration-white">+48 600 200 300</a>
+            </p>
+            <p>
+              <span class="font-semibold">Formularz:</span>
+              <a href="https://sowa-system.pl/demo" class="ml-1 inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 font-semibold text-[#003580] shadow-sm transition hover:bg-slate-100">Umów prezentację</a>
+            </p>
+            <p class="text-xs text-white/70">
+              Odpowiadamy w ciągu 1 dnia roboczego. Możemy podpisać NDA przed przekazaniem szczegółów.
+            </p>
+          </div>
+        </div>
       </div>
     </section>
   </main>
 
-  <footer class="border-t border-indigo-500/20 bg-slate-950/95">
-    <div class="mx-auto flex max-w-6xl flex-col gap-6 px-6 py-10 text-sm text-indigo-100/60 lg:flex-row lg:items-center lg:justify-between lg:px-10">
-      <p>© 2024 SOWA. Platforma online do zarządzania rezerwacjami przestrzeni i zasobów.</p>
-      <div class="flex flex-wrap items-center gap-4">
-        <a href="#" class="transition hover:text-white">Polityka prywatności</a>
-        <a href="#" class="transition hover:text-white">Warunki korzystania</a>
-        <a href="mailto:kontakt@sowa.pl" class="transition hover:text-white">kontakt@sowa.pl</a>
+  <footer class="border-t border-slate-200 bg-white/95">
+    <div class="mx-auto flex max-w-7xl flex-col gap-6 px-6 py-8 text-sm text-gray-600 sm:px-8">
+      <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div class="flex items-center gap-4">
+          <img
+            src="./assets/logo_www.png"
+            alt="Logo systemu rezerwacji SOWA"
+            class="h-12 w-auto"
+          />
+          <div class="space-y-1">
+            <p class="text-base font-semibold text-gray-800">
+              System obsługi rezerwacji przestrzeni wspólnych
+            </p>
+            <p class="text-xs text-gray-500">
+              Uniwersalna platforma rezerwacyjna dla samorządów, instytucji i firm
+            </p>
+          </div>
+        </div>
+        <div class="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-3">
+          <a
+            href="mailto:kontakt@sowa-system.pl"
+            class="inline-flex items-center gap-2 rounded-full bg-[#003580] px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-[#003580]/30 transition hover:bg-[#00245c]"
+          >
+            ✨ Skontaktuj się z nami
+          </a>
+          <a
+            href="./index.html"
+            class="inline-flex items-center gap-2 text-sm font-medium text-[#003580] hover:text-[#00245c]"
+          >
+            Przejdź do kalendarza rezerwacji
+          </a>
+        </div>
+      </div>
+      <div class="flex flex-wrap items-center gap-4 text-xs text-gray-500">
+        <span>&copy; 2024 SOWA Platforma Rezerwacji</span>
+        <span class="hidden h-3 w-px bg-gray-300 sm:inline-block" aria-hidden="true"></span>
+        <a href="./privacy.html" class="hover:text-gray-700 hover:underline">Polityka prywatności</a>
+        <a href="./terms.html" class="hover:text-gray-700 hover:underline">Regulamin serwisu</a>
+        <a href="mailto:kontakt@sowa-system.pl" class="hover:text-gray-700 hover:underline">Kontakt</a>
       </div>
     </div>
   </footer>
