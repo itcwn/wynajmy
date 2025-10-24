@@ -127,11 +127,45 @@
     }
     const SUPABASE_URL = window.__SUPA?.SUPABASE_URL;
     const SUPABASE_ANON_KEY = window.__SUPA?.SUPABASE_ANON_KEY;
+    const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    const TENANT_STORAGE_KEY = 'sowa:tenant-id';
+    function resolveTenantId() {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const fromQuery = params.get('tenant') || params.get('tenant_id') || params.get('tenantId');
+        if (fromQuery && UUID_PATTERN.test(fromQuery)) {
+          window.localStorage.setItem(TENANT_STORAGE_KEY, fromQuery);
+          return fromQuery;
+        }
+      } catch (error) {
+        console.warn('Nie udało się odczytać najemcy z parametrów adresu URL.', error);
+      }
+      try {
+        const stored = window.localStorage.getItem(TENANT_STORAGE_KEY);
+        if (stored && UUID_PATTERN.test(stored)) {
+          return stored;
+        }
+      } catch (error) {
+        console.warn('Nie udało się odczytać najemcy z pamięci przeglądarki.', error);
+      }
+      const fromConfig = window.__SUPA?.TENANT_ID;
+      if (fromConfig && UUID_PATTERN.test(fromConfig)) {
+        return fromConfig;
+      }
+      return null;
+    }
+    const TENANT_ID = resolveTenantId();
     if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
       alert('Uzupełnij supabase-config.js');
       return;
     }
-    const supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, TENANT_ID ? {
+      global: {
+        headers: {
+          'x-tenant-id': TENANT_ID,
+        },
+      },
+    } : undefined);
 
     // ---- (reszta kodu z poprzedniej wersji, bez zmian) ----
     const searchInput = document.getElementById('search');

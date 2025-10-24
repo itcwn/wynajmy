@@ -1,4 +1,10 @@
 import { refreshLayoutAlignment } from '../ui/layout.js';
+import {
+  getTenantId,
+  setTenantId,
+  inferTenantIdFromFacility,
+  resolveTenantIdForFacility,
+} from '../state/tenant.js';
 
 export function createFacilitiesModule({
   state,
@@ -59,6 +65,16 @@ export function createFacilitiesModule({
   }
 
   async function loadDictionaries() {
+    const tenantId = getTenantId();
+    if (!tenantId) {
+      state.amenities = {};
+      state.eventTypes = [];
+      const select = $('#bookingForm select[name="event_type_id"]');
+      if (select) {
+        select.innerHTML = '<option value="">(brak)</option>';
+      }
+      return;
+    }
     state.amenities = {};
     const [amenitiesData, eventTypes] = await Promise.all([
       runFirstSuccessfulQuery([
@@ -83,11 +99,27 @@ export function createFacilitiesModule({
   }
 
   async function loadFacilities() {
-    const facilitiesData = await runFirstSuccessfulQuery([
-      () => supabase.from('public_facilities').select('*').order('name'),
-      () => supabase.from('facilities').select('*').order('name'),
-    ], { allowEmpty: false });
-    state.facilities = facilitiesData || [];
+    const tenantId = getTenantId();
+    const facilitiesData = await runFirstSuccessfulQuery(
+      tenantId
+        ? [
+            () => supabase.from('public_facilities').select('*').order('name'),
+            () => supabase.from('facilities').select('*').order('name'),
+          ]
+        : [
+            () => supabase.rpc('list_public_facilities'),
+          ],
+      { allowEmpty: false },
+    );
+    const normalized = Array.isArray(facilitiesData) ? facilitiesData : [];
+    if (!tenantId && normalized.length > 1) {
+      normalized.sort((a, b) => {
+        const nameA = (a?.name || '').toLowerCase();
+        const nameB = (b?.name || '').toLowerCase();
+        return nameA.localeCompare(nameB, 'pl');
+      });
+    }
+    state.facilities = normalized;
     renderFacilityList();
   }
 
@@ -505,6 +537,40 @@ export function createFacilitiesModule({
     }
   }
 
+  async function ensureTenantForFacilitySelection(facility) {
+    if (!facility) {
+      return { tenantId: null, changed: false };
+    }
+    const currentTenant = getTenantId();
+    const facilityTenant = inferTenantIdFromFacility(facility);
+    if (facilityTenant && facilityTenant !== facility.tenant_id) {
+      facility.tenant_id = facilityTenant;
+    }
+    if (facilityTenant && facilityTenant !== currentTenant) {
+      setTenantId(facilityTenant);
+      return { tenantId: facilityTenant, changed: true };
+    }
+    if (!facilityTenant) {
+      const resolved = await resolveTenantIdForFacility({
+        supabase,
+        facilityId: facility.id,
+      });
+      if (resolved) {
+        facility.tenant_id = resolved;
+        if (resolved !== currentTenant) {
+          setTenantId(resolved);
+          return { tenantId: resolved, changed: true };
+        }
+        return { tenantId: resolved, changed: false };
+      }
+    }
+    if (!currentTenant && facilityTenant) {
+      setTenantId(facilityTenant);
+      return { tenantId: facilityTenant, changed: true };
+    }
+    return { tenantId: facilityTenant || currentTenant || null, changed: false };
+  }
+
   async function selectFacility(id) {
     loadMapsIfKey();
     const facility = state.facilities.find((f) => String(f.id) === String(id));
@@ -512,7 +578,30 @@ export function createFacilitiesModule({
       console.warn('Facility not found', id);
       return;
     }
-    state.selectedFacility = facility;
+    const previousTenant = getTenantId();
+    const tenantInfo = await ensureTenantForFacilitySelection(facility);
+    let workingFacility = facility;
+    if (tenantInfo.changed) {
+      state.isTenantReloading = true;
+      try {
+        await loadDictionaries();
+        await loadFacilities();
+      } finally {
+        state.isTenantReloading = false;
+      }
+      const updatedFacility = state.facilities.find((f) => String(f.id) === String(id));
+      if (!updatedFacility) {
+        console.warn('Nie udało się ponownie odnaleźć obiektu po zmianie najemcy.', id);
+        return;
+      }
+      workingFacility = updatedFacility;
+      if (tenantInfo.tenantId) {
+        workingFacility.tenant_id = tenantInfo.tenantId;
+      }
+    } else if (tenantInfo.tenantId && tenantInfo.tenantId !== previousTenant) {
+      facility.tenant_id = tenantInfo.tenantId;
+    }
+    state.selectedFacility = workingFacility;
     markSelectedTile();
     updateReservationCta();
     if (instructionsModal?.updateContent) {

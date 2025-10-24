@@ -25,8 +25,8 @@ items as (
     ('return', 70, 'Sporządzenie protokołu zdawczo-odbiorczego', 'Uzupełnij protokół o uwagi najemcy, wpisz szkody i brakujące elementy oraz uzyskaj podpisy stron.')
   ) as t(phase, order_index, title, description)
 )
-insert into public.facility_checklist_items (facility_id, phase, order_index, title, description, is_required)
-select f.id, i.phase, i.order_index, i.title, i.description, true
+insert into public.facility_checklist_items (tenant_id, facility_id, phase, order_index, title, description, is_required)
+select public.current_tenant_id(), f.id, i.phase, i.order_index, i.title, i.description, true
 from facility f
 join items i on true
 where not exists (
@@ -35,4 +35,5 @@ where not exists (
   where existing.facility_id = f.id
     and existing.phase = i.phase
     and lower(existing.title) = lower(i.title)
+    and existing.tenant_id = public.current_tenant_id()
 );

@@ -26,16 +26,38 @@ as $$
 declare
   header text;
   uid uuid;
+  tenant uuid;
 begin
+  tenant := public.current_tenant_id();
+
   uid := auth.uid();
   if uid is not null then
-    return uid;
+    if tenant is null then
+      return uid;
+    end if;
+    if exists (
+      select 1
+      from public.caretakers c
+      where c.id = uid
+        and c.tenant_id = tenant
+    ) then
+      return uid;
+    end if;
   end if;
 
   header := nullif(current_setting('request.header.x-caretaker-id', true), '');
   if header is not null then
     begin
-      return header::uuid;
+      if tenant is null then
+        return header::uuid;
+      end if;
+      select c.id
+        into uid
+      from public.caretakers c
+      where c.id = header::uuid
+        and c.tenant_id = tenant
+      limit 1;
+      return uid;
     exception when others then
       return null;
     end;
@@ -48,8 +70,114 @@ $$;
 grant execute on function public.current_caretaker_id() to anon, authenticated;
 
 
+-- Funkcja identyfikująca bieżącego najemcę (tenant).
+create or replace function public.current_tenant_id()
+returns uuid
+language plpgsql
+stable
+as $$
+declare
+  header text;
+  claim text;
+begin
+  header := nullif(current_setting('request.header.x-tenant-id', true), '');
+  if header is not null then
+    begin
+      return header::uuid;
+    exception when others then
+      null;
+    end;
+  end if;
+
+  begin
+    claim := nullif(coalesce(auth.jwt()->>'tenant_id', ''), '');
+    if claim is not null then
+      return claim::uuid;
+    end if;
+  exception when others then
+    null;
+  end;
+
+  header := nullif(current_setting('app.default_tenant_id', true), '');
+  if header is not null then
+    begin
+      return header::uuid;
+    exception when others then
+      null;
+    end;
+  end if;
+
+  return null;
+end;
+$$;
+
+grant execute on function public.current_tenant_id() to anon, authenticated;
+
+
+create or replace function public.resolve_tenant_for_facility(p_facility_id uuid)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_tenant uuid;
+begin
+  select tenant_id
+    into v_tenant
+    from public.facilities
+   where id = p_facility_id;
+
+  return v_tenant;
+end;
+$$;
+
+grant execute on function public.resolve_tenant_for_facility(uuid) to anon, authenticated;
+
+create or replace function public.resolve_tenant_for_booking_token(p_token text)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_tenant uuid;
+begin
+  select tenant_id
+    into v_tenant
+    from public.bookings
+   where cancel_token = p_token;
+
+  return v_tenant;
+end;
+$$;
+
+grant execute on function public.resolve_tenant_for_booking_token(text) to anon, authenticated;
+
+create or replace function public.resolve_tenant_for_caretaker(p_caretaker_id uuid)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_tenant uuid;
+begin
+  select tenant_id
+    into v_tenant
+    from public.caretakers
+   where id = p_caretaker_id;
+
+  return v_tenant;
+end;
+$$;
+
+grant execute on function public.resolve_tenant_for_caretaker(uuid) to anon, authenticated;
+
+
 -- Tabela obiektów.
 create table if not exists public.facilities (
+  tenant_id uuid not null default public.current_tenant_id(),
   id uuid primary key default gen_random_uuid(),
   name text not null,
   postal_code text,
@@ -67,14 +195,15 @@ create table if not exists public.facilities (
   image_urls text,
   caretaker_instructions text,
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  constraint facilities_tenant_nn check (tenant_id is not null)
 );
 
 create index if not exists facilities_name_idx
-  on public.facilities (lower(name));
+  on public.facilities (tenant_id, lower(name));
 
 create index if not exists facilities_city_idx
-  on public.facilities (lower(city));
+  on public.facilities (tenant_id, lower(city));
 
 drop trigger if exists facilities_set_updated_at on public.facilities;
 create trigger facilities_set_updated_at
@@ -102,23 +231,78 @@ select
   f.caretaker_instructions,
   f.created_at,
   f.updated_at
-from public.facilities f;
+from public.facilities f
+where f.tenant_id = public.current_tenant_id();
 
 grant select on table public.public_facilities to anon, authenticated;
 
+create or replace function public.list_public_facilities()
+returns table (
+  tenant_id uuid,
+  id uuid,
+  name text,
+  postal_code text,
+  city text,
+  address_line1 text,
+  address_line2 text,
+  capacity integer,
+  price_per_hour numeric(12,2),
+  price_per_day numeric(12,2),
+  price_list_url text,
+  rental_rules_url text,
+  lat numeric(10,6),
+  lng numeric(10,6),
+  description text,
+  image_urls text,
+  caretaker_instructions text,
+  created_at timestamptz,
+  updated_at timestamptz
+)
+language sql
+security definer
+set search_path = public
+as $$
+  select
+    f.tenant_id,
+    f.id,
+    f.name,
+    f.postal_code,
+    f.city,
+    f.address_line1,
+    f.address_line2,
+    f.capacity,
+    f.price_per_hour,
+    f.price_per_day,
+    f.price_list_url,
+    f.rental_rules_url,
+    f.lat,
+    f.lng,
+    f.description,
+    f.image_urls,
+    f.caretaker_instructions,
+    f.created_at,
+    f.updated_at
+  from public.facilities f
+  order by lower(coalesce(f.name, ''))
+$$;
+
+grant execute on function public.list_public_facilities() to anon, authenticated;
+
 -- Słownik udogodnień.
 create table if not exists public.amenities (
+  tenant_id uuid not null default public.current_tenant_id(),
   id uuid primary key default gen_random_uuid(),
   name text not null,
   description text,
   is_active boolean not null default true,
   order_index integer not null default 0,
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  constraint amenities_tenant_nn check (tenant_id is not null)
 );
 
 create index if not exists amenities_active_order_idx
-  on public.amenities (is_active desc, order_index, lower(name));
+  on public.amenities (tenant_id, is_active desc, order_index, lower(name));
 
 drop trigger if exists amenities_set_updated_at on public.amenities;
 create trigger amenities_set_updated_at
@@ -133,20 +317,47 @@ select
   a.description,
   a.order_index
 from public.amenities a
-where a.is_active;
+where a.is_active
+  and a.tenant_id = public.current_tenant_id();
 
 grant select on table public.public_amenities to anon, authenticated;
 
+alter table public.amenities enable row level security;
+
+drop policy if exists "Public read amenities" on public.amenities;
+create policy "Public read amenities"
+  on public.amenities
+  for select
+  to anon, authenticated
+  using (
+    tenant_id = public.current_tenant_id()
+    and is_active
+  );
+
+drop policy if exists "Authenticated manage amenities" on public.amenities;
+create policy "Authenticated manage amenities"
+  on public.amenities
+  for all
+  to authenticated
+  using (
+    tenant_id = public.current_tenant_id()
+  )
+  with check (
+    tenant_id = public.current_tenant_id()
+  );
+
 -- Przypisanie udogodnień do obiektów.
 create table if not exists public.facility_amenities (
+  tenant_id uuid not null default public.current_tenant_id(),
   facility_id uuid not null references public.facilities(id) on delete cascade,
   amenity_id uuid not null references public.amenities(id) on delete cascade,
   assigned_at timestamptz not null default now(),
-  primary key (facility_id, amenity_id)
+  constraint facility_amenities_tenant_nn check (tenant_id is not null),
+  primary key (tenant_id, facility_id, amenity_id)
 );
 
 create index if not exists facility_amenities_amenity_idx
-  on public.facility_amenities (amenity_id);
+  on public.facility_amenities (tenant_id, amenity_id);
 
 -- Widok powiązań obiektów z udogodnieniami dla użytkowników publicznych.
 create or replace view public.public_facility_amenities as
@@ -155,12 +366,38 @@ select
   fa.amenity_id
 from public.facility_amenities fa
   join public.amenities a on a.id = fa.amenity_id
-where coalesce(a.is_active, true);
+where coalesce(a.is_active, true)
+  and fa.tenant_id = public.current_tenant_id()
+  and a.tenant_id = public.current_tenant_id();
 
 grant select on table public.public_facility_amenities to anon, authenticated;
 
+alter table public.facility_amenities enable row level security;
+
+drop policy if exists "Public read facility amenities" on public.facility_amenities;
+create policy "Public read facility amenities"
+  on public.facility_amenities
+  for select
+  to anon, authenticated
+  using (
+    tenant_id = public.current_tenant_id()
+  );
+
+drop policy if exists "Authenticated manage facility amenities" on public.facility_amenities;
+create policy "Authenticated manage facility amenities"
+  on public.facility_amenities
+  for all
+  to authenticated
+  using (
+    tenant_id = public.current_tenant_id()
+  )
+  with check (
+    tenant_id = public.current_tenant_id()
+  );
+
 -- Lista kontrolna przekazania obiektu.
 create table if not exists public.facility_checklist_items (
+  tenant_id uuid not null default public.current_tenant_id(),
   id bigint generated by default as identity primary key,
   facility_id uuid not null references public.facilities(id) on delete cascade,
   phase text not null check (phase in ('handover', 'return')),
@@ -169,11 +406,12 @@ create table if not exists public.facility_checklist_items (
   is_required boolean not null default true,
   order_index integer not null default 0,
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  constraint facility_checklist_items_tenant_nn check (tenant_id is not null)
 );
 
 create index if not exists facility_checklist_items_facility_phase_idx
-  on public.facility_checklist_items (facility_id, phase, order_index, id);
+  on public.facility_checklist_items (tenant_id, facility_id, phase, order_index, id);
 
 drop function if exists public.set_facility_checklist_items_updated_at();
 create or replace function public.set_facility_checklist_items_updated_at()
@@ -190,8 +428,32 @@ drop trigger if exists facility_checklist_items_set_updated_at on public.facilit
 create trigger facility_checklist_items_set_updated_at
 before update on public.facility_checklist_items
 for each row execute function public.set_facility_checklist_items_updated_at();
+
+alter table public.facility_checklist_items enable row level security;
+
+drop policy if exists "Caretaker read facility checklist" on public.facility_checklist_items;
+create policy "Caretaker read facility checklist"
+  on public.facility_checklist_items
+  for select
+  to authenticated
+  using (
+    tenant_id = public.current_tenant_id()
+  );
+
+drop policy if exists "Caretaker manage facility checklist" on public.facility_checklist_items;
+create policy "Caretaker manage facility checklist"
+  on public.facility_checklist_items
+  for all
+  to authenticated
+  using (
+    tenant_id = public.current_tenant_id()
+  )
+  with check (
+    tenant_id = public.current_tenant_id()
+  );
 -- Dane opiekunów obiektów.
 create table if not exists public.caretakers (
+  tenant_id uuid not null default public.current_tenant_id(),
   id uuid primary key references auth.users (id) on delete cascade,
   first_name text not null,
   last_name_or_company text not null,
@@ -199,14 +461,15 @@ create table if not exists public.caretakers (
   email text not null,
   login text not null,
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  constraint caretakers_tenant_nn check (tenant_id is not null)
 );
 
 create unique index if not exists caretakers_email_unique
-  on public.caretakers (lower(email));
+  on public.caretakers (tenant_id, lower(email));
 
 create unique index if not exists caretakers_login_unique
-  on public.caretakers (lower(login));
+  on public.caretakers (tenant_id, lower(login));
 
 drop trigger if exists caretakers_set_updated_at on public.caretakers;
 create trigger caretakers_set_updated_at
@@ -231,7 +494,13 @@ as $$
 declare
   v_user auth.users%rowtype;
   v_result public.caretakers%rowtype;
+  v_tenant uuid;
 begin
+  v_tenant := public.current_tenant_id();
+  if v_tenant is null then
+    raise exception using message = 'TENANT_ID_REQUIRED';
+  end if;
+
   if p_id is null then
     raise exception using message = 'USER_ID_REQUIRED';
   end if;
@@ -249,8 +518,9 @@ begin
     raise exception using message = 'EMAIL_MISMATCH';
   end if;
 
-  insert into public.caretakers as c (id, first_name, last_name_or_company, phone, email, login)
+  insert into public.caretakers as c (tenant_id, id, first_name, last_name_or_company, phone, email, login)
   values (
+    v_tenant,
     p_id,
     trim(both from coalesce(p_first_name, '')),
     trim(both from coalesce(p_last_name_or_company, '')),
@@ -264,6 +534,7 @@ begin
         phone = excluded.phone,
         email = excluded.email,
         login = excluded.login,
+        tenant_id = excluded.tenant_id,
         updated_at = now()
   returning c.* into v_result;
 
@@ -282,17 +553,19 @@ grant execute on function public.create_caretaker_profile(
 
 -- Powiązania obiektów z opiekunami.
 create table if not exists public.facility_caretakers (
+  tenant_id uuid not null default public.current_tenant_id(),
   caretaker_id uuid not null references public.caretakers(id) on delete cascade,
   facility_id uuid not null references public.facilities(id) on delete cascade,
   created_at timestamptz not null default now(),
-  primary key (caretaker_id, facility_id)
+  constraint facility_caretakers_tenant_nn check (tenant_id is not null),
+  primary key (tenant_id, caretaker_id, facility_id)
 );
 
 create index if not exists facility_caretakers_facility_idx
-  on public.facility_caretakers (facility_id);
+  on public.facility_caretakers (tenant_id, facility_id);
 
 create index if not exists facility_caretakers_caretaker_idx
-  on public.facility_caretakers (caretaker_id);
+  on public.facility_caretakers (tenant_id, caretaker_id);
 
 -- Funkcja pomocnicza sprawdzająca istnienie opiekuna.
 create or replace function public.caretaker_exists(p_caretaker_id uuid)
@@ -305,6 +578,7 @@ as $$
     select 1
     from public.caretakers c
     where c.id = p_caretaker_id
+      and c.tenant_id = public.current_tenant_id()
   );
 $$;
 
@@ -321,6 +595,7 @@ create policy "Allow anonymous caretakers insert"
   to authenticated
   with check (
     auth.uid() = id
+    and tenant_id = public.current_tenant_id()
   );
 
 drop policy if exists "Caretaker can read self" on public.caretakers;
@@ -330,6 +605,7 @@ create policy "Caretaker can read self"
   to authenticated
   using (
     auth.uid() = id
+    and tenant_id = public.current_tenant_id()
   );
 
 drop policy if exists "Caretaker can update self" on public.caretakers;
@@ -339,9 +615,11 @@ create policy "Caretaker can update self"
   to authenticated
   using (
     auth.uid() = id
+    and tenant_id = public.current_tenant_id()
   )
   with check (
     auth.uid() = id
+    and tenant_id = public.current_tenant_id()
   );
 
 drop policy if exists "Caretaker can see assigned facilities" on public.facility_caretakers;
@@ -351,6 +629,7 @@ create policy "Caretaker can see assigned facilities"
   to authenticated
   using (
     public.current_caretaker_id() = caretaker_id
+    and tenant_id = public.current_tenant_id()
   );
 
 drop policy if exists "Caretaker can assign self" on public.facility_caretakers;
@@ -360,6 +639,7 @@ create policy "Caretaker can assign self"
   to authenticated
   with check (
     public.current_caretaker_id() = caretaker_id
+    and tenant_id = public.current_tenant_id()
   );
 
 drop policy if exists "Caretaker can unassign self" on public.facility_caretakers;
@@ -369,6 +649,7 @@ create policy "Caretaker can unassign self"
   to authenticated
   using (
     public.current_caretaker_id() = caretaker_id
+    and tenant_id = public.current_tenant_id()
   );
 
 -- Polityki RLS dla tabeli obiektów.
@@ -379,7 +660,9 @@ create policy "Public read facilities"
   on public.facilities
   for select
   to anon, authenticated
-  using (true);
+  using (
+    tenant_id = public.current_tenant_id()
+  );
 
 drop policy if exists "Caretaker insert facilities" on public.facilities;
 create policy "Caretaker insert facilities"
@@ -388,6 +671,7 @@ create policy "Caretaker insert facilities"
   to authenticated
   with check (
     public.caretaker_exists(public.current_caretaker_id())
+    and tenant_id = public.current_tenant_id()
   );
 
 drop policy if exists "Caretaker update facilities" on public.facilities;
@@ -401,7 +685,9 @@ create policy "Caretaker update facilities"
       from public.facility_caretakers fc
       where fc.facility_id = id
         and fc.caretaker_id = public.current_caretaker_id()
+        and fc.tenant_id = public.current_tenant_id()
     )
+    and tenant_id = public.current_tenant_id()
   )
   with check (
     exists (
@@ -409,7 +695,9 @@ create policy "Caretaker update facilities"
       from public.facility_caretakers fc
       where fc.facility_id = id
         and fc.caretaker_id = public.current_caretaker_id()
+        and fc.tenant_id = public.current_tenant_id()
     )
+    and tenant_id = public.current_tenant_id()
   );
 
 -- Polityki RLS dla bucketa przechowującego zdjęcia obiektów.
@@ -459,8 +747,8 @@ begin
   end if;
 
   begin
-    insert into public.facility_caretakers (caretaker_id, facility_id)
-    values (caretaker, new.id)
+    insert into public.facility_caretakers (tenant_id, caretaker_id, facility_id)
+    values (new.tenant_id, caretaker, new.id)
     on conflict do nothing;
   exception when others then
     null;
@@ -480,17 +768,19 @@ create trigger facilities_assign_caretaker
 
 -- Słownik typów wydarzeń wykorzystywany przy rezerwacjach.
 create table if not exists public.event_types (
+  tenant_id uuid not null default public.current_tenant_id(),
   id uuid primary key default gen_random_uuid(),
   name text not null,
   description text,
   is_active boolean not null default true,
   order_index integer not null default 0,
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  constraint event_types_tenant_nn check (tenant_id is not null)
 );
 
 create index if not exists event_types_active_order_idx
-  on public.event_types (is_active desc, order_index, lower(name));
+  on public.event_types (tenant_id, is_active desc, order_index, lower(name));
 
 drop trigger if exists event_types_set_updated_at on public.event_types;
 create trigger event_types_set_updated_at
@@ -505,12 +795,38 @@ select
   e.description,
   e.order_index
 from public.event_types e
-where e.is_active;
+where e.is_active
+  and e.tenant_id = public.current_tenant_id();
 
 grant select on table public.public_event_types to anon, authenticated;
 
+alter table public.event_types enable row level security;
+
+drop policy if exists "Public read event types" on public.event_types;
+create policy "Public read event types"
+  on public.event_types
+  for select
+  to anon, authenticated
+  using (
+    tenant_id = public.current_tenant_id()
+    and is_active
+  );
+
+drop policy if exists "Authenticated manage event types" on public.event_types;
+create policy "Authenticated manage event types"
+  on public.event_types
+  for all
+  to authenticated
+  using (
+    tenant_id = public.current_tenant_id()
+  )
+  with check (
+    tenant_id = public.current_tenant_id()
+  );
+
 -- Szablony dokumentów (wnioski, protokoły, itp.).
 create table if not exists public.document_templates (
+  tenant_id uuid not null default public.current_tenant_id(),
   id uuid primary key default gen_random_uuid(),
   name text not null,
   code text not null,
@@ -518,14 +834,15 @@ create table if not exists public.document_templates (
   is_active boolean not null default true,
   html text not null,
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  constraint document_templates_tenant_nn check (tenant_id is not null)
 );
 
 create unique index if not exists document_templates_code_facility_unique
-  on public.document_templates (lower(code), facility_id);
+  on public.document_templates (tenant_id, lower(code), facility_id);
 
 create unique index if not exists document_templates_code_global_unique
-  on public.document_templates (lower(code))
+  on public.document_templates (tenant_id, lower(code))
   where facility_id is null;
 
 drop trigger if exists document_templates_set_updated_at on public.document_templates;
@@ -533,8 +850,32 @@ create trigger document_templates_set_updated_at
 before update on public.document_templates
 for each row execute function public.set_updated_at();
 
+alter table public.document_templates enable row level security;
+
+drop policy if exists "Caretaker read document templates" on public.document_templates;
+create policy "Caretaker read document templates"
+  on public.document_templates
+  for select
+  to authenticated
+  using (
+    tenant_id = public.current_tenant_id()
+  );
+
+drop policy if exists "Caretaker manage document templates" on public.document_templates;
+create policy "Caretaker manage document templates"
+  on public.document_templates
+  for all
+  to authenticated
+  using (
+    tenant_id = public.current_tenant_id()
+  )
+  with check (
+    tenant_id = public.current_tenant_id()
+  );
+
 -- Rezerwacje obiektów.
 create table if not exists public.bookings (
+  tenant_id uuid not null default public.current_tenant_id(),
   id uuid primary key default gen_random_uuid(),
   facility_id uuid not null references public.facilities(id) on delete cascade,
   title text not null default 'Rezerwacja',
@@ -553,17 +894,18 @@ create table if not exists public.bookings (
   cancelled_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  constraint bookings_end_after_start check (end_time > start_time)
+  constraint bookings_end_after_start check (end_time > start_time),
+  constraint bookings_tenant_nn check (tenant_id is not null)
 );
 
 create unique index if not exists bookings_cancel_token_unique
-  on public.bookings (cancel_token);
+  on public.bookings (tenant_id, cancel_token);
 
 create index if not exists bookings_facility_time_idx
-  on public.bookings (facility_id, start_time, end_time);
+  on public.bookings (tenant_id, facility_id, start_time, end_time);
 
 create index if not exists bookings_status_idx
-  on public.bookings (status);
+  on public.bookings (tenant_id, status);
 
 drop trigger if exists bookings_set_updated_at on public.bookings;
 create trigger bookings_set_updated_at
@@ -582,6 +924,7 @@ create policy "Anonymous can create pending bookings"
     and is_public = true
     and decision_comment is null
     and cancelled_at is null
+    and tenant_id = public.current_tenant_id()
   );
 
 drop policy if exists "Authenticated manage bookings" on public.bookings;
@@ -589,8 +932,12 @@ create policy "Authenticated manage bookings"
   on public.bookings
   for all
   to authenticated
-  using (true)
-  with check (true);
+  using (
+    tenant_id = public.current_tenant_id()
+  )
+  with check (
+    tenant_id = public.current_tenant_id()
+  );
 
 -- Widok uproszczonych danych rezerwacji udostępniany publicznie.
 create or replace view public.public_bookings as
@@ -604,7 +951,8 @@ select
   b.renter_name,
   b.notes
 from public.bookings b
-where b.is_public;
+where b.is_public
+  and b.tenant_id = public.current_tenant_id();
 
 -- Funkcja anulująca rezerwację po tokenie.
 create or replace function public.cancel_booking(p_token uuid)
@@ -621,7 +969,8 @@ begin
       cancelled_at = coalesce(cancelled_at, now()),
       updated_at = now()
   where cancel_token = p_token
-    and status in ('pending', 'active');
+    and status in ('pending', 'active')
+    and tenant_id = public.current_tenant_id();
 
   get diagnostics updated_count = row_count;
   return updated_count > 0;
@@ -664,13 +1013,14 @@ as $$
       f.caretaker_instructions
     from public.bookings b
     join public.facilities f on f.id = b.facility_id
-    where (
-        p_booking_id is not null
-        and b.id = p_booking_id
-      )
-      or (
-        p_cancel_token is not null
-        and b.cancel_token = p_cancel_token
+      and f.tenant_id = public.current_tenant_id()
+    where b.tenant_id = public.current_tenant_id()
+      and (
+        (p_booking_id is not null and b.id = p_booking_id)
+        or (
+          p_cancel_token is not null
+          and b.cancel_token = p_cancel_token
+        )
       )
     order by b.updated_at desc
     limit 1
@@ -688,8 +1038,12 @@ as $$
         order by c.first_name, c.last_name_or_company
       ) as items
     from target t
-    left join public.facility_caretakers fc on fc.facility_id = t.facility_id
-    left join public.caretakers c on c.id = fc.caretaker_id
+    left join public.facility_caretakers fc
+      on fc.facility_id = t.facility_id
+     and fc.tenant_id = public.current_tenant_id()
+    left join public.caretakers c
+      on c.id = fc.caretaker_id
+     and c.tenant_id = public.current_tenant_id()
   )
   select jsonb_build_object(
       'booking', jsonb_build_object(
