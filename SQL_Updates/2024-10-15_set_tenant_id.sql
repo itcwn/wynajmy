@@ -5,7 +5,9 @@ set search_path = public;
 
 DO $$
 DECLARE
-  v_tenant uuid := '00000000-0000-0000-0000-000000000000'; -- ← ZMIEŃ NA WŁAŚCIWY IDENTYFIKATOR
+ 
+  v_tenant uuid := '98cf6ea0-80c4-4d88-b81d-73f3c6e8b07e'; -- ← zmień, jeśli Twój domyślny tenant_id jest inny
+ 
 BEGIN
   IF v_tenant IS NULL OR v_tenant = '00000000-0000-0000-0000-000000000000'::uuid THEN
     RAISE EXCEPTION USING MESSAGE = 'SET_VALID_TENANT_ID_BEFORE_EXECUTION';

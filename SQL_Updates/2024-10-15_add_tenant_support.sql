@@ -1,9 +1,29 @@
 -- Migracja wprowadzająca obsługę wielu najemców (tenantów).
--- Przed uruchomieniem ustaw zmienną `app.default_tenant_id` lub uzupełnij wartość
--- w sekcji DO $$ ... $$ w tym pliku.
+ 
+-- Jeśli nie masz uprawnień do ALTER DATABASE, możesz pozostawić konfigurację
+-- sesji tej migracji – poniższy blok DO ustawi wartość domyślną na podstawie
+-- zmiennej v_fallback_tenant.
 
 set search_path = public;
 
+DO $$
+DECLARE
+  v_fallback_tenant uuid := '98cf6ea0-80c4-4d88-b81d-73f3c6e8b07e'; -- ← zmień jeśli potrzebujesz innego domyślnego tenant_id
+  v_current text;
+BEGIN
+  BEGIN
+    v_current := nullif(current_setting('app.default_tenant_id', true), '');
+  EXCEPTION WHEN others THEN
+    v_current := null;
+  END;
+
+  IF v_current IS NULL THEN
+    PERFORM set_config('app.default_tenant_id', v_fallback_tenant::text, false);
+  END IF;
+END;
+$$;
+
+ 
 -- Funkcja zwracająca identyfikator bieżącego najemcy.
 create or replace function public.current_tenant_id()
 returns uuid
