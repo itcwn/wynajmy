@@ -114,6 +114,40 @@ $$;
 grant execute on function public.current_tenant_id() to anon, authenticated;
 
 
+create or replace function public.current_effective_tenant_id()
+returns uuid
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+  v_tenant uuid;
+  v_caretaker uuid;
+begin
+  v_tenant := public.current_tenant_id();
+  if v_tenant is not null then
+    return v_tenant;
+  end if;
+
+  v_caretaker := public.current_caretaker_id();
+  if v_caretaker is null then
+    return null;
+  end if;
+
+  select c.tenant_id
+    into v_tenant
+    from public.caretakers c
+   where c.id = v_caretaker
+   limit 1;
+
+  return v_tenant;
+end;
+$$;
+
+grant execute on function public.current_effective_tenant_id() to anon, authenticated;
+
+
 create or replace function public.resolve_tenant_for_facility(p_facility_id uuid)
 returns uuid
 language plpgsql
@@ -330,7 +364,7 @@ create policy "Public read amenities"
   for select
   to anon, authenticated
   using (
-    tenant_id = public.current_tenant_id()
+    tenant_id = public.current_effective_tenant_id()
     and is_active
   );
 
@@ -340,10 +374,10 @@ create policy "Authenticated manage amenities"
   for all
   to authenticated
   using (
-    tenant_id = public.current_tenant_id()
+    tenant_id = public.current_effective_tenant_id()
   )
   with check (
-    tenant_id = public.current_tenant_id()
+    tenant_id = public.current_effective_tenant_id()
   );
 
 -- Przypisanie udogodnień do obiektów.
@@ -380,7 +414,7 @@ create policy "Public read facility amenities"
   for select
   to anon, authenticated
   using (
-    tenant_id = public.current_tenant_id()
+    tenant_id = public.current_effective_tenant_id()
   );
 
 drop policy if exists "Authenticated manage facility amenities" on public.facility_amenities;
@@ -389,10 +423,10 @@ create policy "Authenticated manage facility amenities"
   for all
   to authenticated
   using (
-    tenant_id = public.current_tenant_id()
+    tenant_id = public.current_effective_tenant_id()
   )
   with check (
-    tenant_id = public.current_tenant_id()
+    tenant_id = public.current_effective_tenant_id()
   );
 
 -- Lista kontrolna przekazania obiektu.
@@ -578,11 +612,43 @@ as $$
     select 1
     from public.caretakers c
     where c.id = p_caretaker_id
-      and c.tenant_id = public.current_tenant_id()
+      and c.tenant_id = public.current_effective_tenant_id()
   );
 $$;
 
 grant execute on function public.caretaker_exists(uuid) to anon, authenticated;
+
+create or replace function public.caretaker_assigned_to_facility(p_facility_id uuid)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_tenant uuid;
+  v_caretaker uuid;
+begin
+  v_tenant := public.current_effective_tenant_id();
+  if v_tenant is null then
+    return false;
+  end if;
+
+  v_caretaker := public.current_caretaker_id();
+  if v_caretaker is null then
+    return false;
+  end if;
+
+  return exists (
+    select 1
+    from public.facility_caretakers fc
+    where fc.tenant_id = v_tenant
+      and fc.facility_id = p_facility_id
+      and fc.caretaker_id = v_caretaker
+  );
+end;
+$$;
+
+grant execute on function public.caretaker_assigned_to_facility(uuid) to anon, authenticated;
 
 -- Konfiguracja polityk RLS dla opiekunów i przypisań.
 alter table public.caretakers enable row level security;
@@ -661,7 +727,7 @@ create policy "Public read facilities"
   for select
   to anon, authenticated
   using (
-    tenant_id = public.current_tenant_id()
+    tenant_id = public.current_effective_tenant_id()
   );
 
 drop policy if exists "Caretaker insert facilities" on public.facilities;
@@ -671,7 +737,7 @@ create policy "Caretaker insert facilities"
   to authenticated
   with check (
     public.caretaker_exists(public.current_caretaker_id())
-    and tenant_id = public.current_tenant_id()
+    and tenant_id = public.current_effective_tenant_id()
   );
 
 drop policy if exists "Caretaker update facilities" on public.facilities;
@@ -680,24 +746,12 @@ create policy "Caretaker update facilities"
   for update
   to authenticated
   using (
-    exists (
-      select 1
-      from public.facility_caretakers fc
-      where fc.facility_id = id
-        and fc.caretaker_id = public.current_caretaker_id()
-        and fc.tenant_id = public.current_tenant_id()
-    )
-    and tenant_id = public.current_tenant_id()
+    tenant_id = public.current_effective_tenant_id()
+    and public.caretaker_assigned_to_facility(id)
   )
   with check (
-    exists (
-      select 1
-      from public.facility_caretakers fc
-      where fc.facility_id = id
-        and fc.caretaker_id = public.current_caretaker_id()
-        and fc.tenant_id = public.current_tenant_id()
-    )
-    and tenant_id = public.current_tenant_id()
+    tenant_id = public.current_effective_tenant_id()
+    and public.caretaker_assigned_to_facility(id)
   );
 
 -- Polityki RLS dla bucketa przechowującego zdjęcia obiektów.
@@ -808,7 +862,7 @@ create policy "Public read event types"
   for select
   to anon, authenticated
   using (
-    tenant_id = public.current_tenant_id()
+    tenant_id = public.current_effective_tenant_id()
     and is_active
   );
 
@@ -818,10 +872,10 @@ create policy "Authenticated manage event types"
   for all
   to authenticated
   using (
-    tenant_id = public.current_tenant_id()
+    tenant_id = public.current_effective_tenant_id()
   )
   with check (
-    tenant_id = public.current_tenant_id()
+    tenant_id = public.current_effective_tenant_id()
   );
 
 -- Szablony dokumentów (wnioski, protokoły, itp.).
