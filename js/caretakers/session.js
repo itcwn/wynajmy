@@ -1,4 +1,10 @@
 import { createSupabaseClient } from '../config/supabaseClient.js';
+import {
+  getTenantId,
+  setTenantId,
+  inferTenantIdFromUser,
+  resolveTenantIdForCaretaker,
+} from '../state/tenant.js';
 import { createCaretakerSupabaseClient } from './supabaseClient.js';
 
 const PROFILE_COLUMNS = 'id, first_name, last_name_or_company, phone, email, login';
@@ -10,6 +16,26 @@ let authSubscription = null;
 let loadingPromiseCounter = 0;
 const profileCache = new Map();
 const profilePromiseCache = new Map();
+
+async function ensureTenantContext({ baseClient, user, caretakerId }) {
+  const currentTenant = getTenantId();
+  const fromUser = inferTenantIdFromUser(user);
+  if (fromUser && fromUser !== currentTenant) {
+    setTenantId(fromUser);
+    return fromUser;
+  }
+  if (!currentTenant && caretakerId) {
+    const resolved = await resolveTenantIdForCaretaker({
+      supabase: baseClient,
+      caretakerId,
+    });
+    if (resolved) {
+      setTenantId(resolved);
+      return resolved;
+    }
+  }
+  return currentTenant || fromUser || null;
+}
 
 function startCaretakerSessionLoading(promiseFactory, { clearCache = false } = {}) {
   if (loadingPromise) {
@@ -325,6 +351,7 @@ async function buildCaretakerSession({ existingSession } = {}) {
   }
 
   const caretakerId = authSession.user?.id || null;
+  await ensureTenantContext({ baseClient: client, user: authSession.user, caretakerId });
   const caretakerClient = caretakerId ? createCaretakerSupabaseClient({ caretakerId }) : null;
   const profile = await ensureCaretakerProfile({ baseClient: client, caretakerClient, user: authSession.user });
   const session = buildSessionPayload({

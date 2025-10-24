@@ -1,5 +1,6 @@
 import { createSupabaseClient, GOOGLE_MAPS_API_KEY } from './config/supabaseClient.js';
 import { state } from './state/appState.js';
+import { subscribeTenantChange, getTenantId, inferTenantIdFromFacility } from './state/tenant.js';
 import { $, $$ } from './utils/dom.js';
 import {
   pad2,
@@ -69,6 +70,29 @@ if (!supabase) {
   });
 
   window.initMapsApi = facilities.initMapsApi;
+
+  subscribeTenantChange(async (tenantId) => {
+    if (state.isTenantReloading) {
+      return;
+    }
+    state.isTenantReloading = true;
+    const previouslySelectedId = state.selectedFacility ? String(state.selectedFacility.id) : null;
+    try {
+      await facilities.loadDictionaries();
+      await facilities.loadFacilities();
+      if (previouslySelectedId) {
+        const refreshedFacility = state.facilities.find((facility) => String(facility.id) === previouslySelectedId);
+        const effectiveTenant = tenantId ?? getTenantId();
+        if (refreshedFacility && (!effectiveTenant || inferTenantIdFromFacility(refreshedFacility) === effectiveTenant)) {
+          state.selectedFacility = refreshedFacility;
+        } else {
+          state.selectedFacility = null;
+        }
+      }
+    } finally {
+      state.isTenantReloading = false;
+    }
+  });
 
   async function setupCaretakerNavigation() {
     const panelLink = document.getElementById('caretakerPanelLink');

@@ -2,6 +2,13 @@ import {
   BOOKING_NOTIFICATION_EVENTS,
   triggerBookingNotification,
 } from '../utils/emailNotifications.js';
+import {
+  getTenantId,
+  setTenantId,
+  inferTenantIdFromFacility,
+  resolveTenantIdForFacility,
+  resolveTenantIdForBookingToken,
+} from '../state/tenant.js';
 
 export function createBookingForm({
   state,
@@ -79,6 +86,45 @@ export function createBookingForm({
     }
   }
 
+  async function ensureTenantForFacility(facility) {
+    if (!facility) {
+      return null;
+    }
+    const currentTenant = getTenantId();
+    const facilityTenant = inferTenantIdFromFacility(facility);
+    if (facilityTenant) {
+      facility.tenant_id = facilityTenant;
+      if (facilityTenant !== currentTenant) {
+        setTenantId(facilityTenant);
+      }
+      return facilityTenant;
+    }
+    const resolved = await resolveTenantIdForFacility({
+      supabase,
+      facilityId: facility.id,
+    });
+    if (resolved) {
+      facility.tenant_id = resolved;
+      if (resolved !== currentTenant) {
+        setTenantId(resolved);
+      }
+      return resolved;
+    }
+    return currentTenant;
+  }
+
+  async function ensureTenantForBookingToken(token) {
+    const currentTenant = getTenantId();
+    if (currentTenant) {
+      return currentTenant;
+    }
+    const resolved = await resolveTenantIdForBookingToken({ supabase, token });
+    if (resolved) {
+      setTenantId(resolved);
+    }
+    return resolved;
+  }
+
   async function fetchFacilityById(facilityId) {
     const builders = [
       () => supabase.from('public_facilities').select('*').eq('id', facilityId).maybeSingle(),
@@ -92,6 +138,7 @@ export function createBookingForm({
           continue;
         }
         if (data) {
+          await ensureTenantForFacility(data);
           return data;
         }
       } catch (error) {
@@ -456,6 +503,7 @@ export function createBookingForm({
         state.facilities.push(facilityRow);
       }
     }
+    await ensureTenantForFacility(facility);
     const module = facilitiesModule || state.facilitiesModule;
     if (!alreadySelected) {
       if (module?.selectFacility) {
@@ -489,6 +537,10 @@ export function createBookingForm({
   async function loadBookingFromToken(token, { message } = {}) {
     if (!token) {
       return null;
+    }
+    const tenantResolved = await ensureTenantForBookingToken(token);
+    if (!tenantResolved) {
+      console.warn('Nie udało się ustawić najemcy na podstawie tokenu anulowania.');
     }
     const { data: bookingRow, error } = await supabase
       .from('bookings')

@@ -21,6 +21,7 @@ where not exists (
   select 1
   from public.event_types et
   where lower(et.name) = lower(d.name)
+    and et.tenant_id = public.current_tenant_id()
 );
 
 with data(name, description, order_index) as (
@@ -43,4 +44,5 @@ where not exists (
   select 1
   from public.amenities a
   where lower(a.name) = lower(d.name)
+    and a.tenant_id = public.current_tenant_id()
 );

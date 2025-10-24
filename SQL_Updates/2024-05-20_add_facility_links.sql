@@ -29,4 +29,5 @@ select
   f.caretaker_instructions,
   f.created_at,
   f.updated_at
-from public.facilities f;
+from public.facilities f
+where f.tenant_id = public.current_tenant_id();

@@ -1,14 +1,20 @@
+import { createSupabaseClient } from './config/supabaseClient.js';
+
 const config = window.__SUPA;
 if (!config?.SUPABASE_URL || !config?.SUPABASE_ANON_KEY) {
   throw new Error("Brak konfiguracji Supabase. Uzupełnij plik supabase-config.js.");
 }
 
-const supabase = window.supabase.createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY, {
+const supabase = createSupabaseClient(window.supabase, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
   },
 });
+
+if (!supabase) {
+  throw new Error('Nie udało się utworzyć klienta Supabase.');
+}
 
 const authSection = document.querySelector('#auth-section');
 const propertySection = document.querySelector('#property-section');
