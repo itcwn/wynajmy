@@ -1,6 +1,7 @@
 -- Tworzy kolejkę zdarzeń powiadomień o rezerwacjach oraz funkcje pomocnicze do jej obsługi.
 
 create table if not exists public.booking_notification_events (
+  tenant_id uuid not null default public.current_tenant_id(),
   id uuid primary key default gen_random_uuid(),
   event_type text not null check (event_type in (
     'booking_created',
@@ -16,11 +17,12 @@ create table if not exists public.booking_notification_events (
   last_attempt_at timestamptz,
   processed_at timestamptz,
   last_error text,
-  created_at timestamptz not null default timezone('utc', now())
+  created_at timestamptz not null default timezone('utc', now()),
+  constraint booking_notification_events_tenant_nn check (tenant_id is not null)
 );
 
 create index if not exists booking_notification_events_status_created_idx
-  on public.booking_notification_events (status, created_at);
+  on public.booking_notification_events (tenant_id, status, created_at);
 
 alter table public.booking_notification_events enable row level security;
 
@@ -44,7 +46,13 @@ declare
   v_event_id uuid;
   v_metadata jsonb;
   v_max_attempts integer;
+  v_tenant uuid;
 begin
+  v_tenant := public.current_tenant_id();
+  if v_tenant is null then
+    raise exception 'TENANT_ID_REQUIRED';
+  end if;
+
   if p_event_type is null then
     raise exception 'event_type is required';
   end if;
@@ -58,12 +66,14 @@ begin
   v_max_attempts := greatest(1, coalesce(p_max_attempts, 5));
 
   insert into public.booking_notification_events (
+    tenant_id,
     event_type,
     booking_id,
     cancel_token,
     metadata,
     max_attempts
   ) values (
+    v_tenant,
     p_event_type,
     p_booking_id,
     p_cancel_token,
@@ -86,13 +96,18 @@ language plpgsql
 security definer
 set search_path = public
 as $$
+declare
+  v_tenant uuid;
 begin
+  v_tenant := public.current_tenant_id();
+
   return query
     with candidate as (
       select id
       from public.booking_notification_events
       where status in ('pending', 'failed')
         and attempts < coalesce(max_attempts, 5)
+        and (v_tenant is null or tenant_id = v_tenant)
       order by created_at
       limit greatest(1, coalesce(p_limit, 10))
       for update skip locked
@@ -103,6 +118,7 @@ begin
         last_attempt_at = timezone('utc', now())
     from candidate
     where src.id = candidate.id
+      and (v_tenant is null or src.tenant_id = v_tenant)
     returning src.*;
 end;
 $$;
@@ -118,6 +134,16 @@ security definer
 set search_path = public
 as $$
 begin
+  if public.current_tenant_id() is not null then
+    update public.booking_notification_events
+    set status = 'pending',
+        attempts = 0,
+        last_attempt_at = null,
+        processed_at = null,
+        last_error = null
+    where id = p_event_id
+      and tenant_id = public.current_tenant_id();
+  else
   update public.booking_notification_events
   set status = 'pending',
       attempts = 0,
@@ -125,6 +151,7 @@ begin
       processed_at = null,
       last_error = null
   where id = p_event_id;
+  end if;
 end;
 $$;
 

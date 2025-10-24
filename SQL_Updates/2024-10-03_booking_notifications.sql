@@ -36,13 +36,14 @@ as $$
       f.caretaker_instructions
     from public.bookings b
     join public.facilities f on f.id = b.facility_id
-    where (
-        p_booking_id is not null
-        and b.id = p_booking_id
-      )
-      or (
-        p_cancel_token is not null
-        and b.cancel_token = p_cancel_token
+      and f.tenant_id = public.current_tenant_id()
+    where b.tenant_id = public.current_tenant_id()
+      and (
+        (p_booking_id is not null and b.id = p_booking_id)
+        or (
+          p_cancel_token is not null
+          and b.cancel_token = p_cancel_token
+        )
       )
     order by b.updated_at desc
     limit 1
@@ -60,8 +61,12 @@ as $$
         order by c.first_name, c.last_name_or_company
       ) as items
     from target t
-    left join public.facility_caretakers fc on fc.facility_id = t.facility_id
-    left join public.caretakers c on c.id = fc.caretaker_id
+    left join public.facility_caretakers fc
+      on fc.facility_id = t.facility_id
+     and fc.tenant_id = public.current_tenant_id()
+    left join public.caretakers c
+      on c.id = fc.caretaker_id
+     and c.tenant_id = public.current_tenant_id()
   )
   select jsonb_build_object(
       'booking', jsonb_build_object(

@@ -1,3 +1,5 @@
+import { createSupabaseClient } from '../config/supabaseClient.js';
+
 const DB_NAME = 'sowaChecklistReport';
 const DB_VERSION = 1;
 const STORE_NAME = 'attachments';
@@ -17,7 +19,10 @@ export function initLiveChecklistReport(initialConfig = {}) {
     return;
   }
 
-  const supa = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
+  const supa = createSupabaseClient(window.supabase);
+  if (!supa) {
+    return;
+  }
 
   const dom = {
     sessionIdDisplay: document.getElementById('sessionIdDisplay'),
