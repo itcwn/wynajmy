@@ -1,4 +1,5 @@
 -- Migracja wprowadzająca obsługę wielu najemców (tenantów).
+ 
 -- Jeśli nie masz uprawnień do ALTER DATABASE, możesz pozostawić konfigurację
 -- sesji tej migracji – poniższy blok DO ustawi wartość domyślną na podstawie
 -- zmiennej v_fallback_tenant.
@@ -22,6 +23,7 @@ BEGIN
 END;
 $$;
 
+ 
 -- Funkcja zwracająca identyfikator bieżącego najemcy.
 create or replace function public.current_tenant_id()
 returns uuid
