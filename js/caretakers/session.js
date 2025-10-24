@@ -243,6 +243,7 @@ async function ensureCaretakerProfile({ baseClient, caretakerClient, user }) {
     email: user.email || metadata.email || '',
     login: (metadata.login || user.email || metadata.email || '').toLowerCase(),
   };
+  const tenantId = getTenantId();
 
   if (!payload.first_name || !payload.last_name_or_company || !payload.phone || !payload.email) {
     console.warn('Brak pełnych danych do utworzenia profilu opiekuna.');
@@ -257,22 +258,54 @@ async function ensureCaretakerProfile({ baseClient, caretakerClient, user }) {
   }
 
   const clients = buildClientPriorityList({ caretakerClient, baseClient });
+  const rpcPayload = {
+    p_id: payload.id,
+    p_first_name: payload.first_name,
+    p_last_name_or_company: payload.last_name_or_company,
+    p_phone: payload.phone,
+    p_email: payload.email,
+    p_login: payload.login,
+  };
+
   for (const client of clients) {
+    if (!client || typeof client.rpc !== 'function') {
+      continue;
+    }
     try {
-      const { data, error } = await client
-        .from('caretakers')
-        .upsert(payload, { onConflict: 'id' })
-        .select(PROFILE_COLUMNS)
-        .maybeSingle();
+      const { data, error } = await client.rpc('create_caretaker_profile', rpcPayload);
       if (error) {
-        console.warn('Nie udało się zapisać profilu opiekuna:', error);
+        console.warn('Nie udało się utworzyć profilu opiekuna przez funkcję create_caretaker_profile:', error);
         continue;
       }
-      const storedProfile = data || payload;
-      setProfileCacheEntry(caretakerId, storedProfile);
-      return storedProfile;
+      if (data) {
+        setProfileCacheEntry(caretakerId, data);
+        return data;
+      }
     } catch (error) {
-      console.warn('Nie udało się zapisać profilu opiekuna:', error);
+      console.warn('Nie udało się utworzyć profilu opiekuna przez funkcję create_caretaker_profile:', error);
+    }
+  }
+
+  if (tenantId) {
+    const upsertPayload = { ...payload, tenant_id: tenantId };
+
+    for (const client of clients) {
+      try {
+        const { data, error } = await client
+          .from('caretakers')
+          .upsert(upsertPayload, { onConflict: 'id' })
+          .select(PROFILE_COLUMNS)
+          .maybeSingle();
+        if (error) {
+          console.warn('Nie udało się zapisać profilu opiekuna:', error);
+          continue;
+        }
+        const storedProfile = data || upsertPayload;
+        setProfileCacheEntry(caretakerId, storedProfile);
+        return storedProfile;
+      } catch (error) {
+        console.warn('Nie udało się zapisać profilu opiekuna:', error);
+      }
     }
   }
   setProfileCacheEntry(caretakerId, payload);
