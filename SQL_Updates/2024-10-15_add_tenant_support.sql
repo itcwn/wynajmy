@@ -181,31 +181,6 @@ create index facilities_name_idx on public.facilities (tenant_id, lower(name));
 drop index if exists facilities_city_idx;
 create index facilities_city_idx on public.facilities (tenant_id, lower(city));
 
-create or replace view public.public_facilities as
-select
-  f.id,
-  f.name,
-  f.postal_code,
-  f.city,
-  f.address_line1,
-  f.address_line2,
-  f.capacity,
-  f.price_per_hour,
-  f.price_per_day,
-  f.price_list_url,
-  f.rental_rules_url,
-  f.lat,
-  f.lng,
-  f.description,
-  f.image_urls,
-  f.caretaker_instructions,
-  f.created_at,
-  f.updated_at
-from public.facilities f
-where f.tenant_id = public.current_tenant_id();
-
-grant select on table public.public_facilities to anon, authenticated;
-
 create or replace function public.list_public_facilities()
 returns table (
   tenant_id uuid,
@@ -257,6 +232,32 @@ as $$
 $$;
 
 grant execute on function public.list_public_facilities() to anon, authenticated;
+
+drop view if exists public.public_facilities;
+
+create view public.public_facilities as
+select
+  f.id,
+  f.name,
+  f.postal_code,
+  f.city,
+  f.address_line1,
+  f.address_line2,
+  f.capacity,
+  (f.price_per_hour)::numeric(12,2) as price_per_hour,
+  (f.price_per_day)::numeric(12,2) as price_per_day,
+  f.price_list_url,
+  f.rental_rules_url,
+  (f.lat)::numeric(10,6) as lat,
+  (f.lng)::numeric(10,6) as lng,
+  f.description,
+  f.image_urls,
+  f.caretaker_instructions,
+  f.created_at,
+  f.updated_at
+from public.list_public_facilities() f;
+
+grant select on table public.public_facilities to anon, authenticated;
 
 alter table public.facilities enable row level security;
 
