@@ -339,7 +339,9 @@ alter table public.amenities add constraint amenities_tenant_nn check (tenant_id
 drop index if exists amenities_active_order_idx;
 create index amenities_active_order_idx on public.amenities (tenant_id, is_active desc, order_index, lower(name));
 
-create or replace view public.public_amenities as
+drop view if exists public.public_amenities;
+
+create view public.public_amenities as
 select
   fa.facility_id,
   a.id,

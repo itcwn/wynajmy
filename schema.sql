@@ -369,6 +369,8 @@ before update on public.amenities
 for each row execute function public.set_updated_at();
 
 -- Widok udogodnień przypisanych do obiektów dostępny publicznie.
+drop view if exists public.public_amenities;
+
 create or replace view public.public_amenities as
 select
   fa.facility_id,
