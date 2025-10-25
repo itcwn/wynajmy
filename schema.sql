@@ -368,16 +368,17 @@ create trigger amenities_set_updated_at
 before update on public.amenities
 for each row execute function public.set_updated_at();
 
--- Widok słownika udogodnień dostępny publicznie.
+-- Widok udogodnień przypisanych do obiektów dostępny publicznie.
 create or replace view public.public_amenities as
 select
+  fa.facility_id,
   a.id,
   a.name,
   a.description,
   a.order_index
-from public.amenities a
-where a.is_active
-  and a.tenant_id = public.current_tenant_id();
+from public.facility_amenities fa
+join public.amenities a on a.id = fa.amenity_id
+where coalesce(a.is_active, true);
 
 grant select on table public.public_amenities to anon, authenticated;
 
@@ -389,8 +390,7 @@ create policy "Public read amenities"
   for select
   to anon, authenticated
   using (
-    tenant_id = public.current_effective_tenant_id()
-    and is_active
+    coalesce(is_active, true)
   );
 
 drop policy if exists "Authenticated manage amenities" on public.amenities;

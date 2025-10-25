@@ -27,6 +27,8 @@ export function createFacilitiesModule({
     totalItems: 0,
   };
   state.publicFacilitiesPagination = publicPagination;
+  const facilityAmenitiesCache = state.facilityAmenitiesCache ?? new Map();
+  state.facilityAmenitiesCache = facilityAmenitiesCache;
   const PLACEHOLDER_IMAGE = 'https://picsum.photos/800/400';
   let galleryListenersAttached = false;
   let currentSearchTerm = '';
@@ -74,7 +76,7 @@ export function createFacilitiesModule({
   async function loadDictionaries() {
     const tenantId = getTenantId();
     if (!tenantId) {
-      state.amenities = {};
+      facilityAmenitiesCache.clear();
       state.eventTypes = [];
       const select = $('#bookingForm select[name="event_type_id"]');
       if (select) {
@@ -82,20 +84,11 @@ export function createFacilitiesModule({
       }
       return;
     }
-    state.amenities = {};
-    const [amenitiesData, eventTypes] = await Promise.all([
-      runFirstSuccessfulQuery([
-        () => supabase.from('public_amenities').select('*').order('order_index'),
-        () => supabase.from('amenities').select('*').order('order_index'),
-      ], { allowEmpty: false }),
-      runFirstSuccessfulQuery([
-        () => supabase.from('public_event_types').select('*').order('order_index'),
-        () => supabase.from('event_types').select('*').eq('is_active', true).order('order_index'),
-      ], { allowEmpty: false }),
-    ]);
-    (amenitiesData || []).forEach((amenity) => {
-      state.amenities[amenity.id] = amenity.name;
-    });
+    facilityAmenitiesCache.clear();
+    const eventTypes = await runFirstSuccessfulQuery([
+      () => supabase.from('public_event_types').select('*').order('order_index'),
+      () => supabase.from('event_types').select('*').eq('is_active', true).order('order_index'),
+    ], { allowEmpty: false });
     state.eventTypes = eventTypes || [];
     const select = $('#bookingForm select[name="event_type_id"]');
     if (select) {
@@ -103,6 +96,52 @@ export function createFacilitiesModule({
         ...state.eventTypes.map((type) => `<option value="${type.id}">${escapeHtml(type.name)}</option>`),
       ].join('');
     }
+  }
+
+  async function loadAmenitiesForFacility(facilityId) {
+    if (!facilityId) {
+      return [];
+    }
+    if (facilityAmenitiesCache.has(facilityId)) {
+      return facilityAmenitiesCache.get(facilityId);
+    }
+    const amenitiesData = await runFirstSuccessfulQuery([
+      () => supabase
+        .from('public_amenities')
+        .select('facility_id, id, name, description, order_index')
+        .eq('facility_id', facilityId)
+        .order('order_index'),
+      () => supabase
+        .from('facility_amenities')
+        .select('amenity_id, amenity:amenities(id, name, description, order_index)')
+        .eq('facility_id', facilityId),
+    ]);
+    const normalized = (amenitiesData || [])
+      .map((row) => {
+        const amenity = row.amenity || {};
+        const amenityId = row.id ?? row.amenity_id ?? amenity.id;
+        return {
+          amenity_id: amenityId,
+          name: row.name ?? amenity.name ?? '',
+          description: row.description ?? amenity.description ?? '',
+          order_index: row.order_index ?? amenity.order_index ?? 0,
+        };
+      })
+      .filter((item) => item.amenity_id);
+    normalized.sort((a, b) => {
+      const normalizedOrderA = Number(a.order_index);
+      const normalizedOrderB = Number(b.order_index);
+      const orderA = Number.isFinite(normalizedOrderA) ? normalizedOrderA : Number.MAX_SAFE_INTEGER;
+      const orderB = Number.isFinite(normalizedOrderB) ? normalizedOrderB : Number.MAX_SAFE_INTEGER;
+      if (orderA !== orderB) {
+        return orderA - orderB;
+      }
+      const nameA = (a.name || '').toLowerCase();
+      const nameB = (b.name || '').toLowerCase();
+      return nameA.localeCompare(nameB, 'pl');
+    });
+    facilityAmenitiesCache.set(facilityId, normalized);
+    return normalized;
   }
 
   async function loadFacilities() {
@@ -799,18 +838,14 @@ export function createFacilitiesModule({
     }
     const amenitiesList = $('#facilityAmenities');
     if (amenitiesList) {
-      const joins = await runFirstSuccessfulQuery([
-        () => supabase
-          .from('public_facility_amenities')
-          .select('amenity_id')
-          .eq('facility_id', facility.id),
-        () => supabase
-          .from('facility_amenities')
-          .select('amenity_id')
-          .eq('facility_id', facility.id),
-      ]);
-      amenitiesList.innerHTML = (joins || [])
-        .map((join) => `<span class="text-xs bg-emerald-50 border border-emerald-200 rounded-lg px-2 py-1">${escapeHtml(state.amenities[join.amenity_id] || '—')}</span>`)
+      const amenities = await loadAmenitiesForFacility(facility.id);
+      amenitiesList.innerHTML = amenities
+        .map((amenity) => {
+          const label = escapeHtml(amenity.name || '—');
+          const description = (amenity.description || '').trim();
+          const title = description ? ` title="${escapeHtml(description)}"` : '';
+          return `<span class="text-xs bg-emerald-50 border border-emerald-200 rounded-lg px-2 py-1"${title}>${label}</span>`;
+        })
         .join('');
     }
 
