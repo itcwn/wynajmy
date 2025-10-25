@@ -18,16 +18,15 @@ select
   f.address_line1,
   f.address_line2,
   f.capacity,
-  f.price_per_hour,
-  f.price_per_day,
+  (f.price_per_hour)::numeric(12,2) as price_per_hour,
+  (f.price_per_day)::numeric(12,2) as price_per_day,
   f.price_list_url,
   f.rental_rules_url,
-  f.lat,
-  f.lng,
+  (f.lat)::numeric(10,6) as lat,
+  (f.lng)::numeric(10,6) as lng,
   f.description,
   f.image_urls,
   f.caretaker_instructions,
   f.created_at,
   f.updated_at
-from public.facilities f
-where f.tenant_id = public.current_tenant_id();
+from public.list_public_facilities() f;

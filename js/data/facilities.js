@@ -21,12 +21,19 @@ export function createFacilitiesModule({
 }) {
   const { $ } = domUtils;
   const { escapeHtml } = formatUtils;
+  const publicPagination = state.publicFacilitiesPagination ?? {
+    page: 1,
+    pageSize: 10,
+    totalItems: 0,
+  };
+  state.publicFacilitiesPagination = publicPagination;
   const PLACEHOLDER_IMAGE = 'https://picsum.photos/800/400';
   let galleryListenersAttached = false;
   let currentSearchTerm = '';
   let searchListenerAttached = false;
   let searchClearListenerAttached = false;
   let reservationCtaListenerAttached = false;
+  let paginationListenerAttached = false;
 
   function logQueryError(scope, error) {
     if (!error) {
@@ -120,6 +127,8 @@ export function createFacilitiesModule({
       });
     }
     state.facilities = normalized;
+    publicPagination.totalItems = normalized.length;
+    publicPagination.page = 1;
     renderFacilityList();
   }
 
@@ -127,8 +136,12 @@ export function createFacilitiesModule({
     if (typeof searchTerm === 'string') {
       currentSearchTerm = searchTerm;
     }
+    const tenantId = getTenantId();
+    if (!tenantId && typeof searchTerm === 'string') {
+      publicPagination.page = 1;
+    }
     const normalizedQuery = currentSearchTerm.trim().toLowerCase();
-    const list = state.facilities.filter((facility) => {
+    const filtered = state.facilities.filter((facility) => {
       if (!normalizedQuery) {
         return true;
       }
@@ -137,13 +150,44 @@ export function createFacilitiesModule({
     });
     const count = $('#count');
     if (count) {
-      count.textContent = String(list.length);
+      count.textContent = String(filtered.length);
+    }
+    let itemsToRender = filtered;
+    if (!tenantId) {
+      const totalItems = filtered.length;
+      publicPagination.totalItems = totalItems;
+      if (totalItems === 0) {
+        publicPagination.page = 1;
+      }
+      const totalPages = totalItems > 0
+        ? Math.max(1, Math.ceil(totalItems / publicPagination.pageSize))
+        : 1;
+      if (totalItems > 0 && publicPagination.page > totalPages) {
+        publicPagination.page = totalPages;
+      }
+      const startIndex = totalItems === 0 ? 0 : (publicPagination.page - 1) * publicPagination.pageSize;
+      const endExclusive = totalItems === 0
+        ? 0
+        : Math.min(totalItems, startIndex + publicPagination.pageSize);
+      itemsToRender = totalItems === 0 ? [] : filtered.slice(startIndex, endExclusive);
+      renderPaginationControls({
+        visible: totalItems > 0,
+        page: publicPagination.page,
+        totalPages,
+        totalItems,
+        startIndex: totalItems === 0 ? 0 : startIndex + 1,
+        endIndex: totalItems === 0 ? 0 : endExclusive,
+      });
+    } else {
+      publicPagination.page = 1;
+      publicPagination.totalItems = filtered.length;
+      renderPaginationControls({ visible: false });
     }
     const container = $('#facilities');
     if (!container) {
       return;
     }
-    container.innerHTML = list.map((facility) => renderFacilityTile(facility)).join('');
+    container.innerHTML = itemsToRender.map((facility) => renderFacilityTile(facility)).join('');
     container.querySelectorAll('[data-facility-card]').forEach((card) => {
       const id = card.dataset.facilityCard;
       if (!id) {
@@ -161,6 +205,7 @@ export function createFacilitiesModule({
       });
     });
     ensureSearchControls();
+    ensurePaginationListeners();
     ensureReservationCtaListener();
     markSelectedTile();
     updateReservationCta();
@@ -257,6 +302,89 @@ export function createFacilitiesModule({
         scrollToReservationSection();
       });
       reservationCtaListenerAttached = true;
+    }
+  }
+
+  function ensurePaginationListeners() {
+    if (paginationListenerAttached) {
+      return;
+    }
+    const container = $('#publicFacilitiesPagination');
+    if (!container) {
+      return;
+    }
+    container.addEventListener('click', (event) => {
+      const trigger = event.target.closest('[data-pagination-action]');
+      if (!trigger) {
+        return;
+      }
+      event.preventDefault();
+      const action = trigger.dataset.paginationAction;
+      if (action === 'prev') {
+        goToPaginationPage(publicPagination.page - 1);
+      } else if (action === 'next') {
+        goToPaginationPage(publicPagination.page + 1);
+      }
+    });
+    paginationListenerAttached = true;
+  }
+
+  function goToPaginationPage(page) {
+    const tenantId = getTenantId();
+    if (tenantId) {
+      return;
+    }
+    const totalItems = publicPagination.totalItems;
+    if (totalItems <= 0) {
+      return;
+    }
+    const totalPages = Math.max(1, Math.ceil(totalItems / publicPagination.pageSize));
+    const nextPage = Math.min(Math.max(page, 1), totalPages);
+    if (nextPage === publicPagination.page) {
+      return;
+    }
+    publicPagination.page = nextPage;
+    renderFacilityList();
+    const facilitiesCard = document.getElementById('facilityBrowser');
+    if (facilitiesCard) {
+      facilitiesCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
+
+  function renderPaginationControls(details) {
+    const container = $('#publicFacilitiesPagination');
+    if (!container) {
+      return;
+    }
+    if (!details || !details.visible) {
+      container.classList.add('hidden');
+      return;
+    }
+    container.classList.remove('hidden');
+    const rangeLabel = container.querySelector('[data-pagination-range]');
+    if (rangeLabel) {
+      const { startIndex, endIndex, totalItems } = details;
+      rangeLabel.textContent = `${startIndex}–${endIndex} z ${totalItems} obiektów`;
+    }
+    const pageLabel = container.querySelector('[data-pagination-page]');
+    if (pageLabel) {
+      pageLabel.textContent = String(details.page);
+    }
+    const pagesLabel = container.querySelector('[data-pagination-pages]');
+    if (pagesLabel) {
+      pagesLabel.textContent = String(details.totalPages);
+    }
+    const prevBtn = container.querySelector('[data-pagination-action="prev"]');
+    const nextBtn = container.querySelector('[data-pagination-action="next"]');
+    const isFirstPage = details.page <= 1;
+    const isLastPage = details.page >= details.totalPages;
+    if (prevBtn) {
+      prevBtn.disabled = isFirstPage;
+      prevBtn.setAttribute('aria-disabled', isFirstPage ? 'true' : 'false');
+    }
+    if (nextBtn) {
+      nextBtn.disabled = isLastPage;
+      nextBtn.setAttribute('aria-disabled', isLastPage ? 'true' : 'false');
     }
   }
 

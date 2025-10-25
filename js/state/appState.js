@@ -16,4 +16,9 @@ export const state = {
   docSelectedTemplate: null,
   renderSeq: 0,
   isTenantReloading: false,
+  publicFacilitiesPagination: {
+    page: 1,
+    pageSize: 10,
+    totalItems: 0,
+  },
 };
