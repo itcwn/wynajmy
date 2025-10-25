@@ -265,8 +265,7 @@ select
   f.caretaker_instructions,
   f.created_at,
   f.updated_at
-from public.facilities f
-where f.tenant_id = public.current_tenant_id();
+from public.list_public_facilities() f;
 
 grant select on table public.public_facilities to anon, authenticated;
 
