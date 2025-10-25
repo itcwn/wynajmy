@@ -27,6 +27,43 @@ export function renderMain() {
         </div>
         
         <div id="facilities" class="facility-grid px-6 pb-6 pt-4"></div>
+        <div
+          id="publicFacilitiesPagination"
+          class="hidden border-t border-slate-200 bg-slate-50/60 px-6 py-4"
+        >
+          <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p
+              class="text-sm text-slate-600"
+              data-pagination-range
+            >
+              0–0 z 0 obiektów
+            </p>
+            <div class="flex items-center gap-3">
+              <button
+                type="button"
+                class="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm transition hover:border-[#003580] hover:text-[#003580] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#003580] disabled:cursor-not-allowed disabled:opacity-50"
+                data-pagination-action="prev"
+                aria-label="Poprzednia strona"
+              >
+                ◀ Poprzednia
+              </button>
+              <span class="text-sm font-medium text-slate-600">
+                Strona
+                <span data-pagination-page>1</span>
+                z
+                <span data-pagination-pages>1</span>
+              </span>
+              <button
+                type="button"
+                class="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm transition hover:border-[#003580] hover:text-[#003580] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#003580] disabled:cursor-not-allowed disabled:opacity-50"
+                data-pagination-action="next"
+                aria-label="Następna strona"
+              >
+                Następna ▶
+              </button>
+            </div>
+          </div>
+        </div>
         <div class="border-t border-slate-200 bg-slate-50/60 px-6 py-4">
           <button
             id="openReservationCta"
