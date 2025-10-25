@@ -9,7 +9,9 @@ alter table public.facilities
 alter table public.facilities
   add column if not exists rental_rules_url text;
 
-create or replace view public.public_facilities as
+drop view if exists public.public_facilities;
+
+create view public.public_facilities as
 select
   f.id,
   f.name,
