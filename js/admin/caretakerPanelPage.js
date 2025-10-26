@@ -16,6 +16,8 @@ const openAddFacilityBtn = document.getElementById('openAddFacilityModal');
 const addFacilityModalCloseButtons = document.querySelectorAll('[data-add-facility-modal-close]');
 const caretakerIdentity = document.getElementById('caretakerIdentity');
 const caretakerIdentityName = document.getElementById('caretakerIdentityName');
+const tenantCheckBtn = document.getElementById('caretakerTenantCheck');
+const tenantCheckMessage = document.getElementById('caretakerTenantCheckMessage');
 
 function setStatus(element, text, tone = 'info') {
   if (!element) {
@@ -138,6 +140,103 @@ async function bootstrap() {
   const session = await requireCaretakerSession({ redirectTo: './caretakerLogin.html' });
   if (!session) {
     return;
+  }
+
+  const tenantCheckClients = [];
+  if (session.supabase) {
+    tenantCheckClients.push(session.supabase);
+  }
+  if (session.baseSupabase && session.baseSupabase !== session.supabase) {
+    tenantCheckClients.push(session.baseSupabase);
+  }
+
+  if (tenantCheckMessage) {
+    setStatus(tenantCheckMessage, 'Kliknij, aby sprawdzić tenant ID.', 'info');
+  }
+
+  async function verifyTenantContext() {
+    if (!tenantCheckBtn) {
+      return;
+    }
+
+    if (!tenantCheckClients.length) {
+      setStatus(
+        tenantCheckMessage,
+        'Brak połączenia z Supabase umożliwiającego diagnostykę tenanta.',
+        'error',
+      );
+      return;
+    }
+
+    tenantCheckBtn.disabled = true;
+    setStatus(tenantCheckMessage, 'Sprawdzanie identyfikatora tenanta...');
+
+    let lastError = null;
+
+    try {
+      for (const client of tenantCheckClients) {
+        try {
+          const { data, error } = await client.rpc('log_current_tenant_context');
+          if (error) {
+            throw error;
+          }
+
+          console.info('Diagnostyka tenant ID – wynik funkcji log_current_tenant_context:', data);
+
+          const tenantId = data?.tenant_id || null;
+          const headerTenant = data?.header_tenant_id || null;
+          const jwtTenant = data?.jwt_tenant_id || null;
+          const defaultTenant = data?.default_tenant_id || null;
+          const caretakerId = data?.caretaker_id || null;
+
+          const summaryParts = [];
+          summaryParts.push(`Aktywny tenant: ${tenantId || 'brak'}`);
+          if (headerTenant) {
+            summaryParts.push(`Nagłówek: ${headerTenant}`);
+          }
+          if (jwtTenant) {
+            summaryParts.push(`JWT: ${jwtTenant}`);
+          }
+          if (defaultTenant && defaultTenant !== tenantId) {
+            summaryParts.push(`Domyślny: ${defaultTenant}`);
+          }
+          if (caretakerId) {
+            summaryParts.push(`Opiekun: ${caretakerId}`);
+          }
+
+          setStatus(tenantCheckMessage, summaryParts.join(' • '), tenantId ? 'success' : 'error');
+          return;
+        } catch (error) {
+          lastError = error;
+          console.warn('Nie udało się potwierdzić identyfikatora tenanta przy użyciu klienta Supabase.', error);
+        }
+      }
+
+      if (lastError) {
+        throw lastError;
+      }
+
+      setStatus(
+        tenantCheckMessage,
+        'Nie udało się potwierdzić identyfikatora tenanta – brak odpowiedzi z funkcji diagnostycznej.',
+        'error',
+      );
+    } catch (error) {
+      setStatus(
+        tenantCheckMessage,
+        'Nie udało się potwierdzić identyfikatora tenanta. Sprawdź konsolę przeglądarki po więcej informacji.',
+        'error',
+      );
+    } finally {
+      tenantCheckBtn.disabled = false;
+    }
+  }
+
+  if (tenantCheckBtn) {
+    tenantCheckBtn.disabled = !tenantCheckClients.length;
+    tenantCheckBtn.addEventListener('click', () => {
+      void verifyTenantContext();
+    });
   }
 
   if (caretakerIdentity && caretakerIdentityName) {
