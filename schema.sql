@@ -371,16 +371,44 @@ for each row execute function public.set_updated_at();
 -- Widok udogodnień przypisanych do obiektów dostępny publicznie.
 drop view if exists public.public_amenities;
 
+create or replace function public.list_public_amenities()
+returns table (
+  facility_id uuid,
+  amenity_id uuid,
+  name text,
+  description text,
+  order_index integer
+)
+language sql
+security definer
+set search_path = public
+as $$
+  select
+    fa.facility_id,
+    a.id as amenity_id,
+    a.name,
+    a.description,
+    a.order_index
+  from public.facility_amenities fa
+  join public.amenities a on a.id = fa.amenity_id
+  join public.list_public_facilities() f
+    on f.id = fa.facility_id
+   and f.tenant_id = fa.tenant_id
+   and f.tenant_id = a.tenant_id
+  where coalesce(a.is_active, true)
+  order by fa.facility_id, coalesce(a.order_index, 0), lower(coalesce(a.name, ''))
+$$;
+
+grant execute on function public.list_public_amenities() to anon, authenticated;
+
 create or replace view public.public_amenities as
 select
-  fa.facility_id,
-  a.id,
-  a.name,
-  a.description,
-  a.order_index
-from public.facility_amenities fa
-join public.amenities a on a.id = fa.amenity_id
-where coalesce(a.is_active, true);
+  facility_id,
+  amenity_id as id,
+  name,
+  description,
+  order_index
+from public.list_public_amenities();
 
 grant select on table public.public_amenities to anon, authenticated;
 
@@ -423,13 +451,9 @@ create index if not exists facility_amenities_amenity_idx
 -- Widok powiązań obiektów z udogodnieniami dla użytkowników publicznych.
 create or replace view public.public_facility_amenities as
 select
-  fa.facility_id,
-  fa.amenity_id
-from public.facility_amenities fa
-  join public.amenities a on a.id = fa.amenity_id
-where coalesce(a.is_active, true)
-  and fa.tenant_id = public.current_tenant_id()
-  and a.tenant_id = public.current_tenant_id();
+  facility_id,
+  amenity_id
+from public.list_public_amenities();
 
 grant select on table public.public_facility_amenities to anon, authenticated;
 
@@ -869,15 +893,41 @@ before update on public.event_types
 for each row execute function public.set_updated_at();
 
 -- Widok publiczny typów wydarzeń.
+create or replace function public.list_public_event_types()
+returns table (
+  id uuid,
+  name text,
+  description text,
+  order_index integer
+)
+language sql
+security definer
+set search_path = public
+as $$
+  with tenants as (
+    select distinct tenant_id
+    from public.list_public_facilities()
+  )
+  select distinct on (e.id)
+    e.id,
+    e.name,
+    e.description,
+    e.order_index
+  from public.event_types e
+  join tenants t on t.tenant_id = e.tenant_id
+  where e.is_active
+  order by e.id, e.order_index, lower(coalesce(e.name, ''))
+$$;
+
+grant execute on function public.list_public_event_types() to anon, authenticated;
+
 create or replace view public.public_event_types as
 select
-  e.id,
-  e.name,
-  e.description,
-  e.order_index
-from public.event_types e
-where e.is_active
-  and e.tenant_id = public.current_tenant_id();
+  id,
+  name,
+  description,
+  order_index
+from public.list_public_event_types();
 
 grant select on table public.public_event_types to anon, authenticated;
 
@@ -1021,19 +1071,50 @@ create policy "Authenticated manage bookings"
   );
 
 -- Widok uproszczonych danych rezerwacji udostępniany publicznie.
+create or replace function public.list_public_bookings()
+returns table (
+  id uuid,
+  facility_id uuid,
+  title text,
+  start_time timestamptz,
+  end_time timestamptz,
+  status text,
+  renter_name text,
+  notes text
+)
+language sql
+security definer
+set search_path = public
+as $$
+  select
+    b.id,
+    b.facility_id,
+    b.title,
+    b.start_time,
+    b.end_time,
+    b.status,
+    b.renter_name,
+    b.notes
+  from public.bookings b
+  join public.list_public_facilities() f
+    on f.id = b.facility_id
+   and f.tenant_id = b.tenant_id
+  where b.is_public
+$$;
+
+grant execute on function public.list_public_bookings() to anon, authenticated;
+
 create or replace view public.public_bookings as
 select
-  b.id,
-  b.facility_id,
-  b.title,
-  b.start_time,
-  b.end_time,
-  b.status,
-  b.renter_name,
-  b.notes
-from public.bookings b
-where b.is_public
-  and b.tenant_id = public.current_tenant_id();
+  id,
+  facility_id,
+  title,
+  start_time,
+  end_time,
+  status,
+  renter_name,
+  notes
+from public.list_public_bookings();
 
 -- Funkcja anulująca rezerwację po tokenie.
 create or replace function public.cancel_booking(p_token uuid)
