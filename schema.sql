@@ -323,7 +323,7 @@ grant execute on function public.list_public_facilities() to anon, authenticated
 
 drop view if exists public.public_facilities;
 
-create view public.public_facilities as
+create or replace view public.public_facilities as
 select
   f.id,
   f.name,

@@ -259,7 +259,7 @@ grant execute on function public.list_public_facilities() to anon, authenticated
 
 drop view if exists public.public_facilities;
 
-create view public.public_facilities as
+create or replace view public.public_facilities as
 select
   f.id,
   f.name,
@@ -371,7 +371,7 @@ $$;
 
 grant execute on function public.list_public_amenities() to anon, authenticated;
 
-create view public.public_amenities as
+create or replace view public.public_amenities as
 select
   facility_id,
   amenity_id as id,
@@ -722,7 +722,7 @@ $$;
 
 grant execute on function public.list_public_event_types() to anon, authenticated;
 
-create view public.public_event_types as
+create or replace view public.public_event_types as
 select
   id,
   name,
@@ -839,7 +839,7 @@ $$;
 
 grant execute on function public.list_public_bookings() to anon, authenticated;
 
-create view public.public_bookings as
+create or replace view public.public_bookings as
 select
   id,
   facility_id,
