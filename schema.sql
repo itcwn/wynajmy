@@ -5,6 +5,23 @@ set search_path = public;
 
 create extension if not exists "pgcrypto";
 
+-- Konfiguracja domyślnego identyfikatora najemcy wykorzystywanego w całej bazie.
+do $$
+begin
+  begin
+    execute format(
+      'alter database %I set app.default_tenant_id = %L',
+      current_database(),
+      '98cf6ea0-80c4-4d88-b81d-73f3c6e8b07e'
+    );
+  exception when insufficient_privilege then
+    null;
+  end;
+
+  perform set_config('app.default_tenant_id', '98cf6ea0-80c4-4d88-b81d-73f3c6e8b07e', false);
+end;
+$$;
+
 -- Funkcja wspierająca aktualizację kolumn updated_at.
 create or replace function public.set_updated_at()
 returns trigger
@@ -209,9 +226,127 @@ $$;
 grant execute on function public.resolve_tenant_for_caretaker(uuid) to anon, authenticated;
 
 
+-- Rejestr najemców (klientów) wraz z danymi kontaktowymi i rozliczeniowymi.
+create table if not exists public.tenants (
+  id uuid primary key default gen_random_uuid(),
+  tenant_code text unique,
+  name text not null,
+  is_active boolean not null default true,
+  billing_name text not null,
+  billing_tax_id text,
+  billing_address_line1 text not null,
+  billing_address_line2 text,
+  billing_postal_code text not null,
+  billing_city text not null,
+  billing_country_code text not null default 'PL',
+  contact_person text,
+  contact_email text,
+  contact_phone text,
+  notes text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint tenants_billing_country_code_chk check (
+    char_length(billing_country_code) = 2
+    and billing_country_code = upper(billing_country_code)
+  ),
+  constraint tenants_billing_tax_id_format_chk check (
+    billing_tax_id is null or billing_tax_id ~ '^[0-9A-Za-z-]+$'
+  )
+);
+
+create unique index if not exists tenants_tenant_code_uidx
+  on public.tenants (lower(tenant_code))
+  where tenant_code is not null;
+
+create unique index if not exists tenants_billing_tax_id_uidx
+  on public.tenants (billing_tax_id)
+  where billing_tax_id is not null;
+
+create index if not exists tenants_name_idx
+  on public.tenants (lower(name));
+
+drop trigger if exists tenants_set_updated_at on public.tenants;
+create trigger tenants_set_updated_at
+before update on public.tenants
+for each row execute function public.set_updated_at();
+
+alter table public.tenants enable row level security;
+
+drop policy if exists "Service role manage tenants" on public.tenants;
+create policy "Service role manage tenants"
+  on public.tenants
+  for all
+  to service_role
+  using (true)
+  with check (true);
+
+drop policy if exists "Authenticated read own tenant" on public.tenants;
+create policy "Authenticated read own tenant"
+  on public.tenants
+  for select
+  to authenticated
+  using (
+    id = public.current_effective_tenant_id()
+  );
+
+insert into public.tenants (
+  id,
+  tenant_code,
+  name,
+  is_active,
+  billing_name,
+  billing_tax_id,
+  billing_address_line1,
+  billing_address_line2,
+  billing_postal_code,
+  billing_city,
+  billing_country_code,
+  contact_person,
+  contact_email,
+  contact_phone,
+  notes
+)
+values
+  (
+    '98cf6ea0-80c4-4d88-b81d-73f3c6e8b07e',
+    'zielony-zakatek',
+    'Osiedle Zielony Zakątek',
+    true,
+    'Wspólnota Mieszkaniowa Zielony Zakątek',
+    '945-123-45-67',
+    'ul. Lipowa 10',
+    null,
+    '30-123',
+    'Kraków',
+    'PL',
+    'Anna Kowalska',
+    'biuro@zielonyzakatek.pl',
+    '+48 600 100 200',
+    'Domyślny klient testowy wykorzystywany w środowisku deweloperskim.'
+  ),
+  (
+    '07b90c28-5a4b-4c6b-9f32-2bf2d5c29e1b',
+    'biala-laka',
+    'Spółdzielnia Mieszkaniowa Biała Łąka',
+    true,
+    'Spółdzielnia Mieszkaniowa Biała Łąka',
+    '525-987-32-10',
+    'ul. Słoneczna 5',
+    'lok. 12',
+    '02-326',
+    'Warszawa',
+    'PL',
+    'Piotr Nowak',
+    'kontakt@bialalaka.pl',
+    '+48 601 200 300',
+    'Dodatkowy klient testowy do scenariuszy integracyjnych.'
+  )
+on conflict (id) do nothing;
+
+
 -- Tabela obiektów.
 create table if not exists public.facilities (
-  tenant_id uuid not null default public.current_tenant_id(),
+  tenant_id uuid not null default public.current_tenant_id() references public.tenants(id),
   id uuid primary key default gen_random_uuid(),
   name text not null,
   postal_code text,
@@ -349,7 +484,7 @@ grant select on table public.public_facilities to anon, authenticated;
 
 -- Słownik udogodnień.
 create table if not exists public.amenities (
-  tenant_id uuid not null default public.current_tenant_id(),
+  tenant_id uuid not null default public.current_tenant_id() references public.tenants(id),
   id uuid primary key default gen_random_uuid(),
   name text not null,
   description text,
@@ -409,7 +544,7 @@ create policy "Authenticated manage amenities"
 
 -- Przypisanie udogodnień do obiektów.
 create table if not exists public.facility_amenities (
-  tenant_id uuid not null default public.current_tenant_id(),
+  tenant_id uuid not null default public.current_tenant_id() references public.tenants(id),
   facility_id uuid not null references public.facilities(id) on delete cascade,
   amenity_id uuid not null references public.amenities(id) on delete cascade,
   assigned_at timestamptz not null default now(),
@@ -458,7 +593,7 @@ create policy "Authenticated manage facility amenities"
 
 -- Lista kontrolna przekazania obiektu.
 create table if not exists public.facility_checklist_items (
-  tenant_id uuid not null default public.current_tenant_id(),
+  tenant_id uuid not null default public.current_tenant_id() references public.tenants(id),
   id bigint generated by default as identity primary key,
   facility_id uuid not null references public.facilities(id) on delete cascade,
   phase text not null check (phase in ('handover', 'return')),
@@ -514,7 +649,7 @@ create policy "Caretaker manage facility checklist"
   );
 -- Dane opiekunów obiektów.
 create table if not exists public.caretakers (
-  tenant_id uuid not null default public.current_tenant_id(),
+  tenant_id uuid not null default public.current_tenant_id() references public.tenants(id),
   id uuid primary key references auth.users (id) on delete cascade,
   first_name text not null,
   last_name_or_company text not null,
@@ -614,7 +749,7 @@ grant execute on function public.create_caretaker_profile(
 
 -- Powiązania obiektów z opiekunami.
 create table if not exists public.facility_caretakers (
-  tenant_id uuid not null default public.current_tenant_id(),
+  tenant_id uuid not null default public.current_tenant_id() references public.tenants(id),
   caretaker_id uuid not null references public.caretakers(id) on delete cascade,
   facility_id uuid not null references public.facilities(id) on delete cascade,
   created_at timestamptz not null default now(),
@@ -849,7 +984,7 @@ create trigger facilities_assign_caretaker
 
 -- Słownik typów wydarzeń wykorzystywany przy rezerwacjach.
 create table if not exists public.event_types (
-  tenant_id uuid not null default public.current_tenant_id(),
+  tenant_id uuid not null default public.current_tenant_id() references public.tenants(id),
   id uuid primary key default gen_random_uuid(),
   name text not null,
   description text,
@@ -907,7 +1042,7 @@ create policy "Authenticated manage event types"
 
 -- Szablony dokumentów (wnioski, protokoły, itp.).
 create table if not exists public.document_templates (
-  tenant_id uuid not null default public.current_tenant_id(),
+  tenant_id uuid not null default public.current_tenant_id() references public.tenants(id),
   id uuid primary key default gen_random_uuid(),
   name text not null,
   code text not null,
@@ -956,7 +1091,7 @@ create policy "Caretaker manage document templates"
 
 -- Rezerwacje obiektów.
 create table if not exists public.bookings (
-  tenant_id uuid not null default public.current_tenant_id(),
+  tenant_id uuid not null default public.current_tenant_id() references public.tenants(id),
   id uuid primary key default gen_random_uuid(),
   facility_id uuid not null references public.facilities(id) on delete cascade,
   title text not null default 'Rezerwacja',
