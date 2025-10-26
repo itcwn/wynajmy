@@ -633,6 +633,7 @@ create table if not exists public.facility_checklist_items (
 create index if not exists facility_checklist_items_facility_phase_idx
   on public.facility_checklist_items (tenant_id, facility_id, phase, order_index, id);
 
+drop trigger if exists facility_checklist_items_set_updated_at on public.facility_checklist_items;
 drop function if exists public.set_facility_checklist_items_updated_at();
 create or replace function public.set_facility_checklist_items_updated_at()
 returns trigger
@@ -644,7 +645,6 @@ begin
 end;
 $$;
 
-drop trigger if exists facility_checklist_items_set_updated_at on public.facility_checklist_items;
 create trigger facility_checklist_items_set_updated_at
 before update on public.facility_checklist_items
 for each row execute function public.set_facility_checklist_items_updated_at();
