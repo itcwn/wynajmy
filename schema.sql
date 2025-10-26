@@ -42,6 +42,7 @@ stable
 as $$
 declare
   header text;
+  headers jsonb;
   uid uuid;
   tenant uuid;
 begin
@@ -62,7 +63,27 @@ begin
     end if;
   end if;
 
-  header := nullif(current_setting('request.header.x-caretaker-id', true), '');
+  begin
+    header := nullif(current_setting('request.header.x-caretaker-id', true), '');
+  exception when others then
+    header := null;
+  end;
+
+  if header is null then
+    begin
+      headers := current_setting('request.headers', true)::jsonb;
+      if headers is not null then
+        select value
+          into header
+          from jsonb_each_text(headers)
+         where lower(key) = 'x-caretaker-id'
+         limit 1;
+      end if;
+    exception when others then
+      header := null;
+    end;
+  end if;
+
   if header is not null then
     begin
       if tenant is null then
@@ -95,9 +116,30 @@ stable
 as $$
 declare
   header text;
+  headers jsonb;
   claim text;
 begin
-  header := nullif(current_setting('request.header.x-tenant-id', true), '');
+  begin
+    header := nullif(current_setting('request.header.x-tenant-id', true), '');
+  exception when others then
+    header := null;
+  end;
+
+  if header is null then
+    begin
+      headers := current_setting('request.headers', true)::jsonb;
+      if headers is not null then
+        select value
+          into header
+          from jsonb_each_text(headers)
+         where lower(key) = 'x-tenant-id'
+         limit 1;
+      end if;
+    exception when others then
+      header := null;
+    end;
+  end if;
+
   if header is not null then
     begin
       return header::uuid;
@@ -115,7 +157,13 @@ begin
     null;
   end;
 
-  header := nullif(current_setting('app.default_tenant_id', true), '');
+  header := null;
+  begin
+    header := nullif(current_setting('app.default_tenant_id', true), '');
+  exception when others then
+    header := null;
+  end;
+
   if header is not null then
     begin
       return header::uuid;
@@ -142,6 +190,7 @@ declare
   v_tenant uuid;
   v_caretaker uuid;
   v_header text;
+  v_caretaker_header text;
   v_claim text;
   v_default text;
   v_headers jsonb;
@@ -150,12 +199,6 @@ declare
 begin
   v_tenant := public.current_tenant_id();
   v_caretaker := public.current_caretaker_id();
-
-  begin
-    v_header := nullif(current_setting('request.header.x-tenant-id', true), '');
-  exception when others then
-    v_header := null;
-  end;
 
   begin
     v_claim := nullif(coalesce(auth.jwt()->>'tenant_id', ''), '');
@@ -174,6 +217,22 @@ begin
   exception when others then
     v_headers := null;
   end;
+
+  if v_headers is not null then
+    select value
+      into v_header
+      from jsonb_each_text(v_headers)
+     where lower(key) = 'x-tenant-id'
+     limit 1;
+
+    if v_caretaker_header is null then
+      select value
+        into v_caretaker_header
+        from jsonb_each_text(v_headers)
+       where lower(key) = 'x-caretaker-id'
+       limit 1;
+    end if;
+  end if;
 
   begin
     v_claims := current_setting('request.jwt.claims', true)::jsonb;
@@ -196,6 +255,7 @@ begin
     'jwt_tenant_id', v_claim,
     'default_tenant_id', v_default,
     'caretaker_id', v_caretaker,
+    'header_caretaker_id', v_caretaker_header,
     'timestamp', now(),
     'headers', v_headers,
     'jwt_claims', v_claims
