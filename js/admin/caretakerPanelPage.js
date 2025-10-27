@@ -6,6 +6,7 @@ import {
 import { loadMyFacilities } from '../caretakers/myFacilities.js';
 import { initFacilityForm } from './facilityForm.js';
 import { initCaretakerBookingsModal } from './caretakerBookingsModal.js';
+import { initTenantAccountModal } from './tenantAccountModal.js';
 
 const logoutBtn = document.getElementById('caretakerLogout');
 const facilitiesList = document.getElementById('caretakerFacilitiesList');
@@ -247,6 +248,7 @@ async function bootstrap() {
   }
 
   initCaretakerBookingsModal({ session });
+  initTenantAccountModal({ session });
 
   if (logoutBtn) {
     logoutBtn.addEventListener('click', () => {
