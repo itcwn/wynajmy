@@ -203,7 +203,7 @@ select
   f.updated_at
 from public.list_public_facilities() f;
 
-grant select on table public.public_facilities to anon, authenticated;
+grant select on table public.public_facilities to anon, authenticated, service_role;
 
 create or replace function public.list_public_facilities()
 returns table (
@@ -255,7 +255,7 @@ as $$
   order by lower(coalesce(f.name, ''))
 $$;
 
-grant execute on function public.list_public_facilities() to anon, authenticated;
+grant execute on function public.list_public_facilities() to anon, authenticated, service_role;
 
 drop view if exists public.public_facilities;
 
@@ -281,7 +281,7 @@ select
   f.updated_at
 from public.list_public_facilities() f;
 
-grant select on table public.public_facilities to anon, authenticated;
+grant select on table public.public_facilities to anon, authenticated, service_role;
 
 alter table public.facilities enable row level security;
 
