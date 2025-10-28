@@ -367,31 +367,6 @@ export function renderMain() {
             </div>
 
             <div class="md:col-span-2">
-              <label class="text-sm font-medium text-slate-600">Krótka zagadka matematyczna</label>
-              <div class="mt-2 flex flex-wrap items-center gap-3">
-                <span id="mathPuzzleQuestion" class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700 shadow-sm"></span>
-                <input
-                  name="math_answer"
-                  type="number"
-                  inputmode="numeric"
-                  min="0"
-                  step="1"
-                  required
-                  class="w-32 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-[#003580] focus:ring-2 focus:ring-[#003580]/40 focus:outline-none"
-                  placeholder="Wynik"
-                />
-                <button
-                  id="mathPuzzleRefresh"
-                  type="button"
-                  class="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-600 transition hover:border-[#003580] hover:text-[#003580]"
-                >
-                  Inna zagadka
-                </button>
-              </div>
-              <p class="mt-1 text-xs text-slate-500">Aby wysłać formularz, podaj poprawny wynik działania.</p>
-            </div>
-
-            <div class="md:col-span-2">
               <label class="text-sm font-medium text-slate-600">Uwagi (opcjonalnie)</label>
               <textarea name="notes" class="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-[#003580] focus:ring-2 focus:ring-[#003580]/40 focus:outline-none" rows="3"></textarea>
             </div>

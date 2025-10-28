@@ -27,10 +27,6 @@ export function createBookingForm({
   let titleInput;
   let typeSelect;
   let renterNameInput;
-  let mathAnswerInput;
-  let mathPuzzleQuestionEl;
-  let mathPuzzleRefreshBtn;
-  let mathPuzzle = null;
   const facilitiesModule = facilities || state.facilitiesModule || null;
   if (facilitiesModule && state.facilitiesModule !== facilitiesModule) {
     state.facilitiesModule = facilitiesModule;
@@ -148,64 +144,6 @@ export function createBookingForm({
     return null;
   }
 
-  function generateMathPuzzle() {
-    const operations = [
-      { symbol: '+', label: 'plus', compute: (a, b) => a + b },
-      { symbol: '−', label: 'minus', compute: (a, b) => a - b },
-    ];
-    const first = Math.floor(Math.random() * 8) + 3;
-    const second = Math.floor(Math.random() * 8) + 2;
-    const op = operations[Math.floor(Math.random() * operations.length)];
-    const [a, b] = op.symbol === '−' && second > first ? [second, first] : [first, second];
-    return {
-      question: `Ile to ${a} ${op.symbol} ${b}?`,
-      answer: op.compute(a, b),
-    };
-  }
-
-  function renderMathPuzzle() {
-    if (!mathAnswerInput || !mathPuzzleQuestionEl) {
-      return;
-    }
-    if (!mathPuzzle) {
-      mathPuzzle = generateMathPuzzle();
-    }
-    mathPuzzleQuestionEl.textContent = mathPuzzle.question;
-    mathAnswerInput.value = '';
-    mathAnswerInput.setAttribute('aria-label', mathPuzzle.question);
-  }
-
-  function refreshMathPuzzle({ focusInput = false } = {}) {
-    mathPuzzle = generateMathPuzzle();
-    renderMathPuzzle();
-    if (focusInput && mathAnswerInput) {
-      mathAnswerInput.focus();
-    }
-  }
-
-  function generateClientUuid() {
-    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-      return crypto.randomUUID();
-    }
-    const randomPart = Math.random().toString(36).slice(2, 10);
-    return `${Date.now().toString(36)}-${randomPart}`;
-  }
-
-  function validateMathPuzzleAnswer() {
-    if (!mathAnswerInput) {
-      return true;
-    }
-    const raw = mathAnswerInput.value.trim();
-    if (!raw) {
-      return false;
-    }
-    const number = Number.parseInt(raw, 10);
-    if (!Number.isFinite(number)) {
-      return false;
-    }
-    return number === mathPuzzle?.answer;
-  }
-
   function getSelectedEventTypeName() {
     if (!typeSelect || !typeSelect.value) {
       return '';
@@ -291,11 +229,6 @@ export function createBookingForm({
     }
     const form = event.target;
     setFormMessage('');
-    if (!validateMathPuzzleAnswer()) {
-      setFormMessage('Niepoprawna odpowiedź na zagadkę. Spróbuj ponownie.', 'error');
-      refreshMathPuzzle({ focusInput: true });
-      return;
-    }
     setFormMessage('Trwa zapisywanie...', 'info');
     let startIso;
     let endIso;
@@ -344,8 +277,6 @@ export function createBookingForm({
     updateTitleField();
 
     const payload = {
-      id: generateClientUuid(),
-      cancel_token: generateClientUuid(),
       facility_id: state.selectedFacility.id,
       title: form.title.value.trim(),
       event_type_id: form.event_type_id.value || null,
@@ -354,15 +285,40 @@ export function createBookingForm({
       renter_name: form.renter_name.value.trim(),
       renter_email: form.renter_email.value.trim(),
       notes: form.notes.value.trim() || null,
-      is_public: true,
-      status: 'pending',
     };
-    const { error } = await supabase
-      .from('bookings')
-      .insert(payload, { returning: 'minimal' });
-    if (error) {
-      console.error(error);
-      setFormMessage(`Błąd: ${error.message || 'nie udało się utworzyć rezerwacji.'}`, 'error');
+    let insertedBooking = null;
+    try {
+      const response = await supabase.functions.invoke('create-booking', {
+        body: payload,
+      });
+      if (response.error) {
+        console.error('create-booking error', response.error);
+        let errorMessage = response.data?.error || '';
+        if (!errorMessage) {
+          const rawMessage = response.error.message || '';
+          try {
+            const parsed = JSON.parse(rawMessage);
+            if (parsed && typeof parsed === 'object' && 'error' in parsed) {
+              errorMessage = String(parsed.error);
+            }
+          } catch {
+            errorMessage = rawMessage;
+          }
+        }
+        if (!errorMessage) {
+          errorMessage = 'nie udało się utworzyć rezerwacji.';
+        }
+        setFormMessage(`Błąd: ${errorMessage}`, 'error');
+        return;
+      }
+      insertedBooking = response.data?.booking ?? null;
+    } catch (invokeError) {
+      console.error('create-booking exception', invokeError);
+      setFormMessage('Błąd: nie udało się utworzyć rezerwacji.', 'error');
+      return;
+    }
+    if (!insertedBooking?.id) {
+      setFormMessage('Błąd: nie udało się utworzyć rezerwacji.', 'error');
       return;
     }
     let successMessage = 'Wstępna rezerwacja złożona! Opiekun obiektu potwierdzi lub odrzuci.';
@@ -370,23 +326,31 @@ export function createBookingForm({
       successMessage += ' Uwaga: rezerwacja graniczy z inną i może wymagać uzgodnień między rezerwującymi.';
     }
     setFormMessage(successMessage, 'success');
-    const { data: freshBooking, error: freshBookingError } = await supabase
-      .from('public_bookings')
-      .select('*')
-      .eq('id', payload.id)
-      .maybeSingle();
+    let freshBooking = null;
+    let freshBookingError = null;
+    try {
+      const { data, error } = await supabase
+        .from('public_bookings')
+        .select('*')
+        .eq('id', insertedBooking.id)
+        .maybeSingle();
+      freshBooking = data ?? null;
+      freshBookingError = error ?? null;
+    } catch (fetchError) {
+      freshBookingError = fetchError;
+    }
     if (freshBookingError) {
       console.error('Błąd pobierania nowej rezerwacji:', freshBookingError);
     }
     const bookingRow = freshBooking
       ? {
           ...freshBooking,
-          cancel_token: freshBooking.cancel_token ?? payload.cancel_token,
-          renter_email: freshBooking.renter_email ?? payload.renter_email,
-          renter_name: freshBooking.renter_name ?? payload.renter_name,
-          notes: freshBooking.notes ?? payload.notes,
+          cancel_token: freshBooking.cancel_token ?? insertedBooking.cancel_token ?? null,
+          renter_email: freshBooking.renter_email ?? insertedBooking.renter_email ?? null,
+          renter_name: freshBooking.renter_name ?? insertedBooking.renter_name ?? null,
+          notes: freshBooking.notes ?? insertedBooking.notes ?? null,
         }
-      : { ...payload };
+      : insertedBooking;
     state.bookingsCache.clear();
     await rerenderDayAndPreview();
     await showPostBookingActions(bookingRow, { logCancelUrl: true });
@@ -406,7 +370,6 @@ export function createBookingForm({
         },
       );
     }
-    refreshMathPuzzle();
   }
 
   async function handleCancelClick() {
@@ -676,9 +639,6 @@ export function createBookingForm({
     titleInput = form?.querySelector('input[name="title"]') || null;
     typeSelect = form?.querySelector('select[name="event_type_id"]') || null;
     renterNameInput = form?.querySelector('input[name="renter_name"]') || null;
-    mathAnswerInput = form?.querySelector('input[name="math_answer"]') || null;
-    mathPuzzleQuestionEl = $('#mathPuzzleQuestion');
-    mathPuzzleRefreshBtn = $('#mathPuzzleRefresh');
 
     if (titleInput) {
       titleInput.readOnly = true;
@@ -691,20 +651,13 @@ export function createBookingForm({
       renterNameInput.addEventListener('input', updateTitleField);
       renterNameInput.addEventListener('change', updateTitleField);
     }
-    if (mathPuzzleRefreshBtn) {
-      mathPuzzleRefreshBtn.addEventListener('click', () => {
-        refreshMathPuzzle({ focusInput: true });
-      });
-    }
     form?.addEventListener('reset', () => {
       window.setTimeout(() => {
         updateTitleField();
-        refreshMathPuzzle();
       }, 0);
     });
 
     updateTitleField();
-    renderMathPuzzle();
     const cancelBtn = $('#cancelThisBooking');
     if (cancelBtn) {
       cancelBtn.addEventListener('click', () => {
