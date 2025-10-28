@@ -541,7 +541,7 @@ select
   f.updated_at
 from public.list_public_facilities() f;
 
-grant select on table public.public_facilities to anon, authenticated;
+grant select on table public.public_facilities to anon, authenticated, service_role;
 
 create or replace function public.list_public_facilities()
 returns table (
@@ -593,7 +593,7 @@ as $$
   order by lower(coalesce(f.name, ''))
 $$;
 
-grant execute on function public.list_public_facilities() to anon, authenticated;
+grant execute on function public.list_public_facilities() to anon, authenticated, service_role;
 
 drop view if exists public.public_facilities;
 
@@ -619,7 +619,7 @@ select
   f.updated_at
 from public.list_public_facilities() f;
 
-grant select on table public.public_facilities to anon, authenticated;
+grant select on table public.public_facilities to anon, authenticated, service_role;
 
 -- Słownik udogodnień.
 create table if not exists public.amenities (
@@ -1345,6 +1345,18 @@ create index if not exists booking_request_throttle_ip_idx
   on public.booking_request_throttle (tenant_id, request_ip, created_at desc);
 
 alter table public.booking_request_throttle enable row level security;
+
+drop policy if exists "Service role manage booking throttle" on public.booking_request_throttle;
+create policy "Service role manage booking throttle"
+  on public.booking_request_throttle
+  for all
+  to service_role
+  using (
+    tenant_id = public.current_tenant_id()
+  )
+  with check (
+    tenant_id = public.current_tenant_id()
+  );
 
 -- Widok uproszczonych danych rezerwacji udostępniany publicznie.
 create or replace function public.list_public_bookings()

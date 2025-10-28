@@ -15,6 +15,18 @@ create index if not exists booking_request_throttle_ip_idx
 
 alter table public.booking_request_throttle enable row level security;
 
+drop policy if exists "Service role manage booking throttle" on public.booking_request_throttle;
+create policy "Service role manage booking throttle"
+  on public.booking_request_throttle
+  for all
+  to service_role
+  using (
+    tenant_id = public.current_tenant_id()
+  )
+  with check (
+    tenant_id = public.current_tenant_id()
+  );
+
 drop policy if exists "Anonymous can create pending bookings" on public.bookings;
 revoke insert on table public.bookings from anon;
 
