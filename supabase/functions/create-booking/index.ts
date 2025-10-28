@@ -11,7 +11,7 @@ type CreateBookingPayload = {
   notes?: string | null;
 };
 
-type FacilityRow = {
+type FacilityContext = {
   id: string;
   tenant_id: string;
 };
@@ -137,17 +137,34 @@ function parseIsoDate(value: unknown): Date | null {
   return parsed;
 }
 
-async function fetchFacility(facilityId: string): Promise<FacilityRow | null> {
-  const { data, error } = await supabaseService
-    .from('facilities')
-    .select('id, tenant_id')
+async function fetchFacilityContext(facilityId: string): Promise<FacilityContext | null> {
+  const { data: facility, error: facilityError } = await supabaseService
+    .from('public_facilities')
+    .select('id')
     .eq('id', facilityId)
     .maybeSingle();
-  if (error) {
-    console.error('create-booking: error fetching facility', error);
+  if (facilityError) {
+    console.error('create-booking: error verifying facility', facilityError);
     return null;
   }
-  return data ?? null;
+  if (!facility) {
+    return null;
+  }
+
+  const { data: tenantId, error: tenantError } = await supabaseService.rpc<string>(
+    'resolve_tenant_for_facility',
+    { p_facility_id: facilityId },
+  );
+  if (tenantError) {
+    console.error('create-booking: error resolving facility tenant', tenantError);
+    return null;
+  }
+  if (typeof tenantId !== 'string' || !isUuid(tenantId)) {
+    console.error('create-booking: invalid tenant id for facility', tenantId);
+    return null;
+  }
+
+  return { id: facility.id, tenant_id: tenantId };
 }
 
 function createTenantClient(tenantId: string) {
@@ -259,7 +276,7 @@ Deno.serve(async (request: Request) => {
     return jsonResponse({ error: 'Nie udało się ustalić adresu IP.' }, { status: 400 });
   }
 
-  const facility = await fetchFacility(facilityId);
+  const facility = await fetchFacilityContext(facilityId);
   if (!facility) {
     return jsonResponse({ error: 'Nie znaleziono wskazanego obiektu.' }, { status: 404 });
   }
